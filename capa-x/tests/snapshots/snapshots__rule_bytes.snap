@@ -1,0 +1,110 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "execute VBScript Javascript or JScript in memory",
+    Some(
+        "load-code",
+    ),
+    Scopes {
+        static_: Some(
+            Function,
+        ),
+        dynamic: None,
+    },
+    false,
+    Node {
+        stmt: And(
+            [
+                Node {
+                    stmt: Leaf(
+                        Api(
+                            "CoCreateInstance",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Bytes(
+                            [
+                                225,
+                                42,
+                                26,
+                                187,
+                                249,
+                                164,
+                                207,
+                                17,
+                                143,
+                                32,
+                                0,
+                                128,
+                                95,
+                                44,
+                                208,
+                                100,
+                            ],
+                        ),
+                    ),
+                    description: Some(
+                        "IID_IActiveScript",
+                    ),
+                },
+                Node {
+                    stmt: Leaf(
+                        Bytes(
+                            [
+                                226,
+                                42,
+                                26,
+                                187,
+                                249,
+                                164,
+                                207,
+                                17,
+                                143,
+                                32,
+                                0,
+                                128,
+                                95,
+                                44,
+                                208,
+                                100,
+                            ],
+                        ),
+                    ),
+                    description: Some(
+                        "IID_IActiveScriptParse32",
+                    ),
+                },
+                Node {
+                    stmt: Leaf(
+                        OperandNumber(
+                            0,
+                            Int(
+                                2,
+                            ),
+                        ),
+                    ),
+                    description: Some(
+                        "SCRIPTSTATE_CONNECTED",
+                    ),
+                },
+                Node {
+                    stmt: Leaf(
+                        OperandOffset(
+                            1,
+                            20,
+                        ),
+                    ),
+                    description: Some(
+                        "ParseScriptText",
+                    ),
+                },
+            ],
+        ),
+        description: None,
+    },
+)

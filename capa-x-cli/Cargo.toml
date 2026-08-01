@@ -1,0 +1,20 @@
+[package]
+name = "capa-x-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "capa-x: detect capabilities in executable files"
+
+[[bin]]
+name = "capa-x"
+path = "src/main.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+capa-x = { path = "../capa-x" }
+clap = { version = "4", features = ["derive", "env"] }
+serde_json = "1"
+serde_yaml = "0.9"

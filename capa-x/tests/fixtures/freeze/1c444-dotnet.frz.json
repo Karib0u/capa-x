@@ -1,0 +1,1783 @@
+{
+ "version": 3,
+ "base_address": {
+  "type": "no address",
+  "value": null
+ },
+ "sample_hashes": {
+  "md5": "1c444ebeba24dcba8628b7dfe5fec7c6",
+  "sha1": "ebdec120fbbdbff28ebd6accc85d05f7ccabf461",
+  "sha256": "a9f9e5a30cc858dc135ec428cdd68cb06143732e5c62c4dc4b359c8abc11d74b"
+ },
+ "flavor": "static",
+ "extractor": {
+  "name": "DnfileFeatureExtractor",
+  "version": ""
+ },
+ "features": {
+  "global_": [
+   {
+    "feature": {
+     "type": "arch",
+     "arch": "any",
+     "description": null
+    }
+   },
+   {
+    "feature": {
+     "type": "format",
+     "format": "dotnet",
+     "description": null
+    }
+   },
+   {
+    "feature": {
+     "type": "format",
+     "format": "pe",
+     "description": null
+    }
+   },
+   {
+    "feature": {
+     "type": "os",
+     "os": "any",
+     "description": null
+    }
+   }
+  ],
+  "file": [
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777217
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Object",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777218
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Windows.Forms.Form",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777219
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.ValueType",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777220
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.EventArgs",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777221
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.ComponentModel.IContainer",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777222
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Drawing.Image",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777223
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Diagnostics.Process",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777224
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Diagnostics.ProcessStartInfo",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777225
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Threading.Thread",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777226
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Timers.Timer",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777227
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Action`1",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777228
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Net.Sockets.TcpClient",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777229
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Net.Sockets.NetworkStream",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777230
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.Collections.Generic.List`1",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 16777231
+    },
+    "feature": {
+     "type": "class",
+     "class_": "System.IO.DirectoryInfo",
+     "description": null
+    }
+   }
+  ],
+  "functions": [
+   {
+    "address": {
+     "type": "dn token",
+     "value": 100663302
+    },
+    "features": [
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 100663299
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls to",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772187
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772192
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772209
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772210
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772211
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772212
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772213
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772214
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772215
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772216
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     },
+     {
+      "function": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "address": {
+       "type": "dn token",
+       "value": 167772217
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls from",
+       "description": null
+      }
+     }
+    ],
+    "basic_blocks": [
+     {
+      "address": {
+       "type": "dn token",
+       "value": 100663302
+      },
+      "features": [],
+      "instructions": [
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          0
+         ]
+        },
+        "features": []
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          1
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            1
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            1
+           ]
+          },
+          "feature": {
+           "type": "api",
+           "api": "System.Windows.Forms.Control::SuspendLayout",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            1
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            1
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.Windows.Forms.Control",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            1
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            1
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System.Windows.Forms",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          6
+         ]
+        },
+        "features": []
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          7
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            7
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            7
+           ]
+          },
+          "feature": {
+           "type": "number",
+           "number": 6.0,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          12
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            12
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            12
+           ]
+          },
+          "feature": {
+           "type": "number",
+           "number": 13.0,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          17
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            17
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            17
+           ]
+          },
+          "feature": {
+           "type": "api",
+           "api": "System.Drawing.SizeF::ctor",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            17
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            17
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.Drawing.SizeF",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            17
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            17
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System.Drawing",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          22
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            22
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            22
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.Windows.Forms.ContainerControl",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            22
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            22
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System.Windows.Forms",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            22
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            22
+           ]
+          },
+          "feature": {
+           "type": "property",
+           "access": "write",
+           "property": "System.Windows.Forms.ContainerControl::AutoScaleDimensions",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            22
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            22
+           ]
+          },
+          "feature": {
+           "type": "property",
+           "access": null,
+           "property": "System.Windows.Forms.ContainerControl::AutoScaleDimensions",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          27
+         ]
+        },
+        "features": []
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          28
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            28
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            28
+           ]
+          },
+          "feature": {
+           "type": "number",
+           "number": 1,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          29
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            29
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            29
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.Windows.Forms.ContainerControl",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            29
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            29
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System.Windows.Forms",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            29
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            29
+           ]
+          },
+          "feature": {
+           "type": "property",
+           "access": "write",
+           "property": "System.Windows.Forms.ContainerControl::AutoScaleMode",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            29
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            29
+           ]
+          },
+          "feature": {
+           "type": "property",
+           "access": null,
+           "property": "System.Windows.Forms.ContainerControl::AutoScaleMode",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          34
+         ]
+        },
+        "features": []
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          35
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            35
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            35
+           ]
+          },
+          "feature": {
+           "type": "number",
+           "number": 252,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          40
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            40
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            40
+           ]
+          },
+          "feature": {
+           "type": "number",
+           "number": 161,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          45
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            45
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            45
+           ]
+          },
+          "feature": {
+           "type": "api",
+           "api": "System.Drawing.Size::ctor",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            45
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            45
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.Drawing.Size",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            45
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            45
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System.Drawing",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          50
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            50
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            50
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.Windows.Forms.Form",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            50
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            50
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System.Windows.Forms",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            50
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            50
+           ]
+          },
+          "feature": {
+           "type": "property",
+           "access": "write",
+           "property": "System.Windows.Forms.Form::ClientSize",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            50
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            50
+           ]
+          },
+          "feature": {
+           "type": "property",
+           "access": null,
+           "property": "System.Windows.Forms.Form::ClientSize",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          55
+         ]
+        },
+        "features": []
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          56
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            56
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            56
+           ]
+          },
+          "feature": {
+           "type": "string",
+           "string": "Form1",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          61
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            61
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            61
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.Windows.Forms.Control",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            61
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            61
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System.Windows.Forms",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            61
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            61
+           ]
+          },
+          "feature": {
+           "type": "property",
+           "access": "write",
+           "property": "System.Windows.Forms.Control::Name",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            61
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            61
+           ]
+          },
+          "feature": {
+           "type": "property",
+           "access": null,
+           "property": "System.Windows.Forms.Control::Name",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          66
+         ]
+        },
+        "features": []
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          67
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            67
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            67
+           ]
+          },
+          "feature": {
+           "type": "string",
+           "string": "Form1",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          72
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            72
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            72
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.Windows.Forms.Control",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            72
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            72
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System.Windows.Forms",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            72
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            72
+           ]
+          },
+          "feature": {
+           "type": "property",
+           "access": "write",
+           "property": "System.Windows.Forms.Control::Text",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            72
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            72
+           ]
+          },
+          "feature": {
+           "type": "property",
+           "access": null,
+           "property": "System.Windows.Forms.Control::Text",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          77
+         ]
+        },
+        "features": []
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          78
+         ]
+        },
+        "features": []
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          79
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            79
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            79
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "test_A1.Form1",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            79
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            79
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "test_A1",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          85
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            85
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            85
+           ]
+          },
+          "feature": {
+           "type": "api",
+           "api": "System.EventHandler::ctor",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            85
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            85
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.EventHandler",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            85
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            85
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          90
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            90
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            90
+           ]
+          },
+          "feature": {
+           "type": "api",
+           "api": "System.Windows.Forms.Form::add_Load",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            90
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            90
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.Windows.Forms.Form",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            90
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            90
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System.Windows.Forms",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          95
+         ]
+        },
+        "features": []
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          96
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            96
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            96
+           ]
+          },
+          "feature": {
+           "type": "number",
+           "number": 0,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          97
+         ]
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            97
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            97
+           ]
+          },
+          "feature": {
+           "type": "api",
+           "api": "System.Windows.Forms.Control::ResumeLayout",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            97
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            97
+           ]
+          },
+          "feature": {
+           "type": "class",
+           "class_": "System.Windows.Forms.Control",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            97
+           ]
+          },
+          "address": {
+           "type": "dn token offset",
+           "value": [
+            100663302,
+            97
+           ]
+          },
+          "feature": {
+           "type": "namespace",
+           "namespace": "System.Windows.Forms",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663302,
+          102
+         ]
+        },
+        "features": []
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "address": {
+     "type": "dn token",
+     "value": 100663409
+    },
+    "features": [],
+    "basic_blocks": [
+     {
+      "address": {
+       "type": "dn token",
+       "value": 100663409
+      },
+      "features": [],
+      "instructions": [
+       {
+        "address": {
+         "type": "dn token offset",
+         "value": [
+          100663409,
+          0
+         ]
+        },
+        "features": []
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

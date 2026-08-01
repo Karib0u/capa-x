@@ -1,0 +1,178 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "allocate memory",
+    None,
+    Scopes {
+        static_: Some(
+            BasicBlock,
+        ),
+        dynamic: Some(
+            Call,
+        ),
+    },
+    true,
+    Node {
+        stmt: Or(
+            [
+                Node {
+                    stmt: Leaf(
+                        Api(
+                            "VirtualAlloc",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Api(
+                            "VirtualAllocEx",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Api(
+                            "VirtualAllocExNuma",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Api(
+                            "NtAllocateVirtualMemory",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Api(
+                            "ZwAllocateVirtualMemory",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Api(
+                            "NtMapViewOfSection",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Api(
+                            "ZwMapViewOfSection",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Subscope {
+                        scope: BasicBlock,
+                        body: Node {
+                            stmt: And(
+                                [
+                                    Node {
+                                        stmt: Leaf(
+                                            MatchedRule(
+                                                "link function at runtime on Windows",
+                                            ),
+                                        ),
+                                        description: None,
+                                    },
+                                    Node {
+                                        stmt: Or(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        String(
+                                                            Plain(
+                                                                "VirtualAlloc",
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        String(
+                                                            Plain(
+                                                                "VirtualAllocEx",
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        String(
+                                                            Plain(
+                                                                "VirtualAllocExNuma",
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        String(
+                                                            Plain(
+                                                                "NtAllocateVirtualMemory",
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        String(
+                                                            Plain(
+                                                                "ZwAllocateVirtualMemory",
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        String(
+                                                            Plain(
+                                                                "NtMapViewOfSection",
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        String(
+                                                            Plain(
+                                                                "ZwMapViewOfSection",
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                ],
+                            ),
+                            description: None,
+                        },
+                    },
+                    description: None,
+                },
+            ],
+        ),
+        description: None,
+    },
+)

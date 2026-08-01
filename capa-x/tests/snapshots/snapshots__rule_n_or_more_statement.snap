@@ -1,0 +1,409 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "parse credit card information",
+    Some(
+        "collection/credit-card",
+    ),
+    Scopes {
+        static_: Some(
+            Function,
+        ),
+        dynamic: None,
+    },
+    false,
+    Node {
+        stmt: And(
+            [
+                Node {
+                    stmt: Some {
+                        count: 3,
+                        children: [
+                            Node {
+                                stmt: Subscope {
+                                    scope: Instruction,
+                                    body: Node {
+                                        stmt: And(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Mnemonic(
+                                                            "cmp",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Number(
+                                                            Int(
+                                                                94,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: Some(
+                                                        "'^' (Track 1 separator)",
+                                                    ),
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                },
+                                description: None,
+                            },
+                            Node {
+                                stmt: Subscope {
+                                    scope: Instruction,
+                                    body: Node {
+                                        stmt: And(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Mnemonic(
+                                                            "cmp",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Number(
+                                                            Int(
+                                                                61,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: Some(
+                                                        "'=' (Track 2 separator)",
+                                                    ),
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                },
+                                description: None,
+                            },
+                            Node {
+                                stmt: Subscope {
+                                    scope: Instruction,
+                                    body: Node {
+                                        stmt: And(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Mnemonic(
+                                                            "cmp",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Number(
+                                                            Int(
+                                                                37,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: Some(
+                                                        "'%' (Track 1 start sentinel)",
+                                                    ),
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                },
+                                description: None,
+                            },
+                            Node {
+                                stmt: Subscope {
+                                    scope: Instruction,
+                                    body: Node {
+                                        stmt: And(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Mnemonic(
+                                                            "cmp",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Number(
+                                                            Int(
+                                                                66,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: Some(
+                                                        "'B' (Format code)",
+                                                    ),
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                },
+                                description: None,
+                            },
+                            Node {
+                                stmt: Subscope {
+                                    scope: Instruction,
+                                    body: Node {
+                                        stmt: And(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Mnemonic(
+                                                            "cmp",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Number(
+                                                            Int(
+                                                                68,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: Some(
+                                                        "'D' (Format code)",
+                                                    ),
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                },
+                                description: None,
+                            },
+                            Node {
+                                stmt: Subscope {
+                                    scope: Instruction,
+                                    body: Node {
+                                        stmt: And(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Mnemonic(
+                                                            "cmp",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Number(
+                                                            Int(
+                                                                63,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: Some(
+                                                        "'?' (Track 1 & 2 end sentinel)",
+                                                    ),
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                },
+                                description: None,
+                            },
+                            Node {
+                                stmt: Subscope {
+                                    scope: Instruction,
+                                    body: Node {
+                                        stmt: And(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Mnemonic(
+                                                            "cmp",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Number(
+                                                            Int(
+                                                                59,
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    description: Some(
+                                                        "';' (Track 2 start sentinel)",
+                                                    ),
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                },
+                                description: None,
+                            },
+                        ],
+                    },
+                    description: None,
+                },
+                Node {
+                    stmt: Not(
+                        Node {
+                            stmt: And(
+                                [
+                                    Node {
+                                        stmt: Subscope {
+                                            scope: Instruction,
+                                            body: Node {
+                                                stmt: And(
+                                                    [
+                                                        Node {
+                                                            stmt: Leaf(
+                                                                Mnemonic(
+                                                                    "cmp",
+                                                                ),
+                                                            ),
+                                                            description: None,
+                                                        },
+                                                        Node {
+                                                            stmt: Leaf(
+                                                                Number(
+                                                                    Int(
+                                                                        109,
+                                                                    ),
+                                                                ),
+                                                            ),
+                                                            description: Some(
+                                                                "'m'",
+                                                            ),
+                                                        },
+                                                    ],
+                                                ),
+                                                description: None,
+                                            },
+                                        },
+                                        description: None,
+                                    },
+                                    Node {
+                                        stmt: Subscope {
+                                            scope: Instruction,
+                                            body: Node {
+                                                stmt: And(
+                                                    [
+                                                        Node {
+                                                            stmt: Leaf(
+                                                                Mnemonic(
+                                                                    "cmp",
+                                                                ),
+                                                            ),
+                                                            description: None,
+                                                        },
+                                                        Node {
+                                                            stmt: Leaf(
+                                                                Number(
+                                                                    Int(
+                                                                        110,
+                                                                    ),
+                                                                ),
+                                                            ),
+                                                            description: Some(
+                                                                "'n'",
+                                                            ),
+                                                        },
+                                                    ],
+                                                ),
+                                                description: None,
+                                            },
+                                        },
+                                        description: None,
+                                    },
+                                    Node {
+                                        stmt: Subscope {
+                                            scope: Instruction,
+                                            body: Node {
+                                                stmt: And(
+                                                    [
+                                                        Node {
+                                                            stmt: Leaf(
+                                                                Mnemonic(
+                                                                    "cmp",
+                                                                ),
+                                                            ),
+                                                            description: None,
+                                                        },
+                                                        Node {
+                                                            stmt: Leaf(
+                                                                Number(
+                                                                    Int(
+                                                                        111,
+                                                                    ),
+                                                                ),
+                                                            ),
+                                                            description: Some(
+                                                                "'o'",
+                                                            ),
+                                                        },
+                                                    ],
+                                                ),
+                                                description: None,
+                                            },
+                                        },
+                                        description: None,
+                                    },
+                                    Node {
+                                        stmt: Subscope {
+                                            scope: Instruction,
+                                            body: Node {
+                                                stmt: And(
+                                                    [
+                                                        Node {
+                                                            stmt: Leaf(
+                                                                Mnemonic(
+                                                                    "cmp",
+                                                                ),
+                                                            ),
+                                                            description: None,
+                                                        },
+                                                        Node {
+                                                            stmt: Leaf(
+                                                                Number(
+                                                                    Int(
+                                                                        112,
+                                                                    ),
+                                                                ),
+                                                            ),
+                                                            description: Some(
+                                                                "'p'",
+                                                            ),
+                                                        },
+                                                    ],
+                                                ),
+                                                description: None,
+                                            },
+                                        },
+                                        description: None,
+                                    },
+                                ],
+                            ),
+                            description: None,
+                        },
+                    ),
+                    description: Some(
+                        "if a function also compares these non-hex characters it's most likely NOT parsing CC data",
+                    ),
+                },
+            ],
+        ),
+        description: None,
+    },
+)

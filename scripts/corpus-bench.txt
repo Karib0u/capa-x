@@ -1,0 +1,29 @@
+# Benchmark corpus -- the fixed 10-sample set behind the published
+# `--jobs` numbers (docs/BENCHMARKS.md, "Parallel scaling").
+# Paths are relative to tests/testfiles/, same as every other corpus list.
+#
+#   python3 scripts/bench.py --samples scripts/corpus-bench.txt \
+#       --capa-cli target/release/capa-x --jobs 1,2,4,default --runs 5 --markdown
+#
+# This is a *performance* list, not a correctness one: nothing here is
+# compared against Python capa. It exists so that two benchmark runs, months
+# apart, measure the same work -- a speedup claim over a corpus that quietly
+# changed is not a measurement.
+#
+# The strata are the ones the roadmap names (PE32, PE32+, ELF32, ELF64,
+# packed, small, medium, large), because each moves a different phase: file
+# size drives loading and recovery, function count drives the two parallel
+# seams, and a packed sample drives neither very hard while still having to be
+# parsed. Sizes are from the pinned testfiles commit in PINNED.md; keep the
+# annotations true if you re-pick a row.
+
+Practical Malware Analysis Lab 01-02.exe_                               # 3 KB PE32, packed (UPX) -- the floor: analysis is almost nothing, so this row measures fixed cost
+Practical Malware Analysis Lab 10-03.sys_                              # 3.5 KB PE32 driver
+bb38149ff4b5c95722b83f24ca27a42b.elf_                                  # 5.6 KB ELF, stripped
+368239d36d221d8877a07ab6799e643a.elf_                                  # 19 KB ELF32
+055da8e6ccfe5a9380231ea04b850e18.elf_                                  # 22 KB ELF64
+79cde1aa711e321b4939805d27e160be.exe_                                  # 77 KB PE32
+03b236b23b1ec37c663527c1f53af3fe.dll_                                  # PE32+ DLL
+a198216798ca38f280dc413f8c57f2c2.exe_                                  # 293 KB PE32
+2826b762b9c268601a44974ef469a671b441e798a6c3cbb40070450c6c030ba2.exe_  # 1.6 MB PE, Themida-packed
+112f9f0e8d349858a80dd8c14190e620.exe_                                  # 9.6 MB PE -- the ceiling: recovery and extraction dominate here

@@ -1,0 +1,25 @@
+/target/
+**/target/
+.venv/
+*.frz
+*.frz.json
+# ...except the small, deliberately-committed round-trip fixtures.
+!capa-x/tests/fixtures/freeze/*.frz.json
+.DS_Store
+*.pdb
+Cargo.lock.bak
+
+# scripts/difftest.py's sha256-keyed freeze/-j cache; can be
+# large and is trivially regenerable, never meant to be committed.
+/.cache/
+__pycache__/
+.pytest_cache/
+
+# `maturin develop`'s editable install compiles the extension straight into
+# the source tree (capa-x-python/python/capa_x/); `maturin build`/
+# `cibuildwheel` write wheels to dist/wheelhouse. All regenerable, none
+# meant to be committed.
+capa-x-python/python/capa_x/*.so
+capa-x-python/python/capa_x/*.pyd
+capa-x-python/dist/
+capa-x-python/wheelhouse/

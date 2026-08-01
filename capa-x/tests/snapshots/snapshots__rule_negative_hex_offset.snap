@@ -1,0 +1,253 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "hash data with MD5",
+    Some(
+        "data-manipulation/hashing/md5",
+    ),
+    Scopes {
+        static_: Some(
+            Function,
+        ),
+        dynamic: Some(
+            SpanOfCalls,
+        ),
+    },
+    false,
+    Node {
+        stmt: Or(
+            [
+                Node {
+                    stmt: And(
+                        [
+                            Node {
+                                stmt: Leaf(
+                                    Number(
+                                        Int(
+                                            1732584193,
+                                        ),
+                                    ),
+                                ),
+                                description: Some(
+                                    "A, also used in SHA1, RIPEMD-128, RIPEMD-160, RIPEMD-256, and RIPEMD-320",
+                                ),
+                            },
+                            Node {
+                                stmt: Leaf(
+                                    Number(
+                                        Int(
+                                            4023233417,
+                                        ),
+                                    ),
+                                ),
+                                description: Some(
+                                    "B, also used in SHA1, RIPEMD-128, RIPEMD-160, RIPEMD-256, and RIPEMD-320",
+                                ),
+                            },
+                            Node {
+                                stmt: Leaf(
+                                    Number(
+                                        Int(
+                                            2562383102,
+                                        ),
+                                    ),
+                                ),
+                                description: Some(
+                                    "C, also used in SHA1, RIPEMD-128, RIPEMD-160, RIPEMD-256, and RIPEMD-320",
+                                ),
+                            },
+                            Node {
+                                stmt: Leaf(
+                                    Number(
+                                        Int(
+                                            271733878,
+                                        ),
+                                    ),
+                                ),
+                                description: Some(
+                                    "D, also used in SHA1, RIPEMD-128, RIPEMD-160, RIPEMD-256, and RIPEMD-320",
+                                ),
+                            },
+                            Node {
+                                stmt: Not(
+                                    Node {
+                                        stmt: Leaf(
+                                            Number(
+                                                Int(
+                                                    3285377520,
+                                                ),
+                                            ),
+                                        ),
+                                        description: Some(
+                                            "likely SHA1 but also used in RIPEMD-160 and RIPEMD-320",
+                                        ),
+                                    },
+                                ),
+                                description: None,
+                            },
+                            Node {
+                                stmt: Some {
+                                    count: 0,
+                                    children: [
+                                        Node {
+                                            stmt: And(
+                                                [
+                                                    Node {
+                                                        stmt: Leaf(
+                                                            Offset(
+                                                                -680876936,
+                                                            ),
+                                                        ),
+                                                        description: None,
+                                                    },
+                                                    Node {
+                                                        stmt: Leaf(
+                                                            Offset(
+                                                                -389564586,
+                                                            ),
+                                                        ),
+                                                        description: None,
+                                                    },
+                                                ],
+                                            ),
+                                            description: None,
+                                        },
+                                    ],
+                                },
+                                description: Some(
+                                    "specific compilation from https://github.com/rwfpl/rewolf-x86-virtualizer/blob/master/src/test_app/main.cpp",
+                                ),
+                            },
+                        ],
+                    ),
+                    description: Some(
+                        "magic initialization constants from MD4 and MD5",
+                    ),
+                },
+                Node {
+                    stmt: Subscope {
+                        scope: BasicBlock,
+                        body: Node {
+                            stmt: And(
+                                [
+                                    Node {
+                                        stmt: Leaf(
+                                            Number(
+                                                Int(
+                                                    32771,
+                                                ),
+                                            ),
+                                        ),
+                                        description: Some(
+                                            "CALG_MD5",
+                                        ),
+                                    },
+                                    Node {
+                                        stmt: Leaf(
+                                            Api(
+                                                "CryptCreateHash",
+                                            ),
+                                        ),
+                                        description: None,
+                                    },
+                                ],
+                            ),
+                            description: None,
+                        },
+                    },
+                    description: None,
+                },
+                Node {
+                    stmt: Subscope {
+                        scope: Call,
+                        body: Node {
+                            stmt: And(
+                                [
+                                    Node {
+                                        stmt: Leaf(
+                                            Number(
+                                                Int(
+                                                    32771,
+                                                ),
+                                            ),
+                                        ),
+                                        description: Some(
+                                            "CALG_MD5",
+                                        ),
+                                    },
+                                    Node {
+                                        stmt: Leaf(
+                                            Api(
+                                                "CryptCreateHash",
+                                            ),
+                                        ),
+                                        description: None,
+                                    },
+                                ],
+                            ),
+                            description: None,
+                        },
+                    },
+                    description: None,
+                },
+                Node {
+                    stmt: And(
+                        [
+                            Node {
+                                stmt: Leaf(
+                                    Format(
+                                        "dotnet",
+                                    ),
+                                ),
+                                description: None,
+                            },
+                            Node {
+                                stmt: Or(
+                                    [
+                                        Node {
+                                            stmt: Leaf(
+                                                Api(
+                                                    "System.Security.Cryptography.MD5::Create",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                Api(
+                                                    "System.Security.Cryptography.MD5CryptoServiceProvider::ctor",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                    ],
+                                ),
+                                description: None,
+                            },
+                            Node {
+                                stmt: Some {
+                                    count: 0,
+                                    children: [
+                                        Node {
+                                            stmt: Leaf(
+                                                Api(
+                                                    "System.Security.Cryptography.HashAlgorithm::ComputeHash",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                    ],
+                                },
+                                description: None,
+                            },
+                        ],
+                    ),
+                    description: None,
+                },
+            ],
+        ),
+        description: None,
+    },
+)

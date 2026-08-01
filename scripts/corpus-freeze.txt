@@ -1,0 +1,96 @@
+# Freeze differential corpus. Paths are relative to tests/testfiles/. Curated
+# as a mix of small/fast
+# samples (matching-engine correctness is the target, not extraction
+# perf) across PE32/PE64, ELF (incl. aarch64),
+# shellcode, .NET, and CAPE dynamic reports.
+#
+# regenerate the selection with: see git history of this file for the
+# one-off script used, or hand-curate further as the corpus evolves.
+
+# --- PE (smallest 32) ---
+Practical Malware Analysis Lab 01-02.exe_
+Practical Malware Analysis Lab 10-03.sys_
+e842958188274d5ffee7fbeffb803b2e.dll_
+638dcc3d37b3a574044233c9637d7288.exe_
+Practical Malware Analysis Lab 14-02.exe_
+3f1f67e21469d9084696cc8ce75723405019ac085726ab9d51c97b797110ed1d.dll_
+9bca6b99e7981208af4c7925b96fb9cf.exe_
+c29513e5a51dd24ca840f7628b872cba921976cba89dcbffd5028ba15481108c.dll_
+acd2d663799e8919b09e188adbb55ac655e5409bcd073e6a4b6576163e6e65d5.exe_
+a301eadd2b665b696803e143dd4d657d71c56bbded2a3a1b96c5bcb83cc6796a.dll_
+cc870a35c6840987dcb8c2dd46bc230a.exe_
+be619015f1d5fb13d3bcd48d1b0843759a5e040d8af3da50f2d8f55b5a680e02.dll_
+592cfd22bba96ef3aab566fe7bf82aff5e1b4130856d1f7f847d03d4689af7e7.exe_
+79abd17391adc6251ecdc58d13d76baf.dll_
+c2bb17c12975ea61ff43a71afd9c3ff111d018af161859abae0bdb0b3dae98f9.exe_
+Practical Malware Analysis Lab 18-03.exe_
+52d8e95c9883cd16d7b44e3a7adc22d6.exe_
+Practical Malware Analysis Lab 18-01.exe_
+03bb32d43885e83bc56c0b2bcad6f0c5ea40402763b7057056c654990022471b.dll_
+98c37c3c23bbfb362dac7754c6ba48e75cf24d73bc963a4cdfca557b9e016909.exe_
+f03bdb9fa52f7b61ef03141fefff1498ad2612740b1fdbf6941f1c5af5eee70a.exe_
+ping_täst.exe_
+Practical Malware Analysis Lab 01-01.exe_
+dc4dc746d8a14060fb5fc7edd4ef5282.exe_
+2f43138aa75fb12ac482b486cbc98569.dll_
+e3a6fbbc9b315141da37e5abbae05bf20aa9f48d5f569c6353360f59a0315245.exe_
+c3ef997d330e65be1e22ba4d2622ece23391c6cfc78b2ee515f3d0c7a3083a79.exe_
+1d8fd13c890060464019c0f07b928b1a.exe_
+4f509bdfe5a2fe4320cdc070eedc0a72e12cc08f43d60a7701305b3d1408102b.exe_
+9879d201dc5aca863f357184cd1f170e.dll_
+af13e7583ed1b27c4ae219e344a37e2b.exe_
+e5369ac309f1be6d77afeeb3edab0ed8.exe_
+
+# --- ELF (smallest 16, x86/x64) ---
+# (5e4263...elf_, the single smallest ELF in the corpus, was swapped out: not
+# an x86/x64 target, which capa's ELF backend rejects outright.)
+294b8db1f2702b60fb2e42fdc50c2cee6a5046112da9a5703a548a4fa50477bc.elf_
+bb38149ff4b5c95722b83f24ca27a42b.elf_
+a72ac9f1cf6cc01103765f866aae2dd85ea48208fb180c01076ca982684a4032.elf_
+9486f2c5d514c1f39833b852ab03f4c0297e9e82b456b0dccad1a2d7d15c3385.elf_
+ffa48ed4b7b48897f6756c4222b2606399de0bca627cedfddf61e69986580430.elf_
+51828683dc26bfabd3994494099ae97d.elf_
+055da8e6ccfe5a9380231ea04b850e18.elf_
+368239d36d221d8877a07ab6799e643a.elf_
+c2c3b3eea177b9411bc92a8800b40529fcd2d5c3696e71cbb2f4025429b314ee.elf_
+e5e8c139772efe47f738f4788ae9b3dc97960b1c006bc6a406715cab69f27cfc.elf_
+34dbc85ed0386e024c724c7969e8d0ff0ff0b1882508ea259c458d59657a1971.elf_
+microsocks.elf_
+1038a23daad86042c66bfe6c9d052d27048de9653bde5750dc0f240c792d9ac8.elf_
+7351f8a40c5450557b24622417fc478d.elf_
+# (c2b2d7cea9...elf_ swapped out: crashes vivisect's ELF section-header
+# parser with a SegmentationViolation, unrelated to capa-x.)
+a6e9d94e286984b9e44c58df5eeb20cf5c08b9acff4af341ddecdfbe3ea9249d.elf_
+512a5575ff395389fc952d7925e72be1ca4ba86a5d4f2da50f1cbbde0b208c92.elf_
+
+# --- shellcode (32-bit and 64-bit) ---
+499c2a85f6e8142c3f48d4251c9c7cd6.raw32
+4b9efd882c49ef7525370ffb5197ad86.raw64
+79f5cabff898d60cd614e7254d409d9c2e05184416e5c54201e2dc216998d28b.raw64
+b43fca5283bfc7022553eff663683834.raw32
+d890c1c67d83f1131c065b5eb5f263cbf54559dbcdb4562c3bde3dc30d1a3205.raw64
+
+# --- ELF aarch64 ---
+# (c7f38027...elf_ dropped: OS auto-detection fails for it and there's no
+# fourth aarch64 sample in testfiles to swap in; `capa --os linux` would fix
+# it but difftest.py doesn't thread a per-sample --os override.)
+aarch64/687e79cde5b0ced75ac229465835054931f9ec438816f2827a8be5f3bd474929.elf_
+aarch64/d1e6506964edbfffb08c0dd32e1486b11fbced7a4bd870ffe79f110298f0efb8.elf_
+
+# --- .NET ---
+dotnet/dd9098ff91717f4906afe9dafdfa2f52.exe_
+dotnet/e8ea789b860e8354b3ef5058bea7ea98.exe_
+dotnet/1ee70f829fa4f21b97fea53412383b4c83be1aaf8bab2f4b692549f8ceb4388f.dll_
+dotnet/692f7fd6d198e804d6af98eb9e390d61.exe_
+
+# --- dynamic: CAPE sandbox reports ---
+# Not every .json.gz under tests/testfiles/dynamic/cape/ is actually usable
+# with the pinned flare-capa version (some raise EmptyReportError, some are
+# non-PE targets it rejects outright) -- these three were verified to work.
+# Picked small (call-count) ones deliberately: capa-x's matcher has no
+# feature indexing, so SpanOfCallsMatcher re-running
+# match_scope() roughly twice per call makes a report with tens of thousands
+# of calls take minutes, not seconds.
+dynamic/cape/v2.2/d46900384c78863420fb3e297d0a2f743cd2b6b3f7f82bf64059a168e07aceb7.json.gz
+dynamic/cape/v2.2/55dcd38773f4104b95589acc87d93bf8b4a264b4a6d823b73fb6a7ab8144c08b.json.gz
+dynamic/cape/v2.4/fb7ade52dc5a1d6128b9c217114a46d0089147610f99f5122face29e429a1e74.json.gz

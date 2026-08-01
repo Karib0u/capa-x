@@ -1,0 +1,203 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build artifacts for (e.g. v0.3.0). Must already exist."
+        required: true
+
+permissions:
+  contents: write   # for creating GitHub releases + uploading assets
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    name: verify build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo test --all-features
+
+  build-cli:
+    name: build dndump (${{ matrix.target }})
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: dndump
+            archive_ext: tar.gz
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: dndump
+            archive_ext: tar.gz
+            cross: true
+          # macos-latest is Apple Silicon; rustc cross-compiles to x86_64
+          # natively (no `cross` needed) because Apple's toolchain ships both
+          # Darwin targets. GitHub has deprecated the Intel macos-13 runner.
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact: dndump
+            archive_ext: tar.gz
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact: dndump
+            archive_ext: tar.gz
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact: dndump.exe
+            archive_ext: zip
+          # Windows on ARM. windows-latest is x86_64; the MSVC toolchain
+          # ships ARM64 cross-compile support, so installing the target
+          # via rustup is sufficient — no `cross` needed.
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            artifact: dndump.exe
+            archive_ext: zip
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (${{ matrix.target }})
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --locked --version 0.2.5
+
+      - name: Build (native)
+        if: ${{ !matrix.cross }}
+        run: cargo build --release --features cli --bin dndump --target ${{ matrix.target }}
+
+      - name: Build (cross)
+        if: matrix.cross
+        run: cross build --release --features cli --bin dndump --target ${{ matrix.target }}
+
+      - name: Determine tag
+        id: tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package (Unix)
+        if: matrix.archive_ext == 'tar.gz'
+        shell: bash
+        run: |
+          name="dndump-${{ steps.tag.outputs.tag }}-${{ matrix.target }}"
+          mkdir "$name"
+          cp "target/${{ matrix.target }}/release/${{ matrix.artifact }}" "$name/"
+          cp README.md LICENSE "$name/"
+          tar -czf "$name.tar.gz" "$name"
+          shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256"
+
+      - name: Package (Windows)
+        if: matrix.archive_ext == 'zip'
+        shell: pwsh
+        run: |
+          $name = "dndump-${{ steps.tag.outputs.tag }}-${{ matrix.target }}"
+          New-Item -ItemType Directory -Path $name | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/${{ matrix.artifact }}" "$name/"
+          Copy-Item README.md, LICENSE "$name/"
+          Compress-Archive -Path $name -DestinationPath "$name.zip"
+          $hash = (Get-FileHash "$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Out-File "$name.zip.sha256" -Encoding ASCII
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dndump-${{ matrix.target }}
+          path: |
+            dndump-*.tar.gz
+            dndump-*.tar.gz.sha256
+            dndump-*.zip
+            dndump-*.zip.sha256
+          if-no-files-found: error
+
+  github-release:
+    name: create GitHub release
+    needs: build-cli
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          tag="${{ steps.tag.outputs.tag }}"
+          previous=$(git describe --tags --abbrev=0 "${tag}^" 2>/dev/null || echo "")
+          {
+            echo "notes<<EOF"
+            if [ -n "$previous" ]; then
+              echo "## Changes since $previous"
+              echo
+              git log --pretty=format:"- %s (%h)" "${previous}..${tag}"
+            else
+              echo "## Initial release"
+              echo
+              git log --pretty=format:"- %s (%h)" "${tag}"
+            fi
+            echo
+            echo
+            echo "## Binary downloads"
+            echo
+            echo "Pre-built \`dndump\` binaries are attached below for:"
+            echo "- Linux x86_64 / aarch64"
+            echo "- macOS x86_64 / aarch64"
+            echo "- Windows x86_64 / aarch64"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.sha256' \) -exec mv {} release/ \;
+          ls -la release
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
+          body: ${{ steps.notes.outputs.notes }}
+          files: release/*
+          draft: false
+          prerelease: ${{ contains(steps.tag.outputs.tag, '-') }}

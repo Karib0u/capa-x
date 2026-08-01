@@ -1,0 +1,44 @@
+[build-system]
+# maturin's own version pin -- see ADR 0006 for why this lives here rather
+# than PINNED.md (upstream-version tracking) or the workspace Cargo.toml
+# (Rust-only).
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+# `capa-x-python`, not `capa` and not `flare-capa`: the latter two are
+# Mandiant's own PyPI name and import name (see PINNED.md's `flare-capa`
+# row) -- the package name must not be mistaken for either.
+name = "capa_x"
+description = "In-process Python binding for capa-x: detect capabilities in PE/ELF/shellcode/.NET/Mach-O programs."
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "Apache-2.0" }
+authors = [{ name = "capa-x contributors" }]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Topic :: Security",
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+]
+dynamic = ["version"]
+
+[project.urls]
+Repository = "https://github.com/Karib0u/capa-x"
+Documentation = "https://github.com/Karib0u/capa-x/blob/main/docs/ARCHITECTURE.md"
+
+[tool.maturin]
+# Mixed layout: `python/capa_x/__init__.py` re-exports the compiled
+# extension so the wheel can also ship `.pyi` stubs and `py.typed`, which a
+# pure-Rust layout has nowhere to put.
+python-source = "python"
+module-name = "capa_x._capa_x"
+# `python-extension` (not `pyo3/extension-module` directly): the crate
+# feature-gates it so plain `cargo build`/`cargo test` at the workspace
+# level never need it -- see ADR 0006 and `capa-x-python/Cargo.toml`.
+features = ["python-extension"]
+manifest-path = "Cargo.toml"

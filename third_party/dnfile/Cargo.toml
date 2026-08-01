@@ -1,0 +1,50 @@
+[package]
+name = "dnfile"
+version = "0.5.1-capa.5"
+description = ".NET binary extractor (capa-x vendored fork, ADR 0003)"
+authors = ["Marirs <marirs@gmail.com>", "Andrey Mnatsakanov <andrey@3ig.kiev.ua>", "Jorge Alejandro Durán Royo<jorge.duran.royo@gmail.com>"]
+keywords = ["dotnet", "binary", "extractor", "pe"]
+categories = ["parsing"]
+readme = "README.md"
+license = "Apache-2.0"
+repository = "https://github.com/marirs/dnfile-rs"
+homepage = "https://github.com/marirs/dnfile-rs"
+edition = "2024"
+rust-version = "1.85"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+# PE-only goblin: skip the elf/mach/archive parsers we never call. We use
+# `goblin::pe::PE::parse` directly rather than `goblin::Object::parse`.
+goblin = { version = "0.10", default-features = false, features = ["pe32", "pe64", "alloc", "endian_fd", "std"] }
+scroll = "0.13"
+# We only call `Uuid::from_slice` for the #GUID heap; no RNG, no v4, no
+# format-string parsing needed.
+uuid = { version = "1", default-features = false }
+byteorder = "1"
+
+# CLI-only dependencies. Pulled in only when the `cli` feature is enabled,
+# so library consumers don't pay for them.
+clap = { version = "4", features = ["derive"], optional = true }
+prettytable-rs = { version = "0.10", optional = true }
+serde_json = { version = "1", optional = true }
+
+[features]
+default = []
+# Enables the `dndump` and `dnstrings` binaries (capa-style CLI inspectors).
+cli = ["dep:clap", "dep:prettytable-rs", "dep:serde_json"]
+
+[lib]
+name = "dnfile"
+path = "src/lib.rs"
+
+[[bin]]
+name = "dndump"
+path = "src/bin/dndump.rs"
+required-features = ["cli"]
+
+[[bin]]
+name = "dnstrings"
+path = "src/bin/dnstrings.rs"
+required-features = ["cli"]

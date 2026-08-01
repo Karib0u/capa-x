@@ -1,0 +1,15 @@
+# --profile dotnet corpus: every pinned raw .NET sample under
+# tests/testfiles/dotnet/ (PINNED.md's capa-testfiles pin). One column, same
+# format as every other corpus-*.txt (read_sample_list resolves relative
+# paths against tests/testfiles/).
+#
+# v3 Phase B task 5 landed `-f dotnet`: 100% rule-level agreement across all
+# 8 samples (`scripts/difftest.py --profile dotnet --mode full`), 2026-07-30.
+dotnet/1c444ebeba24dcba8628b7dfe5fec7c6.exe_
+dotnet/1ee70f829fa4f21b97fea53412383b4c83be1aaf8bab2f4b692549f8ceb4388f.dll_
+dotnet/2c7d60f77812607dec5085973ff76cea.dll_
+dotnet/387f15043f0198fd3a637b0758c2b6dde9ead795c3ed70803426fc355731b173.dll_
+dotnet/692f7fd6d198e804d6af98eb9e390d61.exe_
+dotnet/7f4ba9fc95b30baf8922a6933a4ff1c6a7fef41fae487bb31014c4963357770f.dll_
+dotnet/dd9098ff91717f4906afe9dafdfa2f52.exe_
+dotnet/e8ea789b860e8354b3ef5058bea7ea98.exe_

@@ -1,0 +1,5 @@
+# Controlled three-way runtime sample.
+# capa-x, Python capa 9.4.0, and marirs/capa-rs v0.5.2 all produce valid
+# JSON with the same user-visible capability rule set for this sample.
+
+Practical Malware Analysis Lab 18-03.exe_

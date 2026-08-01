@@ -1,0 +1,147 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "execute syscall",
+    Some(
+        "anti-analysis",
+    ),
+    Scopes {
+        static_: Some(
+            BasicBlock,
+        ),
+        dynamic: None,
+    },
+    false,
+    Node {
+        stmt: Or(
+            [
+                Node {
+                    stmt: And(
+                        [
+                            Node {
+                                stmt: Or(
+                                    [
+                                        Node {
+                                            stmt: Leaf(
+                                                Os(
+                                                    "linux",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                Os(
+                                                    "android",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                    ],
+                                ),
+                                description: None,
+                            },
+                            Node {
+                                stmt: Leaf(
+                                    Api(
+                                        "syscall",
+                                    ),
+                                ),
+                                description: None,
+                            },
+                        ],
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: And(
+                        [
+                            Node {
+                                stmt: Or(
+                                    [
+                                        Node {
+                                            stmt: Leaf(
+                                                Mnemonic(
+                                                    "sysenter",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                Mnemonic(
+                                                    "syscall",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Subscope {
+                                                scope: Instruction,
+                                                body: Node {
+                                                    stmt: And(
+                                                        [
+                                                            Node {
+                                                                stmt: Leaf(
+                                                                    Mnemonic(
+                                                                        "int",
+                                                                    ),
+                                                                ),
+                                                                description: None,
+                                                            },
+                                                            Node {
+                                                                stmt: Leaf(
+                                                                    OperandNumber(
+                                                                        0,
+                                                                        Int(
+                                                                            46,
+                                                                        ),
+                                                                    ),
+                                                                ),
+                                                                description: None,
+                                                            },
+                                                        ],
+                                                    ),
+                                                    description: None,
+                                                },
+                                            },
+                                            description: None,
+                                        },
+                                    ],
+                                ),
+                                description: None,
+                            },
+                            Node {
+                                stmt: Or(
+                                    [
+                                        Node {
+                                            stmt: Leaf(
+                                                Mnemonic(
+                                                    "ret",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                Mnemonic(
+                                                    "retn",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                    ],
+                                ),
+                                description: None,
+                            },
+                        ],
+                    ),
+                    description: None,
+                },
+            ],
+        ),
+        description: None,
+    },
+)

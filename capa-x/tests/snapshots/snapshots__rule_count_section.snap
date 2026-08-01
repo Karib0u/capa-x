@@ -1,0 +1,101 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "packed with Themida",
+    Some(
+        "anti-analysis/packer/themida",
+    ),
+    Scopes {
+        static_: Some(
+            File,
+        ),
+        dynamic: Some(
+            File,
+        ),
+    },
+    false,
+    Node {
+        stmt: Or(
+            [
+                Node {
+                    stmt: Leaf(
+                        Section(
+                            "Themida",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Section(
+                            ".Themida",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Section(
+                            ".themida",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Section(
+                            "WinLicen",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Section(
+                            ".winlice",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Range {
+                        feature: Section(
+                            "        ",
+                        ),
+                        min: 2,
+                        max: None,
+                    },
+                    description: None,
+                },
+                Node {
+                    stmt: And(
+                        [
+                            Node {
+                                stmt: Leaf(
+                                    Section(
+                                        "   ",
+                                    ),
+                                ),
+                                description: None,
+                            },
+                            Node {
+                                stmt: Leaf(
+                                    Section(
+                                        "        ",
+                                    ),
+                                ),
+                                description: None,
+                            },
+                        ],
+                    ),
+                    description: Some(
+                        "Section names containing 3 and 8 space characters observed in Themida 2.1.x packed files",
+                    ),
+                },
+            ],
+        ),
+        description: None,
+    },
+)

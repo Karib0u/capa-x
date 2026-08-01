@@ -1,0 +1,1350 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "reference analysis tools strings",
+    Some(
+        "anti-analysis",
+    ),
+    Scopes {
+        static_: Some(
+            File,
+        ),
+        dynamic: Some(
+            File,
+        ),
+    },
+    false,
+    Node {
+        stmt: Or(
+            [
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/ollydbg(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)ollydbg(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/ProcessHacker(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)ProcessHacker(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/tcpview(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)tcpview(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/autoruns(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)autoruns(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/autorunsc(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)autorunsc(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/filemon(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)filemon(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/procmon(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)procmon(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/regmon(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)regmon(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/procexp(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)procexp(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/(?<!\\w)ida[gqtuw]?(\\.exe)?$/i",
+                                    engine: Fancy(
+                                        (?si)(?<!\w)ida[gqtuw]?(\.exe)?$,
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/ida[gqtuw]?64(\\.exe)?$/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)ida[gqtuw]?64(\\.exe)?$",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/ImmunityDebugger(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)ImmunityDebugger(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/Wireshark(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)Wireshark(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/dumpcap(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)dumpcap(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/HookExplorer(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)HookExplorer(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/ImportREC(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)ImportREC(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/PETools(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)PETools(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/LordPE(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)LordPE(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/SysInspector(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)SysInspector(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/proc_analyzer(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)proc_analyzer(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/sysAnalyzer(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)sysAnalyzer(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/sniff_hit(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)sniff_hit(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/windbg(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)windbg(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/joeboxcontrol(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)joeboxcontrol(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/joeboxserver(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)joeboxserver(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/ResourceHacker(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)ResourceHacker(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/x32dbg(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)x32dbg(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/x64dbg(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)x64dbg(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/Fiddler(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)Fiddler(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/httpdebugger(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)httpdebugger(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/fakenet(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)fakenet(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/netmon(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)netmon(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/WPE PRO(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)WPE PRO(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/decompile(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)decompile(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/scylla/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)scylla",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/megadumper/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)megadumper",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/apdagent(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)apdagent(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/apimonitor(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)apimonitor(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/azurearcsystray(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)azurearcsystray(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/binaryninja(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)binaryninja(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/burpsuite(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)burpsuite(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/charles\\.exe/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)charles\\.exe",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/cutter(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)cutter(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/dbgx\\.shell(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)dbgx\\.shell(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/df5serv(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)df5serv(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/frida(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)frida(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/httpanalyzerv7(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)httpanalyzerv7(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/httpdebuggerui(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)httpdebuggerui(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/netcat(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)netcat(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/pin\\.exe/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)pin\\.exe",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/prl_tools(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)prl_tools(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/qemu-ga(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)qemu-ga(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/rammap(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)rammap(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/rammap64(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)rammap64(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/rdpclip(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)rdpclip(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/tasklist/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)tasklist",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/cred-store(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)cred-store(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/decoder\\.exe/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)decoder\\.exe",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/dnspy(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)dnspy(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/drrun(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)drrun(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/dumpit(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)dumpit(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/frida-inject(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)frida-inject(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/frida-server(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)frida-server(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/gdb\\.exe/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)gdb\\.exe",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/httpdebuggersvc(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)httpdebuggersvc(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/ilspy(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)ilspy(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/inetsim(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)inetsim(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/ksdumper(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)ksdumper(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/ksdumperclient(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)ksdumperclient(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/mitmdump(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)mitmdump(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/pestudio(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)pestudio(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/private-cloud-proxy(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)private-cloud-proxy(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/process\\.exe/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)process\\.exe",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/r2\\.exe/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)r2\\.exe",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/rekall(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)rekall(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/tcpdump(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)tcpdump(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/windasm(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)windasm(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Regex(
+                                CompiledRegex {
+                                    raw: "/x32dbgn(\\.exe)?/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)x32dbgn(\\.exe)?",
+                                        ),
+                                    ),
+                                },
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+            ],
+        ),
+        description: None,
+    },
+)

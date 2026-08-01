@@ -1,0 +1,217 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  schedule:
+    # difftest job only; see its `if:` condition below.
+    #
+    # Weekly, not nightly: the difftest is a slow-moving regression guard
+    # against a pinned corpus and a pinned reference, so a week is a fine
+    # granularity for it, and each run checks out multi-gigabyte submodules.
+    # Push a `difftest` label on a PR, or use workflow_dispatch, when you
+    # want it sooner.
+    - cron: "0 7 * * 1"
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: build (${{ matrix.os }})
+    # The cron is for the difftest job only; see its `if:` below.
+    if: github.event_name != 'schedule'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        # Submodules are not checked out by default here: reference/capa is
+        # only needed by the Python-driven difftest harness. rules/ is needed
+        # by the rule corpus tests, and the extractor parity tests use pinned
+        # samples from tests/testfiles/.
+
+      - name: Init test submodules
+        run: git submodule update --init --depth 1 rules tests/testfiles
+
+      # `cargo build`/`cargo test --workspace` includes `capa-x-python`, which
+      # (outside the `python-extension` feature -- see ADR 0006) links pyo3
+      # in its ordinary embedding mode, against a real, discovered
+      # `libpython`. Runner images don't reliably ship one linkable without
+      # this: Ubuntu's preinstalled `python3` has no `-dev`/shared-library
+      # package by default. `actions/setup-python`'s interpreters are built
+      # with a shared library on all three OSes, which is the whole reason
+      # for this step -- nothing here otherwise needs a specific Python
+      # version.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: cargo test
+        run: cargo test --workspace
+
+      # Gate J2 (docs/BENCHMARKS.md): `--jobs N` output must be byte-identical to
+      # `--jobs 1`. `cargo test` above already runs the library-level half
+      # (capa-x/tests/jobs_determinism.rs); this is the CLI half, which
+      # additionally covers argument handling and the rendered JSON.
+      #
+      # Ubuntu only, and five samples: the property is a property of the join,
+      # not of a platform or a corpus. The full 200-sample comparison is a
+      # pre-merge run, not a CI job.
+      - name: determinism (--jobs 1 vs 2 vs 4)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          cargo build --release -p capa-x-cli
+          python3 scripts/determinism.py \
+            --samples scripts/corpus-jobs.txt \
+            --capa-cli target/release/capa-x \
+            --jobs 2,4 --repeat 3
+
+  msrv:
+    name: msrv (rust-version in Cargo.toml)
+    runs-on: ubuntu-latest
+    # Same reasoning as `build`: the schedule is for the difftest job only.
+    # The MSRV cannot change without a commit, so a timer cannot catch
+    # anything a push does not.
+    if: github.event_name != 'schedule'
+    # A declared `rust-version` is only a claim until something builds on it.
+    # This pins the exact floor rather than a range: raising the MSRV is a
+    # deliberate edit to Cargo.toml, and this job is what makes an accidental
+    # raise fail instead of shipping.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch test submodules
+        run: git submodule update --init --depth 1 rules tests/testfiles
+
+      # See the same step in the `build` job above: `cargo test --workspace`
+      # needs a linkable `libpython` for `capa-x-python`'s non-extension-module
+      # build.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Read rust-version from Cargo.toml
+        id: msrv
+        run: |
+          set -euo pipefail
+          version="$(grep -m1 '^rust-version' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')"
+          if [[ -z "$version" ]]; then
+            echo "error: no rust-version in Cargo.toml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+
+      - uses: Swatinem/rust-cache@v2
+
+      # Build and test, not just check: `cargo check` would miss anything that
+      # only fails at codegen or link time.
+      - name: cargo test on the declared MSRV
+        run: cargo test --workspace --locked
+
+  # The per-push check for capa-x-python, distinct from the full cibuildwheel
+  # matrix in release.yml, which is tag/manual-dispatch only. Ubuntu only and
+  # a 5-sample corpus: this proves the binding still builds and still agrees
+  # with the CLI on every push, without a cross-platform wheel matrix.
+  python-binding:
+    name: python binding (J14)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Init test submodules
+        run: git submodule update --init --depth 1 rules tests/testfiles
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up pinned Python capa reference
+        run: |
+          pinned="$(grep -m1 'flare-capa' PINNED.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+          uv venv .venv
+          uv pip install --python .venv/bin/python "flare-capa==${pinned}" maturin pytest
+
+      - name: Build capa-x-cli (debug)
+        run: cargo build -p capa-x-cli
+
+      - name: Build and install the capa-x-python wheel
+        run: |
+          .venv/bin/maturin build --interpreter .venv/bin/python3 -m capa-x-python/Cargo.toml --out dist
+          .venv/bin/python3 -m pip install --no-deps --force-reinstall dist/*.whl
+
+      - name: pytest (capa-x-python/tests/)
+        run: .venv/bin/python3 -m pytest capa-x-python/tests/ -v
+
+      - name: J14 (binding vs CLI rule names, ResultDocument validation)
+        run: |
+          python3 scripts/difftest.py --mode binding \
+            --samples scripts/corpus-jobs.txt \
+            --capa-cli target/debug/capa-x --no-expected
+
+  difftest:
+    name: difftest (freeze corpus)
+    runs-on: ubuntu-latest
+    # Weekly, or on demand for a PR that wants difftest feedback before
+    # merge (label it "difftest") or a manual run. Not on every push/PR:
+    # it needs the full tests/testfiles + reference/capa submodules (large)
+    # and runs the pinned Python capa reference over the whole corpus.
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'difftest')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build capa-x-cli
+        run: cargo build -p capa-x-cli
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up pinned Python capa reference
+        run: |
+          pinned="$(grep -m1 'flare-capa' PINNED.md | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
+          uv venv .venv
+          uv pip install --python .venv/bin/python "flare-capa==${pinned}"
+
+      - name: scripts/check_env.sh
+        run: scripts/check_env.sh
+
+      - name: Run difftest corpus
+        run: python3 scripts/difftest.py --mode freeze --samples scripts/corpus-freeze.txt

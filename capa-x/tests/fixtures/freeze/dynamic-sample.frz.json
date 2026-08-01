@@ -1,0 +1,640 @@
+{
+ "version": 3,
+ "base_address": {
+  "type": "absolute",
+  "value": 4194304
+ },
+ "sample_hashes": {
+  "md5": "e2147b5333879f98d515cd9aa905d489",
+  "sha1": "ad4d520fb7792b4a5701df973d6bd8a6cbfbb57f",
+  "sha256": "0000a65749f5902c4d82ffa701198038f0b4870b00a27cfca109f8f933476d82"
+ },
+ "flavor": "dynamic",
+ "extractor": {
+  "name": "CapeExtractor",
+  "version": "9.4.0"
+ },
+ "features": {
+  "global_": [
+   {
+    "feature": {
+     "type": "format",
+     "format": "pe",
+     "description": null
+    }
+   },
+   {
+    "feature": {
+     "type": "os",
+     "os": "windows",
+     "description": null
+    }
+   },
+   {
+    "feature": {
+     "type": "arch",
+     "arch": "i386",
+     "description": null
+    }
+   }
+  ],
+  "file": [
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214860
+    },
+    "feature": {
+     "type": "import",
+     "import_": "rpcrt4.NdrSimpleTypeUnmarshall",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214860
+    },
+    "feature": {
+     "type": "import",
+     "import_": "NdrSimpleTypeUnmarshall",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214808
+    },
+    "feature": {
+     "type": "import",
+     "import_": "crypt32.CertRDNValueToStrW",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214808
+    },
+    "feature": {
+     "type": "import",
+     "import_": "CertRDNValueToStrW",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214808
+    },
+    "feature": {
+     "type": "import",
+     "import_": "crypt32.CertRDNValueToStr",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214808
+    },
+    "feature": {
+     "type": "import",
+     "import_": "CertRDNValueToStr",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214812
+    },
+    "feature": {
+     "type": "import",
+     "import_": "crypt32.CertCloseStore",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214812
+    },
+    "feature": {
+     "type": "import",
+     "import_": "CertCloseStore",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214916
+    },
+    "feature": {
+     "type": "import",
+     "import_": "msvcrt.strtol",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214916
+    },
+    "feature": {
+     "type": "import",
+     "import_": "strtol",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214820
+    },
+    "feature": {
+     "type": "import",
+     "import_": "esent.JetCloseDatabase",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214820
+    },
+    "feature": {
+     "type": "import",
+     "import_": "JetCloseDatabase",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214784
+    },
+    "feature": {
+     "type": "import",
+     "import_": "advapi32.QueryServiceObjectSecurity",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214784
+    },
+    "feature": {
+     "type": "import",
+     "import_": "QueryServiceObjectSecurity",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 4214788
+    },
+    "feature": {
+     "type": "import",
+     "import_": "advapi32.LookupAccountSidA",
+     "description": null
+    }
+   }
+  ],
+  "processes": [
+   {
+    "address": {
+     "type": "process",
+     "value": [
+      2820,
+      2360
+     ]
+    },
+    "name": "WerFault.exe",
+    "features": [
+     {
+      "process": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "address": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "feature": {
+       "type": "string",
+       "string": "comp",
+       "description": null
+      }
+     },
+     {
+      "process": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "address": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "feature": {
+       "type": "string",
+       "string": "COMP-PC",
+       "description": null
+      }
+     },
+     {
+      "process": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "address": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "feature": {
+       "type": "string",
+       "string": "C:\\Windows",
+       "description": null
+      }
+     },
+     {
+      "process": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "address": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "feature": {
+       "type": "string",
+       "string": "C:\\Users\\comp\\AppData\\Local\\Temp\\",
+       "description": null
+      }
+     },
+     {
+      "process": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "address": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "feature": {
+       "type": "string",
+       "string": "C:\\Windows\\SysWOW64\\WerFault.exe -u -p 2420 -s 396",
+       "description": null
+      }
+     },
+     {
+      "process": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "address": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "feature": {
+       "type": "string",
+       "string": "5c3a-8244",
+       "description": null
+      }
+     },
+     {
+      "process": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "address": {
+       "type": "process",
+       "value": [
+        2820,
+        2360
+       ]
+      },
+      "feature": {
+       "type": "string",
+       "string": "5f0c3476-f160-11ea-9f0e-806e6f6e6963",
+       "description": null
+      }
+     }
+    ],
+    "threads": [
+     {
+      "address": {
+       "type": "thread",
+       "value": [
+        2820,
+        2360,
+        240
+       ]
+      },
+      "features": [],
+      "calls": [
+       {
+        "address": {
+         "type": "call",
+         "value": [
+          2820,
+          2360,
+          240,
+          132
+         ]
+        },
+        "name": "NtWaitForSingleObject(Handle=0x230, Milliseconds=0xffffffff, Status=\"Infinite\") -> 0x0",
+        "features": [
+         {
+          "call": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            240,
+            132
+           ]
+          },
+          "address": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            240,
+            132
+           ]
+          },
+          "feature": {
+           "type": "string",
+           "string": "Infinite",
+           "description": null
+          }
+         },
+         {
+          "call": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            240,
+            132
+           ]
+          },
+          "address": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            240,
+            132
+           ]
+          },
+          "feature": {
+           "type": "number",
+           "number": 4294967295,
+           "description": null
+          }
+         },
+         {
+          "call": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            240,
+            132
+           ]
+          },
+          "address": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            240,
+            132
+           ]
+          },
+          "feature": {
+           "type": "number",
+           "number": 560,
+           "description": null
+          }
+         },
+         {
+          "call": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            240,
+            132
+           ]
+          },
+          "address": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            240,
+            132
+           ]
+          },
+          "feature": {
+           "type": "api",
+           "api": "NtWaitForSingleObject",
+           "description": null
+          }
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "address": {
+       "type": "thread",
+       "value": [
+        2820,
+        2360,
+        1744
+       ]
+      },
+      "features": [],
+      "calls": [
+       {
+        "address": {
+         "type": "call",
+         "value": [
+          2820,
+          2360,
+          1744,
+          30
+         ]
+        },
+        "name": "GetSystemTimeAsFileTime() -> 0x0",
+        "features": [
+         {
+          "call": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            1744,
+            30
+           ]
+          },
+          "address": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            1744,
+            30
+           ]
+          },
+          "feature": {
+           "type": "api",
+           "api": "GetSystemTimeAsFileTime",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "call",
+         "value": [
+          2820,
+          2360,
+          1744,
+          31
+         ]
+        },
+        "name": "NtDelayExecution(Milliseconds=0xea60, Status=\"Skipped\") -> 0x0",
+        "features": [
+         {
+          "call": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            1744,
+            31
+           ]
+          },
+          "address": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            1744,
+            31
+           ]
+          },
+          "feature": {
+           "type": "string",
+           "string": "Skipped",
+           "description": null
+          }
+         },
+         {
+          "call": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            1744,
+            31
+           ]
+          },
+          "address": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            1744,
+            31
+           ]
+          },
+          "feature": {
+           "type": "number",
+           "number": 60000,
+           "description": null
+          }
+         },
+         {
+          "call": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            1744,
+            31
+           ]
+          },
+          "address": {
+           "type": "call",
+           "value": [
+            2820,
+            2360,
+            1744,
+            31
+           ]
+          },
+          "feature": {
+           "type": "api",
+           "api": "NtDelayExecution",
+           "description": null
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,3 @@
+# --profile macho-fixture is retained as a placeholder for the captured
+# structure oracle. The authoritative Mach-O fixture gate is the 30-row
+# `capa-x/tests/macho_features.rs` suite, recorded in docs/BENCHMARKS.md.

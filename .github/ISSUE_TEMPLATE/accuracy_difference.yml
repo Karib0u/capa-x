@@ -1,0 +1,62 @@
+name: Accuracy difference
+description: Report a result difference from the pinned Python capa backend
+title: "[accuracy] "
+labels:
+  - accuracy
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read KNOWN_DIVERGENCES.md first. Existing backend differences should not be filed again unless new evidence changes their root cause or impact.
+  - type: input
+    id: version
+    attributes:
+      label: capa-x version
+      description: Output of `capa-x --version`, or the commit hash.
+    validations:
+      required: true
+  - type: input
+    id: reference
+    attributes:
+      label: Python capa version
+      description: Output of the reference `capa --version`.
+    validations:
+      required: true
+  - type: input
+    id: sample
+    attributes:
+      label: Sample hash
+      description: Provide a cryptographic hash. Do not attach malware.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Commands
+      description: Include both capa-x and Python capa commands with all flags.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: difference
+    attributes:
+      label: Result difference
+      description: List missing or extra rule names and relevant addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: investigation
+    attributes:
+      label: Investigation
+      description: Note any matching known divergence or suspected upstream mechanism.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I checked KNOWN_DIVERGENCES.md for this result class.
+          required: true
+        - label: I used the pinned rules with both implementations.
+          required: true
+        - label: I did not attach malware or sensitive sample content.
+          required: true

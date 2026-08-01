@@ -1,0 +1,23 @@
+# Determinism corpus -- the five samples CI compares at `--jobs 1` against
+# `--jobs 2` and `--jobs 4` on every push (docs/BENCHMARKS.md, gate J2).
+# Paths are relative to tests/testfiles/, same as every other corpus list.
+#
+#   python3 scripts/determinism.py --samples scripts/corpus-jobs.txt \
+#       --capa-cli target/release/capa-x --jobs 1,2,4 --repeat 5
+#
+# Small on purpose: this is a *cheap* per-push guard, and the property it
+# checks -- that the parallel join is ordered by address rather than by
+# completion -- is a property of the code, not of any particular sample. A
+# sample can only expose it by having enough functions to distribute, which is
+# the one thing every row here has. The full 200-sample comparison is a
+# pre-merge run, not a CI job.
+#
+# One row per input shape the parallel seams see: PE32, PE32+, ELF, packed,
+# and a large image whose functions are numerous enough that workers finish
+# far out of order.
+
+Practical Malware Analysis Lab 01-01.exe_                              # PE32
+03b236b23b1ec37c663527c1f53af3fe.dll_                                 # PE32+ DLL
+055da8e6ccfe5a9380231ea04b850e18.elf_                                 # ELF64
+2826b762b9c268601a44974ef469a671b441e798a6c3cbb40070450c6c030ba2.exe_ # packed
+112f9f0e8d349858a80dd8c14190e620.exe_                                 # 9.6 MB -- most functions, most reordering

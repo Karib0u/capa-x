@@ -1,0 +1,120 @@
+{
+  "mode": "full",
+  "samples": {
+    "009c2377b67997b0da1579f4bbc822c1.exe_": {
+      "diffs": 0,
+      "details": []
+    },
+    "03b236b23b1ec37c663527c1f53af3fe.dll_": {
+      "diffs": 0,
+      "details": []
+    },
+    "03bb32d43885e83bc56c0b2bcad6f0c5ea40402763b7057056c654990022471b.dll_": {
+      "diffs": 0,
+      "details": []
+    },
+    "0596c4ea5aa8def47f22c85d75aaca95.exe_": {
+      "diffs": 0,
+      "details": []
+    },
+    "09bf850be5da44a1c3629a1f62813a83.dll_": {
+      "diffs": 0,
+      "details": []
+    },
+    "0a30182ff3a6b67beb0f2cda9d0de678.exe_": {
+      "diffs": 0,
+      "details": []
+    },
+    "10cd7afd580ee9c222b0a87ff241d306.dll_": {
+      "diffs": 0,
+      "details": []
+    },
+    "112f9f0e8d349858a80dd8c14190e620.exe_": {
+      "diffs": 3,
+      "details": [
+        "  rule missing in capa-x: 'get keyboard layout'",
+        "  rule missing in capa-x: 'log keystrokes via application hook'",
+        "  rule missing in capa-x: 'set application hook'"
+      ]
+    },
+    "294b8db1f2702b60fb2e42fdc50c2cee6a5046112da9a5703a548a4fa50477bc.elf_": {
+      "diffs": 4,
+      "details": [
+        "  rule missing in capa-x: 'create process on Linux'",
+        "  rule missing in capa-x: 'enumerate files on Linux'",
+        "  rule missing in capa-x: 'set current directory'",
+        "  rule missing in capa-x: 'write file on Linux'"
+      ]
+    },
+    "2bf18d0403677378adad9001b1243211.elf_": {
+      "diffs": 0,
+      "details": []
+    },
+    "2ebadd04f0ada89c36c1409b6e96423a68dd77b513db8db3da203c36d3753e5f.exe_": {
+      "diffs": 0,
+      "details": []
+    },
+    "749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2.elf_": {
+      "diffs": 4,
+      "details": [
+        "  rule missing in capa-x: 'calculate modulo 256 via x86 assembly'",
+        "  rule extra in capa-x: 'create or open file'",
+        "  rule extra in capa-x: 'map or unmap memory on Linux'",
+        "  rule extra in capa-x: 'write file on Linux'"
+      ]
+    },
+    "82bf6347acf15e5d883715dc289d8a2b.exe_": {
+      "diffs": 2,
+      "details": [
+        "  rule extra in capa-x: 'enumerate PE sections'",
+        "  rule extra in capa-x: 'resolve function by parsing PE exports'"
+      ]
+    },
+    "8a132663bee5c2f0f5cbfebee1b55ac72934632bf32bc32d6e2dae797c9e6e35.dll_": {
+      "diffs": 0,
+      "details": []
+    },
+    "9efa86b43b4367bcdc1591aee59bda25.dll_": {
+      "diffs": 0,
+      "details": []
+    },
+    "Practical Malware Analysis Lab 01-02.exe_": {
+      "diffs": 0,
+      "details": []
+    },
+    "a198216798ca38f280dc413f8c57f2c2.exe_": {
+      "diffs": 0,
+      "details": []
+    },
+    "af13e7583ed1b27c4ae219e344a37e2b.exe_": {
+      "diffs": 0,
+      "details": []
+    },
+    "al-khaser_x86.exe_": {
+      "diffs": 0,
+      "details": []
+    },
+    "c2d46d256b8f9490c9599eea11ecef19fde7d4fdd2dea93604cee3cea8e172ac.exe_": {
+      "diffs": 1,
+      "details": [
+        "  rule extra in capa-x: 'contain loop'"
+      ]
+    },
+    "c335a9d41185a32ad918c5389ee54235.exe_": {
+      "diffs": 1,
+      "details": [
+        "  rule missing in capa-x: 'delete registry key'"
+      ]
+    },
+    "db9fe790b4e18abf55df31aa0b81e558.exe_": {
+      "diffs": 0,
+      "details": []
+    },
+    "e5e8c139772efe47f738f4788ae9b3dc97960b1c006bc6a406715cab69f27cfc.elf_": {
+      "diffs": 1,
+      "details": [
+        "  rule extra in capa-x: 'contain loop'"
+      ]
+    }
+  }
+}

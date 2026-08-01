@@ -1,0 +1,12 @@
+# --profile aarch64-binexport corpus: pinned raw AArch64 ELF <-> Ghidra
+# BinExport2 pairs (PINNED.md's capa-testfiles pin). Four columns per row,
+# whitespace-separated: <elf path> <binexport path> <elf sha256>
+# <binexport sha256>, both paths relative to tests/testfiles/. The hashes are
+# checked at load time (read_paired_sample_list) so a capa-testfiles bump
+# can't silently pair unrelated files.
+#
+# The IDA BinExport variant (mimikatz.exe_.ida.BinExport) is x86, not
+# AArch64, and is not part of this corpus.
+aarch64/687e79cde5b0ced75ac229465835054931f9ec438816f2827a8be5f3bd474929.elf_ binexport2/687e79cde5b0ced75ac229465835054931f9ec438816f2827a8be5f3bd474929.elf_.ghidra.BinExport 687e79cde5b0ced75ac229465835054931f9ec438816f2827a8be5f3bd474929 c924ae373fdf03ede8e08c579a4f3472ef9198466358cc0e72739ee7facae590
+aarch64/c7f38027552a3eca84e2bfc846ac1307fbf98657545426bb93a2d63555cbb486.elf_ binexport2/c7f38027552a3eca84e2bfc846ac1307fbf98657545426bb93a2d63555cbb486.elf_.ghidra.BinExport c7f38027552a3eca84e2bfc846ac1307fbf98657545426bb93a2d63555cbb486 c2ba26f30ad5ab787b65bdc235058d8730eed013431e1b3d408a2b9852c36e77
+aarch64/d1e6506964edbfffb08c0dd32e1486b11fbced7a4bd870ffe79f110298f0efb8.elf_ binexport2/d1e6506964edbfffb08c0dd32e1486b11fbced7a4bd870ffe79f110298f0efb8.elf_.ghidra.BinExport d1e6506964edbfffb08c0dd32e1486b11fbced7a4bd870ffe79f110298f0efb8 12fd32d5b3c7e6552eafffb6ec36d76b79ae299e072bd1ed895a0ed645973714

@@ -1,0 +1,126 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "encrypt data using RC4 PRGA",
+    Some(
+        "data-manipulation/encryption/rc4",
+    ),
+    Scopes {
+        static_: Some(
+            Function,
+        ),
+        dynamic: None,
+    },
+    false,
+    Node {
+        stmt: And(
+            [
+                Node {
+                    stmt: Range {
+                        feature: Characteristic(
+                            "nzxor",
+                        ),
+                        min: 1,
+                        max: Some(
+                            1,
+                        ),
+                    },
+                    description: None,
+                },
+                Node {
+                    stmt: Or(
+                        [
+                            Node {
+                                stmt: Leaf(
+                                    MatchedRule(
+                                        "calculate modulo 256 via x86 assembly",
+                                    ),
+                                ),
+                                description: None,
+                            },
+                            Node {
+                                stmt: Range {
+                                    feature: Mnemonic(
+                                        "movzx",
+                                    ),
+                                    min: 4,
+                                    max: None,
+                                },
+                                description: None,
+                            },
+                        ],
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Range {
+                        feature: Characteristic(
+                            "calls from",
+                        ),
+                        min: 0,
+                        max: Some(
+                            4,
+                        ),
+                    },
+                    description: None,
+                },
+                Node {
+                    stmt: Range {
+                        feature: BasicBlock,
+                        min: 4,
+                        max: Some(
+                            50,
+                        ),
+                    },
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        MatchedRule(
+                            "contain loop",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Some {
+                        count: 0,
+                        children: [
+                            Node {
+                                stmt: Or(
+                                    [
+                                        Node {
+                                            stmt: Leaf(
+                                                Number(
+                                                    Int(
+                                                        255,
+                                                    ),
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                Number(
+                                                    Int(
+                                                        256,
+                                                    ),
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                    ],
+                                ),
+                                description: None,
+                            },
+                        ],
+                    },
+                    description: None,
+                },
+            ],
+        ),
+        description: None,
+    },
+)

@@ -1,0 +1,37 @@
+# Code-layout corpus.
+# Paths are relative to tests/testfiles/. This preserves the ten inputs used
+# for docs/development/decisions/0001-backend.md and becomes the first recovery regression
+# gate before feature extraction. It covers PE32/PE32+, EXE/DLL/driver/packed,
+# and ELF32/ELF64 shared, PIE, stripped, and dynamically linked layouts.
+
+Practical Malware Analysis Lab 01-01.exe_
+Practical Malware Analysis Lab 03-02.dll_
+Practical Malware Analysis Lab 10-03.sys_
+2a7429d60040465f9bd27bbae2beef88.exe_
+52d8e95c9883cd16d7b44e3a7adc22d6.exe_
+03b236b23b1ec37c663527c1f53af3fe.dll_
+bb38149ff4b5c95722b83f24ca27a42b.elf_
+1038a23daad86042c66bfe6c9d052d27048de9653bde5750dc0f240c792d9ac8.elf_
+e17e6a79ed614f5468d0eed758629697.elf_
+microsocks.elf_
+
+# --- over-reporting samples -------------------------------------------------
+# Added 2026-07-27. This is the only oracle that diffs per-function *ownership*,
+# and its purpose is to identify cases where the native extractor reports a
+# capability the reference does not -- an ownership
+# question: which code got attributed to which function, or invented as a
+# function at all. Before this commit the list held exactly one of the 21
+# pure over-reporters (`e17e6a79`, already above), so the oracle was blind to
+# the class the phase exists to close.
+#
+# These are every *fresh*-measured (2026-07-27, `--mode full` on
+# corpus-outer.txt) sample that over-reports by >= 2 rules and under-reports by
+# none, minus `e17e6a79`, which was already here. Extra-rule counts are from
+# that run; keep them true if you re-measure.
+749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2.elf_   # 6 extra vs 4 reference-matched rules -- the flagship (A.2)
+10cd7afd580ee9c222b0a87ff241d306.dll_                                   # 2 extra: AES pair
+2826b762b9c268601a44974ef469a671b441e798a6c3cbb40070450c6c030ba2.exe_   # 2 extra: Themida pair; packed
+34dbc85ed0386e024c724c7969e8d0ff0ff0b1882508ea259c458d59657a1971.elf_   # 2 extra: create UDP socket / set file attributes; ELF
+50d5ee1ce2ca5e30c6b1019ee64eeec2.exe_                                   # 2 extra: delete directory / enumerate files recursively
+82bf6347acf15e5d883715dc289d8a2b.exe_                                   # 2 extra: enumerate PE sections / resolve function by parsing PE exports
+9324d1a8ae37a36ae560c37448c9705a.exe_                                   # 2 extra: connect to URL / create HTTP request

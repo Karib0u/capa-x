@@ -1,0 +1,932 @@
+{
+  "5e4263575796c6ea2445505a843e616111e0e540ec49441e3bb3fc99be7d3afb.elf_": {
+    "ascii": [
+      {
+        "offset": 448,
+        "value": "Long to String conversion needs no extra arguments"
+      },
+      {
+        "offset": 504,
+        "value": "String to Long conversion needs no extra arguments"
+      },
+      {
+        "offset": 556,
+        "value": "Long"
+      },
+      {
+        "offset": 597,
+        "value": ".symtab"
+      },
+      {
+        "offset": 605,
+        "value": ".strtab"
+      },
+      {
+        "offset": 613,
+        "value": ".shstrtab"
+      },
+      {
+        "offset": 623,
+        "value": ".rela.text"
+      },
+      {
+        "offset": 634,
+        "value": ".data"
+      },
+      {
+        "offset": 640,
+        "value": ".bss"
+      },
+      {
+        "offset": 645,
+        "value": ".rodata.str1.4"
+      },
+      {
+        "offset": 660,
+        "value": ".rela.PARISC.unwind"
+      },
+      {
+        "offset": 1441,
+        "value": "buffer___7227"
+      },
+      {
+        "offset": 1455,
+        "value": "l___7214"
+      },
+      {
+        "offset": 1464,
+        "value": ".LC1"
+      },
+      {
+        "offset": 1469,
+        "value": ".LC0"
+      },
+      {
+        "offset": 1474,
+        "value": ".LC3"
+      },
+      {
+        "offset": 1479,
+        "value": ".LC2"
+      },
+      {
+        "offset": 1484,
+        "value": "XmuCvtLongToString"
+      },
+      {
+        "offset": 1503,
+        "value": "XmuSnprintf"
+      },
+      {
+        "offset": 1515,
+        "value": "strlen"
+      },
+      {
+        "offset": 1522,
+        "value": "XtWarning"
+      },
+      {
+        "offset": 1532,
+        "value": "strcpy"
+      },
+      {
+        "offset": 1539,
+        "value": "XmuCvtStringToLong"
+      },
+      {
+        "offset": 1558,
+        "value": "sscanf"
+      },
+      {
+        "offset": 1565,
+        "value": "XtStringConversionWarning"
+      }
+    ],
+    "utf16le": []
+  },
+  "Practical Malware Analysis Lab 01-02.exe_": {
+    "ascii": [
+      {
+        "offset": 77,
+        "value": "!This program cannot be run in DOS mode."
+      },
+      {
+        "offset": 200,
+        "value": "Rich"
+      },
+      {
+        "offset": 472,
+        "value": "UPX0"
+      },
+      {
+        "offset": 512,
+        "value": "UPX1"
+      },
+      {
+        "offset": 552,
+        "value": "UPX2"
+      },
+      {
+        "offset": 987,
+        "value": "3.04"
+      },
+      {
+        "offset": 992,
+        "value": "UPX!"
+      },
+      {
+        "offset": 1319,
+        "value": "a\\`Y"
+      },
+      {
+        "offset": 1507,
+        "value": "(23h"
+      },
+      {
+        "offset": 1531,
+        "value": "MalService"
+      },
+      {
+        "offset": 1545,
+        "value": "sHGL345"
+      },
+      {
+        "offset": 1553,
+        "value": "http://w"
+      },
+      {
+        "offset": 1569,
+        "value": "warean"
+      },
+      {
+        "offset": 1576,
+        "value": "ysisbook.co"
+      },
+      {
+        "offset": 1590,
+        "value": "om#Int6net Explo!r 8FEI"
+      },
+      {
+        "offset": 1635,
+        "value": "SystemTimeToFile"
+      },
+      {
+        "offset": 1652,
+        "value": "GetMo"
+      },
+      {
+        "offset": 1675,
+        "value": "*Waitab'r"
+      },
+      {
+        "offset": 1692,
+        "value": "Process"
+      },
+      {
+        "offset": 1700,
+        "value": "OpenMu$x"
+      },
+      {
+        "offset": 1712,
+        "value": "ZSB+"
+      },
+      {
+        "offset": 1718,
+        "value": "ForS"
+      },
+      {
+        "offset": 1730,
+        "value": "ObjectU4"
+      },
+      {
+        "offset": 1756,
+        "value": "[Vrtb"
+      },
+      {
+        "offset": 1765,
+        "value": "CtrlDisp ch"
+      },
+      {
+        "offset": 1799,
+        "value": "Xcpt"
+      },
+      {
+        "offset": 1826,
+        "value": "mArg"
+      },
+      {
+        "offset": 1846,
+        "value": "5nm@_"
+      },
+      {
+        "offset": 1854,
+        "value": "t_fd"
+      },
+      {
+        "offset": 1897,
+        "value": "dlI37n"
+      },
+      {
+        "offset": 1904,
+        "value": "olfp"
+      },
+      {
+        "offset": 1993,
+        "value": "dW|6"
+      },
+      {
+        "offset": 2011,
+        "value": "lB`.rd"
+      },
+      {
+        "offset": 2428,
+        "value": "XPTPSW"
+      },
+      {
+        "offset": 2712,
+        "value": "KERNEL32.DLL"
+      },
+      {
+        "offset": 2725,
+        "value": "ADVAPI32.dll"
+      },
+      {
+        "offset": 2738,
+        "value": "MSVCRT.dll"
+      },
+      {
+        "offset": 2749,
+        "value": "WININET.dll"
+      },
+      {
+        "offset": 2762,
+        "value": "LoadLibraryA"
+      },
+      {
+        "offset": 2776,
+        "value": "GetProcAddress"
+      },
+      {
+        "offset": 2792,
+        "value": "VirtualProtect"
+      },
+      {
+        "offset": 2808,
+        "value": "VirtualAlloc"
+      },
+      {
+        "offset": 2822,
+        "value": "VirtualFree"
+      },
+      {
+        "offset": 2836,
+        "value": "ExitProcess"
+      },
+      {
+        "offset": 2850,
+        "value": "CreateServiceA"
+      },
+      {
+        "offset": 2866,
+        "value": "exit"
+      },
+      {
+        "offset": 2872,
+        "value": "InternetOpenA"
+      }
+    ],
+    "utf16le": []
+  },
+  "aarch64/c7f38027552a3eca84e2bfc846ac1307fbf98657545426bb93a2d63555cbb486.elf_": {
+    "ascii": [
+      {
+        "offset": 389,
+        "value": "ha8_"
+      },
+      {
+        "offset": 456,
+        "value": "Hello World!"
+      },
+      {
+        "offset": 470,
+        "value": "This string has a very strange label"
+      },
+      {
+        "offset": 508,
+        "value": "Linker: LLD 14.0.7"
+      },
+      {
+        "offset": 793,
+        "value": ".text"
+      },
+      {
+        "offset": 799,
+        "value": ".data"
+      },
+      {
+        "offset": 805,
+        "value": ".comment"
+      },
+      {
+        "offset": 814,
+        "value": ".symtab"
+      },
+      {
+        "offset": 822,
+        "value": ".shstrtab"
+      },
+      {
+        "offset": 832,
+        "value": ".strtab"
+      },
+      {
+        "offset": 841,
+        "value": "$x.0"
+      },
+      {
+        "offset": 846,
+        "value": "printString"
+      },
+      {
+        "offset": 858,
+        "value": "strlenLoop"
+      },
+      {
+        "offset": 869,
+        "value": "strlenDone"
+      },
+      {
+        "offset": 880,
+        "value": "helloWorldStr"
+      },
+      {
+        "offset": 894,
+        "value": "$d.1"
+      },
+      {
+        "offset": 899,
+        "value": "helloWorldStrLen"
+      },
+      {
+        "offset": 916,
+        "value": "$stringWith_Weird_Name"
+      },
+      {
+        "offset": 939,
+        "value": "$d.2"
+      },
+      {
+        "offset": 944,
+        "value": "_start"
+      }
+    ],
+    "utf16le": []
+  },
+  "bb38149ff4b5c95722b83f24ca27a42b.elf_": {
+    "ascii": [
+      {
+        "offset": 769,
+        "value": "__cxa_atexit"
+      },
+      {
+        "offset": 782,
+        "value": "LIBC"
+      },
+      {
+        "offset": 787,
+        "value": "libc.so"
+      },
+      {
+        "offset": 795,
+        "value": "libtool-checker.so"
+      },
+      {
+        "offset": 814,
+        "value": "__cxa_finalize"
+      },
+      {
+        "offset": 829,
+        "value": "__stack_chk_fail"
+      },
+      {
+        "offset": 846,
+        "value": "Java_o_ac_b"
+      },
+      {
+        "offset": 858,
+        "value": "Java_o_ac_a"
+      },
+      {
+        "offset": 870,
+        "value": "_Z6existsPKc"
+      },
+      {
+        "offset": 883,
+        "value": "_ZN7_JNIEnv14GetArrayLengthEP7_jarray"
+      },
+      {
+        "offset": 921,
+        "value": "fclose"
+      },
+      {
+        "offset": 928,
+        "value": "_ZN7_JNIEnv17GetStringUTFCharsEP8_jstringPh"
+      },
+      {
+        "offset": 972,
+        "value": "fopen"
+      },
+      {
+        "offset": 978,
+        "value": "_ZN7_JNIEnv21GetObjectArrayElementEP13_jobjectArrayi"
+      },
+      {
+        "offset": 1031,
+        "value": "_ZN7_JNIEnv21ReleaseStringUTFCharsEP8_jstringPKc"
+      },
+      {
+        "offset": 1080,
+        "value": "__android_log_print"
+      },
+      {
+        "offset": 1100,
+        "value": "_edata"
+      },
+      {
+        "offset": 1107,
+        "value": "__bss_start"
+      },
+      {
+        "offset": 1119,
+        "value": "_end"
+      },
+      {
+        "offset": 1124,
+        "value": "liblog.so"
+      },
+      {
+        "offset": 1134,
+        "value": "libm.so"
+      },
+      {
+        "offset": 1142,
+        "value": "libstdc++.so"
+      },
+      {
+        "offset": 1155,
+        "value": "libdl.so"
+      },
+      {
+        "offset": 1280,
+        "value": "@@eK"
+      },
+      {
+        "offset": 1297,
+        "value": "gQFBE"
+      },
+      {
+        "offset": 2442,
+        "value": "D$0;D$4"
+      },
+      {
+        "offset": 2617,
+        "value": "^_[]"
+      },
+      {
+        "offset": 2690,
+        "value": "^_[]"
+      },
+      {
+        "offset": 2808,
+        "value": "^_[]"
+      },
+      {
+        "offset": 2920,
+        "value": "^_[]"
+      },
+      {
+        "offset": 3032,
+        "value": "^_[]"
+      },
+      {
+        "offset": 3042,
+        "value": "RootBeer"
+      },
+      {
+        "offset": 3051,
+        "value": "LOOKING FOR BINARY: %s PRESENT!!!"
+      },
+      {
+        "offset": 3085,
+        "value": "LOOKING FOR BINARY: %s Absent :("
+      },
+      {
+        "offset": 3443,
+        "value": ";*2$\""
+      },
+      {
+        "offset": 4313,
+        "value": ".shstrtab"
+      },
+      {
+        "offset": 4362,
+        "value": ".dynsym"
+      },
+      {
+        "offset": 4370,
+        "value": ".dynstr"
+      },
+      {
+        "offset": 4378,
+        "value": ".gnu.hash"
+      },
+      {
+        "offset": 4401,
+        "value": ".gnu.version_d"
+      },
+      {
+        "offset": 4431,
+        "value": ".rel.dyn"
+      },
+      {
+        "offset": 4440,
+        "value": ".rel.plt"
+      },
+      {
+        "offset": 4449,
+        "value": ".text"
+      },
+      {
+        "offset": 4455,
+        "value": ".rodata"
+      },
+      {
+        "offset": 4463,
+        "value": ".eh_frame"
+      },
+      {
+        "offset": 4473,
+        "value": ".eh_frame_hdr"
+      },
+      {
+        "offset": 4487,
+        "value": ".data.rel.ro"
+      },
+      {
+        "offset": 4500,
+        "value": ".fini_array"
+      },
+      {
+        "offset": 4512,
+        "value": ".dynamic"
+      },
+      {
+        "offset": 4521,
+        "value": ".got"
+      },
+      {
+        "offset": 4526,
+        "value": ".got.plt"
+      },
+      {
+        "offset": 4535,
+        "value": ".data"
+      }
+    ],
+    "utf16le": []
+  },
+  "dotnet/dd9098ff91717f4906afe9dafdfa2f52.exe_": {
+    "ascii": [
+      {
+        "offset": 77,
+        "value": "!This program cannot be run in DOS mode."
+      },
+      {
+        "offset": 376,
+        "value": ".text"
+      },
+      {
+        "offset": 415,
+        "value": "`.rsrc"
+      },
+      {
+        "offset": 455,
+        "value": "@.reloc"
+      },
+      {
+        "offset": 720,
+        "value": "BSJB"
+      },
+      {
+        "offset": 736,
+        "value": "v4.0.30319"
+      },
+      {
+        "offset": 772,
+        "value": "#Strings"
+      },
+      {
+        "offset": 804,
+        "value": "#GUID"
+      },
+      {
+        "offset": 820,
+        "value": "#Blob"
+      },
+      {
+        "offset": 1557,
+        "value": "myclass_inner0_0"
+      },
+      {
+        "offset": 1574,
+        "value": "myclass_inner1_0"
+      },
+      {
+        "offset": 1591,
+        "value": "myclass_outer0"
+      },
+      {
+        "offset": 1606,
+        "value": "myclass_inner0_1"
+      },
+      {
+        "offset": 1623,
+        "value": "myclass_inner1_1"
+      },
+      {
+        "offset": 1640,
+        "value": "myclass_outer1"
+      },
+      {
+        "offset": 1655,
+        "value": "<Module>"
+      },
+      {
+        "offset": 1664,
+        "value": "mscorlib"
+      },
+      {
+        "offset": 1673,
+        "value": "mynamespace"
+      },
+      {
+        "offset": 1685,
+        "value": "message"
+      },
+      {
+        "offset": 1693,
+        "value": "Console"
+      },
+      {
+        "offset": 1701,
+        "value": "WriteLine"
+      },
+      {
+        "offset": 1711,
+        "value": "EmbeddedAttribute"
+      },
+      {
+        "offset": 1729,
+        "value": "CompilerGeneratedAttribute"
+      },
+      {
+        "offset": 1756,
+        "value": "AttributeUsageAttribute"
+      },
+      {
+        "offset": 1780,
+        "value": "DebuggableAttribute"
+      },
+      {
+        "offset": 1800,
+        "value": "RefSafetyRulesAttribute"
+      },
+      {
+        "offset": 1824,
+        "value": "CompilationRelaxationsAttribute"
+      },
+      {
+        "offset": 1856,
+        "value": "RuntimeCompatibilityAttribute"
+      },
+      {
+        "offset": 1886,
+        "value": "nested_classes_bk.exe"
+      },
+      {
+        "offset": 1908,
+        "value": "String"
+      },
+      {
+        "offset": 1915,
+        "value": "greeting"
+      },
+      {
+        "offset": 1924,
+        "value": "nested_classes_bk"
+      },
+      {
+        "offset": 1942,
+        "value": "System"
+      },
+      {
+        "offset": 1949,
+        "value": "Main"
+      },
+      {
+        "offset": 1954,
+        "value": "Version"
+      },
+      {
+        "offset": 1962,
+        "value": "myclass_inner_inner"
+      },
+      {
+        "offset": 1982,
+        "value": ".ctor"
+      },
+      {
+        "offset": 1988,
+        "value": "System.Diagnostics"
+      },
+      {
+        "offset": 2007,
+        "value": "System.Runtime.CompilerServices"
+      },
+      {
+        "offset": 2039,
+        "value": "DebuggingModes"
+      },
+      {
+        "offset": 2054,
+        "value": "args"
+      },
+      {
+        "offset": 2059,
+        "value": "Microsoft.CodeAnalysis"
+      },
+      {
+        "offset": 2082,
+        "value": "AttributeTargets"
+      },
+      {
+        "offset": 2099,
+        "value": "Concat"
+      },
+      {
+        "offset": 2106,
+        "value": "Object"
+      },
+      {
+        "offset": 2308,
+        "value": "WrapNonExceptionThrows"
+      },
+      {
+        "offset": 2357,
+        "value": "AllowMultiple"
+      },
+      {
+        "offset": 2373,
+        "value": "\tInherited"
+      },
+      {
+        "offset": 2450,
+        "value": "_CorExeMain"
+      },
+      {
+        "offset": 2462,
+        "value": "mscoree.dll"
+      },
+      {
+        "offset": 3263,
+        "value": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>"
+      },
+      {
+        "offset": 3322,
+        "value": "<assembly xmlns=\"urn:schemas-microsoft-com:asm.v1\" manifestVersion=\"1.0\">"
+      },
+      {
+        "offset": 3397,
+        "value": "  <assemblyIdentity version=\"1.0.0.0\" name=\"MyApplication.app\"/>"
+      },
+      {
+        "offset": 3463,
+        "value": "  <trustInfo xmlns=\"urn:schemas-microsoft-com:asm.v2\">"
+      },
+      {
+        "offset": 3519,
+        "value": "    <security>"
+      },
+      {
+        "offset": 3535,
+        "value": "      <requestedPrivileges xmlns=\"urn:schemas-microsoft-com:asm.v3\">"
+      },
+      {
+        "offset": 3605,
+        "value": "        <requestedExecutionLevel level=\"asInvoker\" uiAccess=\"false\"/>"
+      },
+      {
+        "offset": 3676,
+        "value": "      </requestedPrivileges>"
+      },
+      {
+        "offset": 3706,
+        "value": "    </security>"
+      },
+      {
+        "offset": 3723,
+        "value": "  </trustInfo>"
+      },
+      {
+        "offset": 3739,
+        "value": "</assembly>"
+      }
+    ],
+    "utf16le": [
+      {
+        "offset": 1460,
+        "value": "[C#dC"
+      },
+      {
+        "offset": 1472,
+        "value": "dc#dc"
+      },
+      {
+        "offset": 1484,
+        "value": "dc+i"
+      },
+      {
+        "offset": 2118,
+        "value": "Hello from myclass_outer!"
+      },
+      {
+        "offset": 2170,
+        "value": "Hello"
+      },
+      {
+        "offset": 2182,
+        "value": " from myclass_inner"
+      },
+      {
+        "offset": 2710,
+        "value": "VS_VERSION_INFO"
+      },
+      {
+        "offset": 2802,
+        "value": "VarFileInfo"
+      },
+      {
+        "offset": 2834,
+        "value": "Translation"
+      },
+      {
+        "offset": 2870,
+        "value": "StringFileInfo"
+      },
+      {
+        "offset": 2906,
+        "value": "000004b0"
+      },
+      {
+        "offset": 2930,
+        "value": "FileDescription"
+      },
+      {
+        "offset": 2974,
+        "value": "FileVersion"
+      },
+      {
+        "offset": 3000,
+        "value": "0.0.0.0"
+      },
+      {
+        "offset": 3022,
+        "value": "InternalName"
+      },
+      {
+        "offset": 3058,
+        "value": "LegalCopyright"
+      },
+      {
+        "offset": 3098,
+        "value": "OriginalFilename"
+      },
+      {
+        "offset": 3142,
+        "value": "ProductVersion"
+      },
+      {
+        "offset": 3172,
+        "value": "0.0.0.0"
+      },
+      {
+        "offset": 3194,
+        "value": "Assembly Version"
+      },
+      {
+        "offset": 3228,
+        "value": "0.0.0.0"
+      }
+    ]
+  }
+}

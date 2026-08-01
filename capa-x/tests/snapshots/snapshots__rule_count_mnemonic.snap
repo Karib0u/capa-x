@@ -1,0 +1,94 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "check for hardware breakpoints",
+    Some(
+        "anti-analysis/anti-debugging/debugger-detection",
+    ),
+    Scopes {
+        static_: Some(
+            Function,
+        ),
+        dynamic: None,
+    },
+    false,
+    Node {
+        stmt: And(
+            [
+                Node {
+                    stmt: Leaf(
+                        Api(
+                            "GetThreadContext",
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        Number(
+                            Int(
+                                65552,
+                            ),
+                        ),
+                    ),
+                    description: Some(
+                        "CONTEXT_DEBUG_REGISTERS",
+                    ),
+                },
+                Node {
+                    stmt: Leaf(
+                        Offset(
+                            4,
+                        ),
+                    ),
+                    description: Some(
+                        "DR0",
+                    ),
+                },
+                Node {
+                    stmt: Leaf(
+                        Offset(
+                            8,
+                        ),
+                    ),
+                    description: Some(
+                        "DR1",
+                    ),
+                },
+                Node {
+                    stmt: Leaf(
+                        Offset(
+                            12,
+                        ),
+                    ),
+                    description: Some(
+                        "DR2",
+                    ),
+                },
+                Node {
+                    stmt: Leaf(
+                        Offset(
+                            16,
+                        ),
+                    ),
+                    description: Some(
+                        "DR3",
+                    ),
+                },
+                Node {
+                    stmt: Range {
+                        feature: Mnemonic(
+                            "cmp",
+                        ),
+                        min: 4,
+                        max: None,
+                    },
+                    description: None,
+                },
+            ],
+        ),
+        description: None,
+    },
+)

@@ -1,0 +1,274 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "connect to WMI namespace via WbemLocator",
+    Some(
+        "host-interaction/wmi",
+    ),
+    Scopes {
+        static_: Some(
+            Function,
+        ),
+        dynamic: Some(
+            Call,
+        ),
+    },
+    false,
+    Node {
+        stmt: Or(
+            [
+                Node {
+                    stmt: Subscope {
+                        scope: Call,
+                        body: Node {
+                            stmt: Or(
+                                [
+                                    Node {
+                                        stmt: And(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Api(
+                                                            "CoCreateInstance",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Com(
+                                                            Class,
+                                                            "WbemLocator",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                    Node {
+                                        stmt: And(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        MatchedRule(
+                                                            "host-interaction/process/create",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Or(
+                                                        [
+                                                            Node {
+                                                                stmt: Leaf(
+                                                                    String(
+                                                                        Regex(
+                                                                            CompiledRegex {
+                                                                                raw: "/wmic(|\\.exe) /i",
+                                                                                engine: Standard(
+                                                                                    Regex(
+                                                                                        "(?si)wmic(|\\.exe) ",
+                                                                                    ),
+                                                                                ),
+                                                                            },
+                                                                        ),
+                                                                    ),
+                                                                ),
+                                                                description: None,
+                                                            },
+                                                            Node {
+                                                                stmt: Leaf(
+                                                                    String(
+                                                                        Regex(
+                                                                            CompiledRegex {
+                                                                                raw: "/Register-WMIEvent /i",
+                                                                                engine: Standard(
+                                                                                    Regex(
+                                                                                        "(?si)Register-WMIEvent ",
+                                                                                    ),
+                                                                                ),
+                                                                            },
+                                                                        ),
+                                                                    ),
+                                                                ),
+                                                                description: None,
+                                                            },
+                                                        ],
+                                                    ),
+                                                    description: None,
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                ],
+                            ),
+                            description: None,
+                        },
+                    },
+                    description: Some(
+                        "dynamic detection rule",
+                    ),
+                },
+                Node {
+                    stmt: And(
+                        [
+                            Node {
+                                stmt: Subscope {
+                                    scope: BasicBlock,
+                                    body: Node {
+                                        stmt: And(
+                                            [
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Api(
+                                                            "CoCreateInstance",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Com(
+                                                            Class,
+                                                            "WbemLocator",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: Leaf(
+                                                        Com(
+                                                            Interface,
+                                                            "IWbemLocator",
+                                                        ),
+                                                    ),
+                                                    description: None,
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                },
+                                description: None,
+                            },
+                            Node {
+                                stmt: Subscope {
+                                    scope: BasicBlock,
+                                    body: Node {
+                                        stmt: Or(
+                                            [
+                                                Node {
+                                                    stmt: And(
+                                                        [
+                                                            Node {
+                                                                stmt: Leaf(
+                                                                    Arch(
+                                                                        "i386",
+                                                                    ),
+                                                                ),
+                                                                description: None,
+                                                            },
+                                                            Node {
+                                                                stmt: Leaf(
+                                                                    Offset(
+                                                                        12,
+                                                                    ),
+                                                                ),
+                                                                description: Some(
+                                                                    "ppv->ConnectServer",
+                                                                ),
+                                                            },
+                                                        ],
+                                                    ),
+                                                    description: None,
+                                                },
+                                                Node {
+                                                    stmt: And(
+                                                        [
+                                                            Node {
+                                                                stmt: Leaf(
+                                                                    Arch(
+                                                                        "amd64",
+                                                                    ),
+                                                                ),
+                                                                description: None,
+                                                            },
+                                                            Node {
+                                                                stmt: Leaf(
+                                                                    Offset(
+                                                                        24,
+                                                                    ),
+                                                                ),
+                                                                description: Some(
+                                                                    "ppv->ConnectServer",
+                                                                ),
+                                                            },
+                                                        ],
+                                                    ),
+                                                    description: None,
+                                                },
+                                            ],
+                                        ),
+                                        description: None,
+                                    },
+                                },
+                                description: None,
+                            },
+                            Node {
+                                stmt: Some {
+                                    count: 0,
+                                    children: [
+                                        Node {
+                                            stmt: Leaf(
+                                                String(
+                                                    Regex(
+                                                        CompiledRegex {
+                                                            raw: "/ROOT\\\\CIMV2/i",
+                                                            engine: Standard(
+                                                                Regex(
+                                                                    "(?si)ROOT\\\\CIMV2",
+                                                                ),
+                                                            ),
+                                                        },
+                                                    ),
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                String(
+                                                    Regex(
+                                                        CompiledRegex {
+                                                            raw: "/ROOT\\\\DEFAULT/i",
+                                                            engine: Standard(
+                                                                Regex(
+                                                                    "(?si)ROOT\\\\DEFAULT",
+                                                                ),
+                                                            ),
+                                                        },
+                                                    ),
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                    ],
+                                },
+                                description: None,
+                            },
+                        ],
+                    ),
+                    description: Some(
+                        "static detection rule",
+                    ),
+                },
+            ],
+        ),
+        description: None,
+    },
+)

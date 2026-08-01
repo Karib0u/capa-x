@@ -1,0 +1,44 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "get Steam token",
+    Some(
+        "collection",
+    ),
+    Scopes {
+        static_: Some(
+            Function,
+        ),
+        dynamic: None,
+    },
+    false,
+    Node {
+        stmt: Or(
+            [
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Substring(
+                                "65 79 41 69 64 48 6C 77 49 6A 6F 67 49 6B 70 58 56 43 49 73 49 43 4A",
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: Leaf(
+                        String(
+                            Substring(
+                                "eyAidHlwIjogIkpXVCIsICJ",
+                            ),
+                        ),
+                    ),
+                    description: None,
+                },
+            ],
+        ),
+        description: None,
+    },
+)

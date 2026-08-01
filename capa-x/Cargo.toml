@@ -1,0 +1,72 @@
+[package]
+name = "capa-x"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Rust port of capa's rule engine, feature extraction, and result rendering"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+# YAML parsing for rule ingestion. Chosen over yaml-rust2 because its
+# serde_yaml::Value gives us a ready-made generic value tree (mapping/sequence/
+# scalar) to walk by hand, matching how build_statements() walks Python dicts.
+serde_yaml = "0.9"
+# Regex compilation for `string: /.../ ` rule features.
+regex = "1"
+# Fallback for the handful of corpus regexes using lookaround (unsupported by
+# `regex`'s finite-automaton engine), e.g. `(?<!\w)ida...`. Tried only after
+# `regex` fails to compile a pattern.
+fancy-regex = "0.13"
+# `capa0000` freeze files are `zlib(utf-8(json(...)))`; this is
+# the standard Rust zlib binding (miniz_oxide backend, no system zlib needed).
+flate2 = "1"
+# `FeatureSet` must iterate in insertion order to match Python
+# dict semantics: `Bytes`/`Substring`/`Regex`.evaluate()`'s short-circuiting
+# scan (capa/features/common.py) stops at the *first* qualifying entry in
+# iteration order, so a plain HashMap (unspecified order) can pick a
+# different match than Python. IndexMap preserves first-insertion order,
+# including across repeated `.entry().or_default()` updates.
+indexmap = "2"
+goblin = "0.10.7"
+# The shared x86/x64 decoder. Restrict features to decoding and instruction
+# metadata, plus the masm formatter -- instruction-feature extraction needs it
+# only for mnemonic text (`extract_insn_mnemonic_features`).
+iced-x86 = { version = "1.21.0", default-features = false, features = ["std", "decoder", "instr_info", "masm"] }
+# FLIRT parsing and matching. The recovery engine remains in-tree; only
+# lancelot's standalone signature crate is used.
+lancelot-flirt = "0.10.0"
+# Required to populate the existing freeze/result sample metadata directly
+# from raw file-scope inputs without invoking an external runtime.
+md-5 = "0.11.0"
+sha1 = "0.11.0"
+sha2 = "0.11.0"
+# CLR metadata/CIL model for the native .NET backend. Vendored,
+# not the crates.io release: ADR 0003 found a systemic unchecked-indexing
+# panic in upstream 0.5.1's codedindex.rs and requires the fix in tree
+# before this dependency may be added. See third_party/dnfile/PATCH.md.
+dnfile = { path = "../third_party/dnfile" }
+# The AArch64 decoder for the native ELF backend, selected in
+# ADR 0004 over yaxpeax-arm and the FFI-based capstone/bad64: #![no_std],
+# zero panics across ~2.09M fuzzed/real-code words, recognizes more real
+# AArch64 code on the pinned corpus. `full` covers general A64 plus SIMD/FP;
+# excludes SVE/SME server-vector extensions the ADR judged out of scope for
+# malware corpora. See docs/decisions/0004-aarch64-decoder.md.
+disarm64 = { version = "0.2.0", default-features = false, features = ["full"] }
+# disarm64's own instruction-class enum (InsnClass), used to classify
+# control flow -- disarm64 depends on this but does not re-export the type.
+disarm64_defn = { version = "0.2.0", default-features = false }
+
+[dev-dependencies]
+anyhow = "1"
+# Snapshot tests for gnarly parsed rules.
+insta = "1"

@@ -1,0 +1,71 @@
+name: Bug report
+description: Report a reproducible crash, incorrect behavior, or CLI problem
+title: "[bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not attach malware or disclose a vulnerability here. Use the private process in SECURITY.md for security-sensitive reports.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `capa-x --version`, or the commit hash.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Operating system, architecture, and Rust version for source builds.
+    validations:
+      required: true
+  - type: dropdown
+    id: input
+    attributes:
+      label: Input type
+      options:
+        - PE
+        - ELF
+        - Raw shellcode
+        - capa freeze
+        - Rule directory
+        - CLI or packaging
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include the expected result and the actual result.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Provide the exact command, flags, and minimal safe steps.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output
+      description: Remove secrets and private paths. Do not paste sensitive sample content.
+      render: text
+  - type: input
+    id: sample
+    attributes:
+      label: Sample hash
+      description: Provide a cryptographic hash when the report involves a sample. Do not attach malware.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: This report does not publicly disclose a vulnerability or attach malware.
+          required: true

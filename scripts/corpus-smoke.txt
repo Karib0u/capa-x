@@ -1,0 +1,62 @@
+# capa-x smoke corpus -- the *mid* development loop.
+#
+# 23 samples, stratified across the failure buckets of the 200-sample
+# `corpus-outer.txt` run (docs/history/v1-shipping-plan.md Phase 1 item 3), plus the
+# three over-reporters v2 Phase A.0 added.
+# Paths are relative to tests/testfiles/, same as every other corpus list.
+#
+#   python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt \
+#       --capa-cli target/release/capa-x --jobs 6
+#
+# Run it on every commit. It is not a score -- it is a *regression* signal:
+# the per-sample verdicts are pinned in `corpus-smoke.expected.json`, and any
+# sample that moves ok -> diff, or diverges by more rules than it did, fails
+# the run even if the headline count improves. `corpus-outer.txt` stays the
+# pre-merge/pre-release measurement.
+#
+# Each pick is here for a reason, and the annotated diff counts are from the
+# recorded baseline (2026-07-26, post-Phase-2: 12/20 identical, 74 diffs
+# total). Keep both true if you edit the list: re-record with
+# --write-expected, and say why a sample earns its slot.
+
+# --- the four samples that carried 46% of all divergence -------------------
+# Phase 3's targets, from the 2026-07-21 200-sample report (50/46/37/30
+# diffs). Two of them have since collapsed to a single rule -- the recovery
+# work in 375891a/5675fa0 fixed them without anyone re-measuring -- which is
+# exactly the blindness this corpus exists to remove. They stay: they are the
+# most boundary-sensitive samples known, so they are the best canaries.
+c2d46d256b8f9490c9599eea11ecef19fde7d4fdd2dea93604cee3cea8e172ac.exe_   # was 50 extra, now 1 ('contain loop'); UPX-packed
+c335a9d41185a32ad918c5389ee54235.exe_                                   # was 46 missing, now 1 ('delete registry key')
+112f9f0e8d349858a80dd8c14190e620.exe_                                   # 37 missing; slowest sample in the corpus (~43s)
+294b8db1f2702b60fb2e42fdc50c2cee6a5046112da9a5703a548a4fa50477bc.elf_   # 30 missing; ELF
+
+# --- near-miss failures: 1-2 diverging rules, one named class each ---------
+0596c4ea5aa8def47f22c85d75aaca95.exe_                                   # 2: missing VPCEXT / extra 'inject thread' -- Phase 4 head
+a198216798ca38f280dc413f8c57f2c2.exe_                                   # was 1 extra 'terminate process'; fixed by Phase 2's no-return analysis
+9efa86b43b4367bcdc1591aee59bda25.dll_                                   # 1: missing 'set environment variable' -- tail-call boundary
+af13e7583ed1b27c4ae219e344a37e2b.exe_                                   # 1: missing 'send HTTP request with Host header'
+e5e8c139772efe47f738f4788ae9b3dc97960b1c006bc6a406715cab69f27cfc.elf_   # 1: extra 'contain loop' -- ELF; nmm-protect-packed
+0a30182ff3a6b67beb0f2cda9d0de678.exe_                                   # was 1 extra 'execute shellcode via indirect call'; fixed by Phase 2. PE x86-64
+
+# --- clean canaries: currently identical, and must stay that way -----------
+03b236b23b1ec37c663527c1f53af3fe.dll_                                   # Phase 2's over-extend sample (x64 dll); now identical
+2ebadd04f0ada89c36c1409b6e96423a68dd77b513db8db3da203c36d3753e5f.exe_   # was missing 'resolve function by parsing PE exports'
+db9fe790b4e18abf55df31aa0b81e558.exe_                                   # was missing 'contain loop'; pebundle-packed
+09bf850be5da44a1c3629a1f62813a83.dll_                                   # also a features_parity fixture (tail-call wrapper)
+2bf18d0403677378adad9001b1243211.elf_                                   # ELF; also the FEATURE_SYMTAB_FUNC_TESTS fixture
+Practical Malware Analysis Lab 01-02.exe_                               # UPX-packed and identical -- guards the packed path
+8a132663bee5c2f0f5cbfebee1b55ac72934632bf32bc32d6e2dae797c9e6e35.dll_   # Themida-packed and identical
+al-khaser_x86.exe_                                                      # anti-analysis heavy: many function-scope rules
+009c2377b67997b0da1579f4bbc822c1.exe_                                   # plain PE x86
+03bb32d43885e83bc56c0b2bcad6f0c5ea40402763b7057056c654990022471b.dll_   # plain PE dll
+
+# --- v2 Phase A.0: over-reporters, so a trade cannot hide ------------------
+# Added 2026-07-27 (docs/development/v2-shipping-plan.md Phase A.0). Phase A closes flow
+# gaps to remove *false* matches, and the failure mode it must not commit is
+# trading one extra for another -- a change that leaves the headline count
+# flat while moving *which* rule is wrong. The guard can only see that on a
+# sample that has an extra to begin with, and before this commit the list
+# held none. Diff counts are from the fresh 2026-07-27 `--mode full` run.
+749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2.elf_   # 6 extra, 0 missing, against 4 reference-matched rules -- A.2's flagship
+10cd7afd580ee9c222b0a87ff241d306.dll_                                   # 2 extra: 'encrypt data using AES' + 'reference AES constants'
+82bf6347acf15e5d883715dc289d8a2b.exe_                                   # 2 extra: 'enumerate PE sections' + 'resolve function by parsing PE exports'

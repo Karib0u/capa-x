@@ -1,0 +1,9 @@
+[submodule "rules"]
+	path = rules
+	url = https://github.com/mandiant/capa-rules
+[submodule "reference/capa"]
+	path = reference/capa
+	url = https://github.com/mandiant/capa
+[submodule "tests/testfiles"]
+	path = tests/testfiles
+	url = https://github.com/mandiant/capa-testfiles

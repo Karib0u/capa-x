@@ -1,0 +1,149 @@
+---
+source: capa-x/tests/snapshots.rs
+expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rule.body)"
+---
+(
+    "send data",
+    Some(
+        "communication",
+    ),
+    Scopes {
+        static_: Some(
+            Function,
+        ),
+        dynamic: Some(
+            SpanOfCalls,
+        ),
+    },
+    false,
+    Node {
+        stmt: Or(
+            [
+                Node {
+                    stmt: And(
+                        [
+                            Node {
+                                stmt: Leaf(
+                                    Os(
+                                        "windows",
+                                    ),
+                                ),
+                                description: None,
+                            },
+                            Node {
+                                stmt: Or(
+                                    [
+                                        Node {
+                                            stmt: Leaf(
+                                                MatchedRule(
+                                                    "send HTTP request",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                MatchedRule(
+                                                    "send data on socket",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                MatchedRule(
+                                                    "send file via HTTP",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                MatchedRule(
+                                                    "send data to Internet",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                    ],
+                                ),
+                                description: None,
+                            },
+                        ],
+                    ),
+                    description: None,
+                },
+                Node {
+                    stmt: And(
+                        [
+                            Node {
+                                stmt: Leaf(
+                                    Os(
+                                        "linux",
+                                    ),
+                                ),
+                                description: None,
+                            },
+                            Node {
+                                stmt: Or(
+                                    [
+                                        Node {
+                                            stmt: Leaf(
+                                                MatchedRule(
+                                                    "create TCP socket",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                MatchedRule(
+                                                    "create UDP socket",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                    ],
+                                ),
+                                description: None,
+                            },
+                            Node {
+                                stmt: Or(
+                                    [
+                                        Node {
+                                            stmt: Leaf(
+                                                MatchedRule(
+                                                    "send HTTP request",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                MatchedRule(
+                                                    "send data on socket",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                        Node {
+                                            stmt: Leaf(
+                                                MatchedRule(
+                                                    "send file via HTTP",
+                                                ),
+                                            ),
+                                            description: None,
+                                        },
+                                    ],
+                                ),
+                                description: None,
+                            },
+                        ],
+                    ),
+                    description: None,
+                },
+            ],
+        ),
+        description: None,
+    },
+)

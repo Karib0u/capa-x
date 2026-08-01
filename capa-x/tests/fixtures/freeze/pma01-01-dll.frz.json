@@ -1,0 +1,1080 @@
+{
+ "version": 3,
+ "base_address": {
+  "type": "absolute",
+  "value": 268435456
+ },
+ "sample_hashes": {
+  "md5": "290934c61de9176ad682ffdd65f0a669",
+  "sha1": "a4b35de71ca20fe776dc72d12fb2886736f43c22",
+  "sha256": "f50e42c8dfaab649bde0398867e930b86c2a599e8db83b8260393082268f2dba"
+ },
+ "flavor": "static",
+ "extractor": {
+  "name": "VivisectFeatureExtractor",
+  "version": ""
+ },
+ "features": {
+  "global_": [
+   {
+    "feature": {
+     "type": "arch",
+     "arch": "i386",
+     "description": null
+    }
+   },
+   {
+    "feature": {
+     "type": "format",
+     "format": "pe",
+     "description": null
+    }
+   },
+   {
+    "feature": {
+     "type": "os",
+     "os": "windows",
+     "description": null
+    }
+   }
+  ],
+  "file": [
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268435456
+    },
+    "feature": {
+     "type": "section",
+     "section": "PE_Header",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268439552
+    },
+    "feature": {
+     "type": "section",
+     "section": ".text",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268440096
+    },
+    "feature": {
+     "type": "function name",
+     "function_name": "__alloca_probe",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268440096
+    },
+    "feature": {
+     "type": "function name",
+     "function_name": "_alloca_probe",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268440143
+    },
+    "feature": {
+     "type": "function name",
+     "function_name": "_CRT_INIT@12",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268440143
+    },
+    "feature": {
+     "type": "function name",
+     "function_name": "__CRT_INIT@12",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268440314
+    },
+    "feature": {
+     "type": "export",
+     "export": "__entry",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268440314
+    },
+    "feature": {
+     "type": "function name",
+     "function_name": "_DllMainCRTStartup@12",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268440314
+    },
+    "feature": {
+     "type": "function name",
+     "function_name": "__DllMainCRTStartup@12",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268443648
+    },
+    "feature": {
+     "type": "import",
+     "import_": "Sleep",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268443648
+    },
+    "feature": {
+     "type": "import",
+     "import_": "kernel32.Sleep",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268443648
+    },
+    "feature": {
+     "type": "section",
+     "section": ".rdata",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268443652
+    },
+    "feature": {
+     "type": "import",
+     "import_": "CreateProcess",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268443652
+    },
+    "feature": {
+     "type": "import",
+     "import_": "CreateProcessA",
+     "description": null
+    }
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268443652
+    },
+    "feature": {
+     "type": "import",
+     "import_": "kernel32.CreateProcess",
+     "description": null
+    }
+   }
+  ],
+  "functions": [
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268440472
+    },
+    "features": [
+     {
+      "function": {
+       "type": "absolute",
+       "value": 268440472
+      },
+      "address": {
+       "type": "absolute",
+       "value": 268440232
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls to",
+       "description": null
+      }
+     }
+    ],
+    "basic_blocks": [
+     {
+      "address": {
+       "type": "absolute",
+       "value": 268440472
+      },
+      "features": [
+       {
+        "basic_block": {
+         "type": "absolute",
+         "value": 268440472
+        },
+        "address": {
+         "type": "absolute",
+         "value": 268440472
+        },
+        "feature": {
+         "type": "basic block",
+         "description": null
+        }
+       }
+      ],
+      "instructions": [
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440472
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440472
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440472
+          },
+          "feature": {
+           "type": "characteristic",
+           "characteristic": "cross section flow",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440472
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440472
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "jmp",
+           "description": null
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "address": {
+     "type": "absolute",
+     "value": 268440096
+    },
+    "features": [
+     {
+      "function": {
+       "type": "absolute",
+       "value": 268440096
+      },
+      "address": {
+       "type": "absolute",
+       "value": 268439573
+      },
+      "feature": {
+       "type": "characteristic",
+       "characteristic": "calls to",
+       "description": null
+      }
+     }
+    ],
+    "basic_blocks": [
+     {
+      "address": {
+       "type": "absolute",
+       "value": 268440096
+      },
+      "features": [
+       {
+        "basic_block": {
+         "type": "absolute",
+         "value": 268440096
+        },
+        "address": {
+         "type": "absolute",
+         "value": 268440096
+        },
+        "feature": {
+         "type": "basic block",
+         "description": null
+        }
+       }
+      ],
+      "instructions": [
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440096
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440096
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440096
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "push",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440097
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440097
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440097
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "cmp",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440097
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440097
+          },
+          "feature": {
+           "type": "number",
+           "number": 4096,
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440097
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440097
+          },
+          "feature": {
+           "type": "operand number",
+           "index": 1,
+           "operand_number": 4096,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440102
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440102
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440102
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "lea",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440102
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440102
+          },
+          "feature": {
+           "type": "offset",
+           "offset": 8,
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440102
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440102
+          },
+          "feature": {
+           "type": "operand offset",
+           "index": 1,
+           "operand_offset": 8,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440106
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440106
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440106
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "jc",
+           "description": null
+          }
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "address": {
+       "type": "absolute",
+       "value": 268440108
+      },
+      "features": [
+       {
+        "basic_block": {
+         "type": "absolute",
+         "value": 268440108
+        },
+        "address": {
+         "type": "absolute",
+         "value": 268440108
+        },
+        "feature": {
+         "type": "basic block",
+         "description": null
+        }
+       },
+       {
+        "basic_block": {
+         "type": "absolute",
+         "value": 268440108
+        },
+        "address": {
+         "type": "absolute",
+         "value": 268440108
+        },
+        "feature": {
+         "type": "characteristic",
+         "characteristic": "tight loop",
+         "description": null
+        }
+       }
+      ],
+      "instructions": [
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440108
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440108
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440108
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "sub",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440108
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440108
+          },
+          "feature": {
+           "type": "number",
+           "number": 4096,
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440108
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440108
+          },
+          "feature": {
+           "type": "operand number",
+           "index": 1,
+           "operand_number": 4096,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440114
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440114
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440114
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "sub",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440114
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440114
+          },
+          "feature": {
+           "type": "number",
+           "number": 4096,
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440114
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440114
+          },
+          "feature": {
+           "type": "operand number",
+           "index": 1,
+           "operand_number": 4096,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440119
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440119
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440119
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "test",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440119
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440119
+          },
+          "feature": {
+           "type": "offset",
+           "offset": 0,
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440119
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440119
+          },
+          "feature": {
+           "type": "operand offset",
+           "index": 0,
+           "operand_offset": 0,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440121
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440121
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440121
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "cmp",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440121
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440121
+          },
+          "feature": {
+           "type": "number",
+           "number": 4096,
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440121
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440121
+          },
+          "feature": {
+           "type": "operand number",
+           "index": 1,
+           "operand_number": 4096,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440126
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440126
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440126
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "jnc",
+           "description": null
+          }
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "address": {
+       "type": "absolute",
+       "value": 268440128
+      },
+      "features": [
+       {
+        "basic_block": {
+         "type": "absolute",
+         "value": 268440128
+        },
+        "address": {
+         "type": "absolute",
+         "value": 268440128
+        },
+        "feature": {
+         "type": "basic block",
+         "description": null
+        }
+       }
+      ],
+      "instructions": [
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440128
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440128
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440128
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "sub",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440130
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440130
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440130
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "mov",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440132
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440132
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440132
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "test",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440132
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440132
+          },
+          "feature": {
+           "type": "offset",
+           "offset": 0,
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440132
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440132
+          },
+          "feature": {
+           "type": "operand offset",
+           "index": 0,
+           "operand_offset": 0,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440134
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440134
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440134
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "mov",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440136
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440136
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440136
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "mov",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440136
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440136
+          },
+          "feature": {
+           "type": "offset",
+           "offset": 0,
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440136
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440136
+          },
+          "feature": {
+           "type": "operand offset",
+           "index": 1,
+           "operand_offset": 0,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440138
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440138
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440138
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "mov",
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440138
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440138
+          },
+          "feature": {
+           "type": "offset",
+           "offset": 4,
+           "description": null
+          }
+         },
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440138
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440138
+          },
+          "feature": {
+           "type": "operand offset",
+           "index": 1,
+           "operand_offset": 4,
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440141
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440141
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440141
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "push",
+           "description": null
+          }
+         }
+        ]
+       },
+       {
+        "address": {
+         "type": "absolute",
+         "value": 268440142
+        },
+        "features": [
+         {
+          "instruction": {
+           "type": "absolute",
+           "value": 268440142
+          },
+          "address": {
+           "type": "absolute",
+           "value": 268440142
+          },
+          "feature": {
+           "type": "mnemonic",
+           "mnemonic": "ret",
+           "description": null
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,61 @@
+[package]
+name = "capa-x-python"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "In-process Python binding for capa-x (pyo3)"
+publish = false
+
+# `test = false`/`doctest = false`: this crate is declarations only (type
+# conversion, error mapping, GIL handling -- see the module doc), so its
+# correctness is proven by the pytest suite under `tests/`, run after
+# `maturin develop`, never by `cargo test`. That split is load-bearing, not
+# style: with the `python-extension` feature active the compiled cdylib
+# leaves CPython C API symbols undefined on purpose, resolved by the hosting
+# Python process at dlopen time rather than by this crate's own link step,
+# and a `cargo test` harness is an *executable*, which cannot carry
+# undefined symbols the way a cdylib can.
+[lib]
+# `_capa_x`, not `capa_x`: maturin's mixed Python/Rust layout
+# (`python/capa_x/__init__.py` re-exports from this native submodule)
+# is what lets the wheel ship `.pyi` stubs and `py.typed` -- a pure Rust
+# layout has nowhere to put either. See `capa-x-python/pyproject.toml`.
+name = "_capa_x"
+crate-type = ["cdylib"]
+test = false
+doctest = false
+
+# Not `[lints] workspace = true`: pyo3's `#[pymodule]`/`#[pyclass]` macros
+# expand to `unsafe`, so this is the one crate in the workspace that cannot
+# carry `unsafe_code = "forbid"`; this exception is documented in ADR 0006.
+# No other lint is relaxed.
+
+[dependencies]
+capa-x = { path = "../capa-x" }
+# `abi3-py38`: one wheel per platform instead of one per CPython minor
+# version (J15's compatibility matrix).
+#
+# `extension-module` is a local feature, not unconditional on this
+# dependency line, despite the brief listing it directly -- see ADR 0006.
+# Measured: with `pyo3/extension-module` always on, plain `cargo build -p
+# capa-x-python` fails to *link* on macOS (`ld: symbol(s) not found`), because
+# nothing but maturin (or hand-written linker flags this repo doesn't carry)
+# passes `-undefined dynamic_lookup` for it. That breaks "cargo build must
+# stay green" workspace-wide, which is a hard rule with no per-crate
+# carve-out. Gating it behind `python-extension` (enabled only by maturin's
+# `pyproject.toml`, via `[tool.maturin] features`) means plain `cargo build
+# --workspace`/`cargo check --workspace` link this crate in pyo3's ordinary
+# (non-extension-module) mode -- against a real, found `libpython`, exactly
+# like any other embedding use of pyo3 -- while the actual wheel maturin
+# ships is still built with the real ABI3 extension-module ABI.
+pyo3 = { version = "0.22", features = ["abi3-py38"] }
+# Already a workspace dependency (`capa-x`, `capa-x-cli`); needed again
+# here only to serialize `rd::ResultDocument` the same way `capa -j` does
+# (see `analyze.rs`) before handing the JSON string to Python's own `json`
+# module -- not a new dependency to the project, just to this crate.
+serde_json = "1"
+
+[features]
+python-extension = ["pyo3/extension-module"]

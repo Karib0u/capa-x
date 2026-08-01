@@ -1,0 +1,36 @@
+[workspace]
+resolver = "2"
+members = ["capa-x", "capa-x-cli", "capa-x-python"]
+# Vendored dnfile fork (ADR 0003, third_party/dnfile/PATCH.md): kept out of
+# the workspace so its `cli`-gated bin targets never influence this
+# workspace's feature resolution -- capa-x depends on it as a plain path
+# dependency with dnfile's own default (empty) feature set.
+exclude = ["third_party/dnfile"]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+# Measured, not guessed: `cargo msrv find -- cargo check --workspace
+# --all-targets` bisects to 1.87.0, and 1.86 fails on `is_multiple_of`
+# (`unsigned_is_multiple_of`, stabilized in 1.87). CI's `msrv` job builds and
+# tests on exactly this version so the floor cannot drift unnoticed.
+rust-version = "1.87"
+license = "Apache-2.0"
+repository = "https://github.com/Karib0u/capa-x"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+# The inner development loop (`cargo test`, see AGENTS.md "The three loops")
+# is dominated by instruction decoding and flow recovery, which run more than
+# an order of magnitude slower unoptimized -- `features_parity` alone spends
+# ~75s there versus ~5s optimized. Optimize this crate and its dependencies
+# while *keeping* the dev profile's `debug_assertions` and overflow checks
+# (which `--release` would turn off), for a few seconds of extra build time.
+[profile.dev.package.capa-x]
+opt-level = 2
+
+# Dependencies only: `"*"` in a profile override never matches workspace
+# members, hence the explicit `capa-x` entry above.
+[profile.dev.package."*"]
+opt-level = 2

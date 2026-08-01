@@ -1,0 +1,11 @@
+rule:
+  meta:
+    name: m5 flirt metadata smoke test
+    namespace: tests/m5
+    authors:
+      - capa-x tests
+    scopes:
+      static: file
+      dynamic: unsupported
+  features:
+    - format: pe
