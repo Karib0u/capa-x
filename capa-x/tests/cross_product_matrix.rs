@@ -23,6 +23,12 @@
 //! separate gate -- this only proves the Rust-side shape is
 //! self-consistent, matching `capa-x/tests/schema_roundtrip.rs`'s own
 //! stated scope.
+//!
+//! Every test here is `#[ignore]`d: the four of them together are ~197 s, the
+//! single largest cost in `cargo test --workspace`, because each reloads the
+//! 1,042-rule corpus and runs all 11 shapes (cell 1 also at four job counts).
+//! This is a pre-merge acceptance matrix, not a test an ordinary edit moves.
+//! CI runs it via `cargo test --workspace -- --include-ignored`.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -181,6 +187,7 @@ fn normalized_json(doc: &ResultDocument) -> serde_json::Value {
 /// byte-identical after timestamp normalization, matching AGENTS.md's
 /// blanket rule for every backend.
 #[test]
+#[ignore = "slow acceptance gate; run with --include-ignored"]
 fn jobs_1_matches_default_for_every_shape() {
     let rules = ruleset();
     let mut failures = Vec::new();
@@ -226,6 +233,7 @@ fn jobs_1_matches_default_for_every_shape() {
 /// thread count (e.g. an unstable sort, an uninitialized-memory read, a
 /// HashMap iteration order leaking into output).
 #[test]
+#[ignore = "slow acceptance gate; run with --include-ignored"]
 fn repeated_output_is_identical_for_every_shape() {
     let rules = ruleset();
     let mut failures = Vec::new();
@@ -260,6 +268,7 @@ fn repeated_output_is_identical_for_every_shape() {
 /// produced document back into `ResultDocument` and re-serializes to the
 /// same structure. See the module doc for how this differs from J14.
 #[test]
+#[ignore = "slow acceptance gate; run with --include-ignored"]
 fn result_document_round_trips_for_every_shape() {
     let rules = ruleset();
     let mut failures = Vec::new();
@@ -340,6 +349,7 @@ impl Rng {
 const MUTANTS_PER_SHAPE: usize = 15;
 
 #[test]
+#[ignore = "slow acceptance gate; run with --include-ignored"]
 fn malformed_input_never_panics_through_the_full_pipeline() {
     let rules = ruleset();
     let default_hook = panic::take_hook();

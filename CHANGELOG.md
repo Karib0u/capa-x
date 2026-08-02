@@ -9,7 +9,28 @@ tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
 
 ## [Unreleased]
 
-No unreleased changes.
+### Fixed
+
+- `scripts/difftest.py` defaulted `--capa-cli` to `target/debug/capa`, which
+  is not the binary's name. A run that omitted the flag could not find it, and
+  on a tree that still held a stale artifact under the old name it would
+  difftest that instead -- and since the harness caches capa-x's side by
+  binary contents, the result would look clean and self-consistent while
+  measuring the wrong build. The default is now `target/debug/capa-x`.
+
+### Changed
+
+- The slow acceptance and robustness gates
+  (`capa-x/tests/cross_product_matrix.rs`, `aarch64_elf_fuzz.rs`,
+  `dotnet_dnfile_fuzz.rs`) are `#[ignore]`d: ~383 s of a ~402 s suite, none of
+  which an ordinary edit moves. `cargo test --workspace` is now ~20 s
+  locally. CI runs the full set with `--include-ignored`, so coverage is
+  unchanged.
+- `scripts/corpus-outer.expected.json` records the 200-sample outer corpus
+  baseline (98.55% rule-level agreement, 161/200 identical, 91 divergences,
+  0 errors). Without it the outer loop had no baseline to resolve and exited
+  nonzero on every run, so the pre-merge gate `AGENTS.md` documents could not
+  pass; it now reports regressions against known diffs.
 
 ## [1.0.0]
 

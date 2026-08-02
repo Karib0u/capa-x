@@ -43,28 +43,61 @@ Python reference in `.venv`, and verifies every pin against `PINNED.md`.
 
 Use the cheapest loop that can observe the change:
 
-| Loop | Command | When |
-|---|---|---|
-| Inner | `cargo test -p capa-x --test features_parity` | Every change |
-| Mid | `python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt --capa-cli target/release/capa-x --jobs 6` | Every commit |
-| Outer | The mid command with `scripts/corpus-outer.txt` | Before merge or release |
+| Loop | Command | When | Cost |
+|---|---|---|---|
+| Inner | `cargo test -p capa-x --test features_parity` | Every change | ~7 s |
+| Mid | `python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt --capa-cli target/release/capa-x --jobs 6` | Every commit | ~40 s |
+| Outer | The mid command with `scripts/corpus-outer.txt` | Before merge or release | ~5 min |
 
 The inner loop is the transcribed upstream feature contract. The mid loop is
 the smoke regression guard. The outer loop measures rule-level agreement and
 the extra-rule count across the full corpus.
 
+The difftest costs above are what you pay *after a code change*, on a 10-core
+M1 Max; treat them as an order of magnitude, not a benchmark. Both sides are
+cached under `.cache/`: the Python reference by sample hash, capa-x's own
+output by binary contents. So a rebuilt binary invalidates only the capa-x
+side (mid ~40 s, outer ~5 min), and re-running either loop without rebuilding
+is 1-2 s. `.cache/` is disposable, but deleting it costs a one-time
+re-analysis of the corpus under the pinned Python reference, which is slow
+(minutes to hours) -- prefer `--no-rust-cache` when you want to distrust a
+capa-x result, rather than clearing the whole cache.
+
 `--jobs 1` is the semantic baseline for analysis output. Harness-level jobs
 only parallelize independent samples. Any byte difference between analysis
 with `--jobs 1` and another job count is a bug.
 
-Before submitting a pull request, run:
+### Before pushing
 
 ```bash
-cargo build && cargo test
-cargo fmt --check
+cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
-scripts/check_env.sh
+cargo test --workspace
 ```
+
+`cargo test --workspace` is about 20 seconds. The slow acceptance and
+robustness gates are `#[ignore]`d so this stays an inner loop: the
+cross-product matrix and the two byte-flip fuzz suites are ~383 s of a ~402 s
+suite between them, and an ordinary edit does not move them. CI runs the full
+set with `--include-ignored` on all three platforms, so pushing without having
+run them locally is expected, not a shortcut.
+
+### Before merge or release
+
+Run what CI cannot run cheaply on every push, plus the ignored gates:
+
+```bash
+cargo test --workspace -- --include-ignored
+scripts/check_env.sh
+python3 scripts/difftest.py --mode full --samples scripts/corpus-outer.txt \
+  --capa-cli target/release/capa-x --jobs 6
+```
+
+Both difftest corpora have a recorded per-sample baseline
+(`<corpus>.expected.json`), so the exit status reports *regressions* against
+known diffs rather than the raw presence of any diff. A deliberate change to
+what matches is re-recorded with `--write-expected`, in the same commit, with
+the reason in the pull request.
 
 Use the differential harness for behavioral changes:
 

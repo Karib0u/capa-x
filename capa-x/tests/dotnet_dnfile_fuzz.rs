@@ -60,7 +60,12 @@ fn corpus_dir() -> PathBuf {
         .join("tests/testfiles/dotnet")
 }
 
+// 2,400 mutants through `dotnet::load`, single-threaded: ~20 s. Same shape as
+// `aarch64_elf_fuzz.rs` -- a malformed-input panic guard, not a test an
+// ordinary edit moves. CI runs it via
+// `cargo test --workspace -- --include-ignored`.
 #[test]
+#[ignore = "slow robustness gate; run with --include-ignored"]
 fn mutated_dotnet_samples_never_panic() {
     // The vendored fork's own panic hook still prints backtraces on our
     // caught panics; keep test output readable and restore it afterward.

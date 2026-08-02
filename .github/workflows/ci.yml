@@ -62,8 +62,13 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      # `--include-ignored`: the slow acceptance/robustness gates
+      # (cross_product_matrix, aarch64_elf_fuzz, dotnet_dnfile_fuzz -- ~383 s
+      # of the suite's ~402 s) are `#[ignore]`d so a local `cargo test` stays
+      # a ~20 s inner loop. CI is where they must actually run, so it opts
+      # back in. Dropping this flag silently removes them from coverage.
       - name: cargo test
-        run: cargo test --workspace
+        run: cargo test --workspace -- --include-ignored
 
       # Gate J2 (docs/BENCHMARKS.md): `--jobs N` output must be byte-identical to
       # `--jobs 1`. `cargo test` above already runs the library-level half
@@ -125,6 +130,11 @@ jobs:
 
       # Build and test, not just check: `cargo check` would miss anything that
       # only fails at codegen or link time.
+      # Deliberately without `--include-ignored`, unlike the `build` job: this
+      # job asks "does the workspace still compile and pass on the MSRV", and
+      # the ignored gates are still *compiled* here (that is the codegen/link
+      # coverage MSRV cares about). Re-running ~383 s of acceptance matrix on
+      # a second runner would not test anything about the Rust version.
       - name: cargo test on the declared MSRV
         run: cargo test --workspace --locked
 
