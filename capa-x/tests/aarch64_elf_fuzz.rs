@@ -53,7 +53,13 @@ fn fixture_bytes(name: &str) -> Vec<u8> {
     std::fs::read(&path).unwrap_or_else(|e| panic!("reading {}: {e}", path.display()))
 }
 
+// 900 mutants through the full ELF pipeline, single-threaded: ~166 s, the
+// second largest cost in `cargo test --workspace`. It guards against rare
+// panics on malformed input, not against the behavior an ordinary edit moves,
+// so it is a pre-merge gate rather than an inner-loop test. CI runs it via
+// `cargo test --workspace -- --include-ignored`.
 #[test]
+#[ignore = "slow robustness gate; run with --include-ignored"]
 fn mutated_aarch64_elf_samples_never_panic() {
     let default_hook = panic::take_hook();
     panic::set_hook(Box::new(|_| {}));

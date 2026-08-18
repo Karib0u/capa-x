@@ -17,14 +17,24 @@ results.
 
 ## Feedback loops
 
-| Loop | Command | When |
-|---|---|---|
-| Inner | `cargo test -p capa-x --test features_parity` | Every change |
-| Mid | `python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt --capa-cli target/release/capa-x --jobs 6` | Every commit |
-| Outer | The mid command with `scripts/corpus-outer.txt` | Before merge or release |
+| Loop | Command | When | Cost |
+|---|---|---|---|
+| Inner | `cargo test -p capa-x --test features_parity` | Every change | ~7 s |
+| Mid | `python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt --capa-cli target/release/capa-x --jobs 6` | Every commit | ~40 s |
+| Outer | The mid command with `scripts/corpus-outer.txt` | Before merge or release | ~5 min |
+
+Use the cheapest loop that can observe the change. `cargo test --workspace`
+(~20 s) is the broader local check; the slow acceptance and robustness gates
+are `#[ignore]`d and belong to CI, which runs them with `--include-ignored`.
+Run them locally with the same flag before merge, not on every edit.
 
 `--jobs 1` is the semantic baseline. Any byte difference across job counts is
 a bug. Never carry a measurement forward from a note or cached report.
+
+Both difftest corpora carry a per-sample baseline (`<corpus>.expected.json`),
+so a run reports regressions against known diffs rather than the raw presence
+of a diff. Re-record with `--write-expected` only for a deliberate change, in
+the same commit, with the reason stated.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup, complete checks, and the
 pull request checklist.

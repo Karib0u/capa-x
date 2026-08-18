@@ -1421,7 +1421,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--capa-cli",
         type=Path,
-        default=REPO_ROOT / "target" / "debug" / "capa",
+        default=REPO_ROOT / "target" / "debug" / "capa-x",
         help="path to the capa-x binary (default: debug build)",
     )
     args = parser.parse_args(argv)
