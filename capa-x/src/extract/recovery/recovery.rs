@@ -936,6 +936,9 @@ fn collect_macho_function_starts(
     }
 }
 
+// `as_chunks` is not available on the crate's Rust 1.87 MSRV, and these
+// exact-size iterators intentionally leave malformed trailing bytes out.
+#[allow(clippy::chunks_exact_to_as_chunks)]
 fn collect_pe_seeds(
     bytes: &[u8],
     image: &LoadedImage,

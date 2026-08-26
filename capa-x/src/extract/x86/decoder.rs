@@ -470,6 +470,8 @@ mod tests {
     /// addresses starting at `base`. Returns `(words, recognized)` --
     /// reaching this line at all across a whole real `.text` section is
     /// itself most of the assertion: a panic anywhere aborts the test.
+    // `as_chunks` is not available on the crate's Rust 1.87 MSRV.
+    #[allow(clippy::chunks_exact_to_as_chunks)]
     fn decode_all(base: u64, code: &[u8]) -> (usize, usize) {
         let mut words = 0usize;
         let mut recognized = 0usize;
