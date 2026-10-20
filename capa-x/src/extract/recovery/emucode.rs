@@ -26,7 +26,7 @@ pub(super) enum Verdict {
 }
 
 #[derive(Clone, Default)]
-struct State {
+pub(super) struct State {
     registers: BTreeMap<Register, u64>,
     memory: BTreeMap<u64, Option<u8>>,
     backwards: bool,
@@ -48,7 +48,13 @@ fn high_byte(register: Register) -> bool {
 }
 
 impl State {
-    fn register(&self, register: Register) -> Option<u64> {
+    pub(super) fn entry() -> Self {
+        let mut state = Self::default();
+        state.set_register(Register::RSP, Some(STACK_BASE));
+        state
+    }
+
+    pub(super) fn register(&self, register: Register) -> Option<u64> {
         if register == Register::None {
             return Some(0);
         }
@@ -59,7 +65,7 @@ impl State {
         Some((value >> if high_byte(register) { 8 } else { 0 }) & mask(register.size()))
     }
 
-    fn set_register(&mut self, register: Register, value: Option<u64>) {
+    pub(super) fn set_register(&mut self, register: Register, value: Option<u64>) {
         let full = register.full_register();
         let size = register.size();
         let value = value.filter(|_| size <= 8).map(|value| value & mask(size));
@@ -84,7 +90,7 @@ impl State {
         }
     }
 
-    fn address(&self, op: &Instruction, architecture: Architecture) -> Option<u64> {
+    pub(super) fn address(&self, op: &Instruction, architecture: Architecture) -> Option<u64> {
         if matches!(op.memory_segment(), Register::FS | Register::GS) {
             return None;
         }
@@ -107,7 +113,7 @@ impl State {
         Some(address & mask(size))
     }
 
-    fn read(&self, image: &LoadedImage, address: u64, size: usize) -> Option<u64> {
+    pub(super) fn read(&self, image: &LoadedImage, address: u64, size: usize) -> Option<u64> {
         if !(1..=8).contains(&size) {
             return None;
         }
@@ -136,7 +142,7 @@ impl State {
         }
     }
 
-    fn operand(&self, image: &LoadedImage, op: &Instruction, index: u32) -> Option<u64> {
+    pub(super) fn operand(&self, image: &LoadedImage, op: &Instruction, index: u32) -> Option<u64> {
         match op.op_kind(index) {
             OpKind::Register => self.register(op.op_register(index)),
             OpKind::Memory => self.read(
@@ -176,7 +182,11 @@ impl State {
         }
     }
 
-    fn step(&mut self, image: &LoadedImage, op: &Instruction) -> Result<(), &'static str> {
+    pub(super) fn step(
+        &mut self,
+        image: &LoadedImage,
+        op: &Instruction,
+    ) -> Result<(), &'static str> {
         use Mnemonic::*;
         let left = self.operand(image, op, 0);
         let right = if op.op_count() > 1 {
@@ -375,6 +385,26 @@ impl State {
                 self.assign(image, op, 1, left);
                 return Ok(());
             }
+            Xadd => {
+                // envi/archs/i386/emu.py:i_xadd exchanges the original
+                // destination into the source, then writes their sum.
+                // Capture a memory destination before changing its base.
+                let address = self.address(op, image.architecture);
+                let sum = left.zip(right).map(|(a, b)| a.wrapping_add(b));
+                self.assign(image, op, 1, left);
+                if op.op0_kind() == OpKind::Memory {
+                    if let Some(address) = address {
+                        self.write(address, op.memory_size().size(), sum);
+                    } else {
+                        for value in self.memory.values_mut() {
+                            *value = None;
+                        }
+                    }
+                } else {
+                    self.assign(image, op, 0, sum);
+                }
+                return Ok(());
+            }
             Cmp | Test | Nop | Endbr32 | Endbr64 | Clc | Stc | Cmc | Sahf | Lfence | Clflush
             | Prefetchw => return Ok(()),
             Cld | Std => {
@@ -427,6 +457,23 @@ impl State {
         };
         self.assign(image, op, 0, value);
         Ok(())
+    }
+
+    pub(super) fn clobber_call(&mut self) {
+        for register in [
+            Register::RAX,
+            Register::RCX,
+            Register::RDX,
+            Register::R8,
+            Register::R9,
+            Register::R10,
+            Register::R11,
+        ] {
+            self.set_register(register, None);
+        }
+        for value in self.memory.values_mut() {
+            *value = None;
+        }
     }
 
     fn string_step(&mut self, image: &LoadedImage, op: &Instruction) -> Result<(), &'static str> {
@@ -539,8 +586,7 @@ pub(super) fn evaluate(
     if in_data(data_locations, start) {
         return Verdict::NotCode;
     }
-    let mut state = State::default();
-    state.set_register(Register::RSP, Some(STACK_BASE));
+    let state = State::entry();
     let mut pending = vec![(start, state)];
     let mut visited = BTreeSet::new();
     let mut counts = BTreeMap::new();
@@ -604,20 +650,7 @@ pub(super) fn evaluate(
                     }
                     // Unknown return and caller-saved registers. Callee writes
                     // cannot leave a trusted private memory value behind.
-                    for register in [
-                        Register::RAX,
-                        Register::RCX,
-                        Register::RDX,
-                        Register::R8,
-                        Register::R9,
-                        Register::R10,
-                        Register::R11,
-                    ] {
-                        state.set_register(register, None);
-                    }
-                    for value in state.memory.values_mut() {
-                        *value = None;
-                    }
+                    state.clobber_call();
                     address = decoded.next_address;
                 }
                 Flow::ConditionalBranch => {
@@ -674,6 +707,25 @@ mod tests {
         assert_eq!(verdict(&[0xeb, 0xfe]), Verdict::NotCode);
         assert_eq!(verdict(&[0, 0, 0xc3]), Verdict::NotCode);
         assert_eq!(verdict(&[0x90, 0x90, 0x90, 0x90, 0xc3]), Verdict::NotCode);
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn xadd_preserves_the_original_memory_address_and_register_aliasing() {
+        let image = LoadedImage::from_shellcode(
+            &[0x0f, 0xc1, 0x00, 0x0f, 0xc1, 0xc0], // xadd [eax], eax; xadd eax, eax
+            Architecture::X86,
+        );
+        let mut state = State::entry();
+        state.set_register(Register::EAX, Some(0x2000));
+        state.write(0x2000, 4, Some(3));
+        let first = image.decode_at(image.image_base).unwrap();
+        state.step(&image, first.x86_instruction()).unwrap();
+        assert_eq!(state.register(Register::EAX), Some(3));
+        assert_eq!(state.read(&image, 0x2000, 4), Some(0x2003));
+        let second = image.decode_at(first.next_address).unwrap();
+        state.step(&image, second.x86_instruction()).unwrap();
+        assert_eq!(state.register(Register::EAX), Some(6));
     }
 
     #[test]

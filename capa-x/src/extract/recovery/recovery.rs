@@ -46,6 +46,8 @@ pub enum SeedKind {
     PointerTarget,
     /// Named or instruction-referenced address accepted by candidate evaluation.
     Emulated,
+    /// Known API argument explicitly typed as a function pointer.
+    ApiCallback,
     LibcMain,
     GoRuntimeMain,
     FunctionSignature,
@@ -200,7 +202,7 @@ fn analyze_image(
     image: LoadedImage,
     backend: RecoveryBackend,
 ) -> Result<Analysis, RecoveryError> {
-    let (seeds, elf_function_symbols, diagnostics) = collect_seeds(bytes, &image)?;
+    let (seeds, elf_function_symbols, diagnostics) = collect_seeds(bytes, &image, backend)?;
     analyze_seeded_image(image, backend, seeds, elf_function_symbols, diagnostics)
 }
 
@@ -304,6 +306,7 @@ fn recover_functions(
             Architecture::X86 | Architecture::X64
         );
     let mut pointers = super::pointers::Discovery::new(analysis, evaluate_candidates);
+    let discover_callbacks = evaluate_candidates && super::callbacks::enabled(&analysis.image);
     let mut initial: Vec<u64> = analysis.seeds.keys().copied().collect();
     initial.sort_by_key(|address| {
         let priority = analysis
@@ -430,6 +433,16 @@ fn recover_functions(
         // Keep what the walk did discover and record why it stopped, rather
         // than failing the whole image on one runaway start.
         let calls = discover_direct_flow(analysis, &mut direct_flow, start, noreturn);
+        if discover_callbacks {
+            for target in super::callbacks::discover(analysis, start, noreturn) {
+                analysis
+                    .seeds
+                    .entry(target)
+                    .or_default()
+                    .insert(SeedKind::ApiCallback);
+                pending.push_front(target);
+            }
+        }
         for target in calls.into_iter().rev() {
             if !is_executable(&analysis.image, target) {
                 continue;
@@ -800,6 +813,7 @@ type FunctionSymbolMap = BTreeMap<u64, Vec<String>>;
 fn collect_seeds(
     bytes: &[u8],
     image: &LoadedImage,
+    backend: RecoveryBackend,
 ) -> Result<(SeedMap, FunctionSymbolMap, Vec<RecoveryDiagnostic>), RecoveryError> {
     let mut seeds = BTreeMap::new();
     let mut elf_function_symbols = BTreeMap::new();
@@ -816,7 +830,9 @@ fn collect_seeds(
     }
     match image.format {
         ImageFormat::Pe => collect_pe_seeds(bytes, image, &mut seeds, &mut diagnostics)?,
-        ImageFormat::Elf => collect_elf_seeds(bytes, image, &mut seeds, &mut elf_function_symbols)?,
+        ImageFormat::Elf => {
+            collect_elf_seeds(bytes, image, backend, &mut seeds, &mut elf_function_symbols)?
+        }
         // no exports/TLS/relocations/symbol tables to seed from -- see
         // `analyze_shellcode`'s doc comment.
         ImageFormat::Sc => {}
@@ -1263,6 +1279,7 @@ fn plausible_sweep_function(image: &LoadedImage, address: u64) -> bool {
 fn collect_elf_seeds(
     bytes: &[u8],
     image: &LoadedImage,
+    backend: RecoveryBackend,
     seeds: &mut BTreeMap<u64, BTreeSet<SeedKind>>,
     function_symbols: &mut BTreeMap<u64, Vec<String>>,
 ) -> Result<(), RecoveryError> {
@@ -1329,6 +1346,15 @@ fn collect_elf_seeds(
                 target
             };
             add_seed(image, seeds, target, SeedKind::Relocation);
+        }
+        // vivisect/parsers/elf.py:loadElfRelocs reads the stored pointer
+        // for R_386_RELATIVE / R_X86_64_RELATIVE (both type 8). It does
+        // not substitute the RELA addend, even when the slot is zero.
+        if backend == RecoveryBackend::VivisectCompat
+            && matches!(image.architecture, Architecture::X86 | Architecture::X64)
+            && relocation.r_type == goblin::elf::reloc::R_X86_64_RELATIVE
+        {
+            continue;
         }
         if let Some(addend) = relocation
             .r_addend
@@ -1629,18 +1655,12 @@ fn add_aarch64_prologue_seeds(image: &LoadedImage, seeds: &mut BTreeMap<u64, BTr
 }
 
 fn add_backend_fallback_seeds(image: &LoadedImage, backend: RecoveryBackend, seeds: &mut SeedMap) {
-    // PE compatibility follows Vivisect's exact entry signatures. ELF remains
-    // experimental and retains its established broad scan; the public
-    // shellcode path explicitly selects the native backend above.
-    if backend == RecoveryBackend::Native || image.format == ImageFormat::Elf {
+    // Native formats and AArch64 retain their recovery heuristics. Vivisect
+    // has no AArch64 backend. Its x86 compatibility path uses registered
+    // entry signatures after candidate discovery.
+    if backend == RecoveryBackend::Native || image.architecture == Architecture::AArch64 {
         add_prologue_seeds(image, seeds);
         add_swept_call_seeds(image, seeds);
-    } else {
-        let mut legacy_density = SeedMap::new();
-        add_prologue_seeds(image, &mut legacy_density);
-        if legacy_density.len() <= 128 {
-            add_swept_call_seeds(image, seeds);
-        }
     }
     // Vivisect runs generic function-entry signatures after other analyses.
     add_vivisect_function_signature_seeds(image, seeds);
@@ -2283,6 +2303,130 @@ mod tests {
     use super::*;
     use crate::extract::image::{ImageFormat, MappedSection, Permissions, SHELLCODE_BASE};
 
+    fn callback_image(bytes: &[u8], architecture: Architecture, api: &str) -> Analysis {
+        let mut image = LoadedImage::for_test(
+            ImageFormat::Pe,
+            architecture,
+            0x1000,
+            vec![MappedSection {
+                name: ".text".into(),
+                address: 0x1000,
+                virtual_size: bytes.len() as u64,
+                file_offset: 0,
+                file_size: bytes.len() as u64,
+                permissions: Permissions {
+                    read: true,
+                    write: false,
+                    execute: true,
+                },
+            }],
+            BTreeMap::new(),
+            bytes.to_vec(),
+        );
+        image.import_locations.insert(0x2000, api.into());
+        image.external_bindings.insert(0x2000, vec![api.into()]);
+        analyze_seeded_image(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(0x1000, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .expect("synthetic callback recovery succeeds")
+    }
+
+    #[test]
+    fn api_callbacks_recover_nonreturning_targets_from_computed_arguments() {
+        // CreateThread's third argument is an absolute LEA, so it provides
+        // no static REF_PTR. The callback never returns, so it cannot pass
+        // candidate evaluation either. Only the API type establishes a root.
+        let mut bytes = vec![
+            0x6a, 0, 0x6a, 0, 0x6a, 0, // last three arguments
+            0x8d, 0x05, 0x40, 0x10, 0, 0, // lea eax, [0x1040]
+            0x50, 0x6a, 0, 0x6a, 0, // callback, size, attributes
+            0xff, 0x15, 0, 0x20, 0, 0, // call [CreateThread]
+            0xc3,
+        ];
+        bytes.resize(0x40, 0xcc);
+        bytes.extend_from_slice(&[0xeb, 0xfe]);
+        let analysis = callback_image(&bytes, Architecture::X86, "kernel32.CreateThread");
+        assert!(analysis.functions.contains_key(&0x1040));
+        assert!(analysis.seeds[&0x1040].contains(&SeedKind::ApiCallback));
+        let ordinary = callback_image(&bytes, Architecture::X86, "kernel32.OtherApi");
+        assert!(!ordinary.functions.contains_key(&0x1040));
+    }
+
+    #[test]
+    fn api_callbacks_preserve_import_registers_but_forget_volatile_values() {
+        let mut bytes = vec![
+            0x8b, 0x35, 0, 0x20, 0, 0, // mov esi, [CreateThread]
+            0xff, 0x15, 0, 0x30, 0, 0, // unknown call
+            0x6a, 0, 0x6a, 0, 0x6a, 0, 0x8d, 0x05, 0x40, 0x10, 0, 0, // lea eax, [0x1040]
+            0x50, 0x6a, 0, 0x6a, 0, 0xff, 0xd6, // call esi
+            0xc3,
+        ];
+        bytes.resize(0x40, 0xcc);
+        bytes.extend_from_slice(&[0xeb, 0xfe]);
+        assert!(
+            callback_image(&bytes, Architecture::X86, "kernel32.CreateThread")
+                .functions
+                .contains_key(&0x1040)
+        );
+        // The same import held in EAX must be invalidated by the unknown call.
+        bytes[1] = 0x05;
+        bytes[30] = 0xd0;
+        assert!(
+            !callback_image(&bytes, Architecture::X86, "kernel32.CreateThread")
+                .functions
+                .contains_key(&0x1040)
+        );
+    }
+
+    #[test]
+    fn api_callbacks_use_windows_x64_register_and_stack_arguments() {
+        for (api, setup) in [
+            (
+                "kernel32.CreateThread",
+                vec![0x49, 0xc7, 0xc0, 0x40, 0x10, 0, 0],
+            ),
+            (
+                "msvcrt.bsearch",
+                vec![0x48, 0xc7, 0x44, 0x24, 0x20, 0x40, 0x10, 0, 0],
+            ),
+        ] {
+            let mut bytes = setup;
+            // RIP-relative import call, displacement from the call's end.
+            let displacement = 0x2000i32 - (0x1000 + bytes.len() as i32 + 6);
+            bytes.extend_from_slice(&[0xff, 0x15]);
+            bytes.extend_from_slice(&displacement.to_le_bytes());
+            bytes.push(0xc3);
+            bytes.resize(0x40, 0xcc);
+            bytes.extend_from_slice(&[0xeb, 0xfe]);
+            let analysis = callback_image(&bytes, Architecture::X64, api);
+            assert!(
+                analysis.seeds[&0x1040].contains(&SeedKind::ApiCallback),
+                "{api}"
+            );
+        }
+    }
+
+    #[test]
+    fn api_callbacks_do_not_promote_unknown_arguments_or_instruction_interiors() {
+        for target in [None, Some(0x1001), Some(0x9000)] {
+            let mut bytes = vec![0x6a, 0, 0x6a, 0, 0x6a, 0];
+            if let Some(target) = target {
+                bytes.extend_from_slice(&[0x8d, 0x05]);
+                bytes.extend_from_slice(&u32::to_le_bytes(target));
+            }
+            bytes.extend_from_slice(&[0x50, 0x6a, 0, 0x6a, 0, 0xff, 0x15, 0, 0x20, 0, 0, 0xc3]);
+            let analysis = callback_image(&bytes, Architecture::X86, "kernel32.CreateThread");
+            assert!(!analysis
+                .seeds
+                .values()
+                .any(|kinds| kinds.contains(&SeedKind::ApiCallback)));
+        }
+    }
+
     #[test]
     fn emucode_recovers_instruction_references_without_a_prologue() {
         let target = SHELLCODE_BASE + 32;
@@ -2302,6 +2446,30 @@ mod tests {
         .unwrap();
         assert!(analysis.functions.contains_key(&target));
         assert!(analysis.seeds[&target].contains(&SeedKind::Emulated));
+    }
+
+    #[test]
+    fn x86_lea_monitor_follows_a_data_pointer_without_promoting_its_slot() {
+        let slot = SHELLCODE_BASE + 32;
+        let target = SHELLCODE_BASE + 64;
+        let mut bytes = vec![0x8d, 0x05]; // lea eax, [slot]
+        bytes.extend_from_slice(&(slot as u32).to_le_bytes());
+        bytes.push(0xc3);
+        bytes.resize(32, 0xcc);
+        bytes.extend_from_slice(&(target as u32).to_le_bytes());
+        bytes.resize(64, 0xcc);
+        bytes.extend_from_slice(&[0x31, 0xc0, 0x40, 0xc3]);
+        let analysis = analyze_seeded_image(
+            LoadedImage::from_shellcode(&bytes, Architecture::X86),
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(!analysis.functions.contains_key(&slot));
+        assert!(analysis.functions.contains_key(&target));
+        assert!(analysis.seeds[&target].contains(&SeedKind::PointerTarget));
     }
 
     #[test]
@@ -2701,7 +2869,7 @@ mod tests {
     }
 
     #[test]
-    fn raw_call_sweep_remains_in_compat_until_replacement() {
+    fn raw_call_sweep_is_only_a_native_fallback() {
         let bytes = [
             0xc3, 0xe8, 0x04, 0x00, 0x00, 0x00, 0x90, 0x90, 0x90, 0x90, 0x53, 0xc3,
         ];
@@ -2727,7 +2895,7 @@ mod tests {
         );
         let mut compat = SeedMap::new();
         add_backend_fallback_seeds(&image, RecoveryBackend::VivisectCompat, &mut compat);
-        assert!(compat
+        assert!(!compat
             .get(&target)
             .is_some_and(|kinds| kinds.contains(&SeedKind::SweepCallTarget)));
 

@@ -57,11 +57,8 @@
       ]
     },
     "82bf6347acf15e5d883715dc289d8a2b.exe_": {
-      "diffs": 2,
-      "details": [
-        "  rule extra in capa-x: 'enumerate PE sections'",
-        "  rule extra in capa-x: 'resolve function by parsing PE exports'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "8a132663bee5c2f0f5cbfebee1b55ac72934632bf32bc32d6e2dae797c9e6e35.dll_": {
       "diffs": 0,
@@ -92,20 +89,16 @@
       "details": []
     },
     "c335a9d41185a32ad918c5389ee54235.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule missing in capa-x: 'delete registry key'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "db9fe790b4e18abf55df31aa0b81e558.exe_": {
       "diffs": 0,
       "details": []
     },
     "e5e8c139772efe47f738f4788ae9b3dc97960b1c006bc6a406715cab69f27cfc.elf_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'contain loop'"
-      ]
+      "diffs": 0,
+      "details": []
     }
   }
 }

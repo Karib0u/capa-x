@@ -11,6 +11,10 @@ tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
 
 ### Fixed
 
+- Recover Windows API callbacks and pointers referenced by x86 LEA operands.
+  Support `xadd` in candidate evaluation so compatibility recovery can use
+  reference discovery paths instead of broad prologue and raw call sweeps.
+  Honor the reference's stored-pointer semantics for ELF relative relocations.
 - Classify undefined pointer targets and discover referenced functions with
   bounded x86/x64 candidate evaluation. Respect instruction interiors,
   relocation source types, embedded PE data, and recovery pass ordering.

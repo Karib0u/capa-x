@@ -4,6 +4,76 @@ This page records the methodology behind the summary numbers in the project
 README. The measurements are reproducible evidence for a pinned implementation,
 ruleset, corpus, and host. They are not universal rankings.
 
+## Callback recovery and compatibility seed policy (capa 10.0.0)
+
+Measured on 2026-10-20 against main `1943f82`, using fresh release analyses
+with `--no-rust-cache` and the verified capa 10.0.0 reference results.
+Host: Apple M1 Max, macOS 27.0.1, arm64. Rules, signatures, and corpus pins
+are unchanged. This measures matched rule
+names per sample, not exact evidence addresses or full JSON equivalence.
+
+| Outer corpus | Main | Updated recovery |
+|---|---:|---:|
+| Samples / reference-matched rules | 200 / 6,300 | 200 / 6,300 |
+| Missing / extra rules | 12 / 27 | 2 / 16 |
+| Total divergences | 39 | 18 |
+| Rule-level agreement | 99.38% | 99.71% |
+| Identical matched-rule sets | 181/200 | 190/200 |
+| Analysis errors | 0 | 0 |
+
+Eleven samples improve and no sample regresses. The smoke corpus improves
+from 1 missing / 9 extra and 19/23 identical samples to 0 missing / 6 extra
+and 22/23 identical samples. Both expected files are deliberately refreshed
+to retain these improvements.
+
+The changes address three causes:
+
+- Callback arguments and the x86 LEA data-pointer monitor recover ten
+  missing rules across `a70052c4`, `253309d8`, `c335a9d4`, and `49a34cfb`.
+- Removing broad prologue and raw call sweeps from x86/x64 compatibility mode
+  removes ten extras. The initial experiment lost `create pipe` on
+  `74e0758e`; implementing the reference's `xadd` semantics recovers its
+  relocation-backed root and eliminates that regression. Native mode keeps
+  the broad scans, as does AArch64 recovery.
+- Honoring the stored pointer for ELF relative relocations removes the
+  `e5e8c139` loop extra. Native mode retains addend-based discovery.
+
+The remaining 18 differences are mapped in `KNOWN_DIVERGENCES.md`: two
+instruction-boundary misses (KD-014/KD-015), eight function-ownership extras
+(KD-008), six reference ELF-import differences (KD-004), and two PE-section
+name differences (KD-009). These results do not establish 100% compatibility.
+
+Validation on the final source:
+
+- `cargo test --workspace`: 445 passed.
+- `cargo test --workspace -- --ignored`: all 6 slow robustness and acceptance
+  gates passed, for 451 Rust tests in total.
+- `python3 -m unittest discover -s scripts -p 'test_*.py'`: all 6 tests passed.
+- `cargo test -p capa-x --test features_parity --test aarch64_features_parity`:
+  all 6 fixture tests passed.
+- `cargo +1.98.1 clippy --workspace --all-targets -- -D warnings`: passed.
+- `cargo fmt --all -- --check`, `git diff --check`, and `scripts/check_env.sh`:
+  passed.
+- Determinism: 66 runs at jobs 1, 2, and 4, with two repetitions over 11
+  samples, matched single-job output byte for byte after the harness's
+  normal metadata normalization. The samples are `corpus-jobs.txt` plus
+  `a70052c4`, `253309d8`, `c335a9d4`, `49a34cfb`, `74e0758e`, and `e5e8c139`.
+- AArch64 BinExport comparison: all 3 samples and 29 reference-matched rules
+  agree. AArch64 retains its existing function-entry recovery policy.
+- All 89 x86 and 83 x64 callback API definitions were checked against the
+  installed Vivisect 1.3.2 tables, including argument positions and x86
+  calling conventions.
+
+Reproduce the final comparison and deliberate baseline refresh:
+
+```bash
+cargo build --release -p capa-x-cli
+python3 scripts/difftest.py --mode full --samples scripts/corpus-outer.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-rust-cache --write-expected
+python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-rust-cache --write-expected
+```
+
 ## Pointer and unreferenced-function discovery (capa 10.0.0)
 
 Measured on 2026-10-20 against main `69070db` and the KD-002/KD-003

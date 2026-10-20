@@ -69,6 +69,10 @@ which are written against `vivisect/analysis/` and `vivisect/codeflow.py`.
 Vivisect is not vendored here; it is a development-time dependency of the
 difftest harness only, and capa-x has no Python at runtime.
 
+`capa-x/src/extract/recovery/callbacks.rs` includes callback argument positions
+and calling-convention facts derived from Vivisect 1.3.2's
+`vivisect/impapi/windows/` tables.
+
 ### Submodules
 
 The following are referenced as git submodules, pinned by commit. They are not

@@ -100,10 +100,8 @@
       "details": []
     },
     "253309d8b3675d3cc61d4bf23aa15d4b.dll_": {
-      "diffs": 1,
-      "details": [
-        "  rule missing in capa-x: 'enumerate gui resources'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "26beba7352a32b803aa19e0782011a383a1df19549910e7b2f2f244e49678524.dll_": {
       "diffs": 0,
@@ -175,11 +173,8 @@
       "details": []
     },
     "34dbc85ed0386e024c724c7969e8d0ff0ff0b1882508ea259c458d59657a1971.elf_": {
-      "diffs": 2,
-      "details": [
-        "  rule extra in capa-x: 'create UDP socket'",
-        "  rule extra in capa-x: 'set file attributes'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "3583f7f97ab207be7ab2ec0a507e2481.dll_": {
       "diffs": 0,
@@ -250,10 +245,8 @@
       "details": []
     },
     "49a34cfbeed733c24392c9217ef46bb6.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule missing in capa-x: 'encrypt data using RC4 PRGA'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "4bdd67ff852c221112337fecd0681eac.exe_": {
       "diffs": 0,
@@ -367,11 +360,9 @@
       "details": []
     },
     "70fd3347786ed7a4a43910e6778ef296.exe_": {
-      "diffs": 3,
+      "diffs": 1,
       "details": [
-        "  rule missing in capa-x: 'PEB access'",
-        "  rule extra in capa-x: 'allocate memory'",
-        "  rule extra in capa-x: 'allocate or change RW memory'"
+        "  rule missing in capa-x: 'PEB access'"
       ]
     },
     "71a4f9b800d81ff6632b9892a6a502c412c141341e46d697a8c004e2f460913b.exe_": {
@@ -438,11 +429,8 @@
       "details": []
     },
     "82bf6347acf15e5d883715dc289d8a2b.exe_": {
-      "diffs": 2,
-      "details": [
-        "  rule extra in capa-x: 'enumerate PE sections'",
-        "  rule extra in capa-x: 'resolve function by parsing PE exports'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "8333822ed41d9f2b302cf8e21b126efc.exe_": {
       "diffs": 0,
@@ -473,11 +461,8 @@
       "details": []
     },
     "9324d1a8ae37a36ae560c37448c9705a.exe_": {
-      "diffs": 2,
-      "details": [
-        "  rule extra in capa-x: 'connect to URL'",
-        "  rule extra in capa-x: 'create HTTP request'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "932dab8756ad4ae9a62bde0772d952e4.exe_": {
       "diffs": 0,
@@ -488,10 +473,9 @@
       "details": []
     },
     "971e599e6e707349eccea2fd4c8e5f67.exe_": {
-      "diffs": 2,
+      "diffs": 1,
       "details": [
-        "  rule missing in capa-x: 'encode data using XOR'",
-        "  rule extra in capa-x: 'PEB access'"
+        "  rule missing in capa-x: 'encode data using XOR'"
       ]
     },
     "98c37c3c23bbfb362dac7754c6ba48e75cf24d73bc963a4cdfca557b9e016909.exe_": {
@@ -622,22 +606,12 @@
       "details": []
     },
     "a6e9d94e286984b9e44c58df5eeb20cf5c08b9acff4af341ddecdfbe3ea9249d.elf_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'get current process memory mapping on Linux'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "a70052c45e907820187c7e6bcdc7ecca.exe_": {
-      "diffs": 7,
-      "details": [
-        "  rule missing in capa-x: 'calculate modulo 256 via x86 assembly'",
-        "  rule missing in capa-x: 'encode data using XOR'",
-        "  rule missing in capa-x: 'encrypt data using RC4 PRGA'",
-        "  rule missing in capa-x: 'enumerate PE sections'",
-        "  rule missing in capa-x: 'receive data on socket'",
-        "  rule missing in capa-x: 'resolve function by parsing PE exports'",
-        "  rule missing in capa-x: 'send data on socket'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "a72ac9f1cf6cc01103765f866aae2dd85ea48208fb180c01076ca982684a4032.elf_": {
       "diffs": 0,
@@ -728,10 +702,8 @@
       "details": []
     },
     "c335a9d41185a32ad918c5389ee54235.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule missing in capa-x: 'delete registry key'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "c3699d0c7bd1276184249a487c1f0d7f.exe_": {
       "diffs": 0,
@@ -802,10 +774,8 @@
       "details": []
     },
     "e5e8c139772efe47f738f4788ae9b3dc97960b1c006bc6a406715cab69f27cfc.elf_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'contain loop'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "e87076a1182ba40758e1d7258442c1ee23bf71ac77fad9f3babc707dce11c144.exe_": {
       "diffs": 0,

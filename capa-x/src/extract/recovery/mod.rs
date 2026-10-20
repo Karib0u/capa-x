@@ -2,6 +2,7 @@
 mod engine;
 pub use engine::*;
 
+mod callbacks;
 mod emucode;
 pub mod flirt;
 pub mod golang;

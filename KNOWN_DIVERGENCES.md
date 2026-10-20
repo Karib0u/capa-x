@@ -5,6 +5,22 @@ Every result difference between capa-x and the pinned Python capa
 one entry per *class* of difference. Resolved entries retain their IDs and
 historical causes so earlier measurements remain interpretable.
 
+## Current measured remainder
+
+The 2026-10-20 full-corpus run after callback recovery and removal of
+compatibility sweeps has 18 rule-name differences across 10 of 200 samples,
+down from 39 differences across 19 samples on main `1943f82`.
+See `docs/BENCHMARKS.md` for the commands and validation. Historical sample
+lists below retain earlier attributions; this table is the current remainder.
+
+| Class | Missing | Extra | Samples |
+|---|---:|---:|---|
+| KD-004: reference ELF import handling | 0 | 6 | `749cf36a` |
+| KD-008: reference instruction ownership | 0 | 8 | `1e9fc7f3`, `31600ad0`, `50d5ee1c`, `a563c50c`, `f53dfa29`, `f5903519` |
+| KD-009: PE section names | 0 | 2 | `2826b762` |
+| KD-014: overlapping PEB block | 1 | 0 | `70fd3347` |
+| KD-015: conflicting XOR loop | 1 | 0 | `971e599e` |
+
 ## Why a document like this is the right answer
 
 Documented divergence is upstream's own model for a backend, not a concession
@@ -100,13 +116,14 @@ of this project's release contract.
   all four on `294b8db1...477bc.elf_` are recovered. Together with pointer
   discovery, this also recovers three missing rules on `70fd3347...exe_`;
   its `PEB access` discrepancy remains KD-014.
-- **Corrected attribution:** `a70052c4...exe_` still has seven missing rules.
+- **Corrected historical attribution:** the seven formerly missing rules on
+  `a70052c4...exe_` are now resolved under KD-007.
   Live `makeFunction` tracing shows that `0x405c40`, `0x405e80`,
   `0x4051a0`, `0x406980`, and `0x406aa0` originate in
   `AnalysisMonitor.apicall`, before `generic.emucode.analyze`. Later emucode
   roots consume references from those functions. Counting functions created
-  during a module previously hid this dependency. These remaining misses
-  belong to KD-007, not an absent emucode pass.
+  during a module previously hid this dependency. These historical misses
+  belonged to KD-007, not an absent emucode pass.
 - **Status:** the missing candidate-discovery mechanism is implemented.
   Support is bounded, not a claim of complete workspace-emulator parity:
   unsupported operations, unresolved computed branches, and resource limits
@@ -133,7 +150,7 @@ of this project's release contract.
   are recovered. The latter includes pointer-only roots `0x80724b0` and
   `0x807d2a0`. On `49a34cfb...exe_`, `contain obfuscated stackstrings`,
   `hash data with MD5`, and `parse credit card information` are restored;
-  the remaining RC4 miss is KD-007.
+  the RC4 miss was subsequently resolved under KD-007.
   All three former differences on `512a5575...c92.elf_` are also removed,
   without requiring the full call monitor.
 - **Boundary regression coverage:** a relocated immediate must use emucode
@@ -181,41 +198,36 @@ of this project's release contract.
   capa-x *worse*. Recorded so the six extras are never counted against a
   precision gate.
 
-### KD-005 — heuristic seed classes capa-x has and Vivisect does not
+### KD-005: heuristic function seeds outside the reference model
 
 - **Class:** recovery / function extent
-- **Direction:** capa-x reports **more** matches
-- **Affects:** `allocate memory`, `allocate or change RW memory`,
-  `connect to URL` (via `create HTTP request`), `contain loop`,
-  `create UDP socket`, `delay execution`, `encrypt data using Salsa20 or
-  ChaCha`, `enumerate PE sections`, `get current process memory mapping on
-  Linux`, `PEB access`, `resolve function by parsing PE exports`,
-  `set file attributes` (12 rules)
-- **Samples:** by seed class — `SweepCallTarget`: `70fd3347…` (fn `0x407f10`),
-  `82bf6347…` (`0x1400589ec`, `0x14005981a`), `9324d1a8…` (`0x407b60`),
-  `971e599e…` (`0x44647f`); `Prologue`: `34dbc85e…elf_` (`0x4023b4`,
-  `0x401eb7`), `a6e9d94e…elf_` (fn `0x200ad6b`); `Relocation`:
-  `35f9cfe5…dll_` (fn `0x10002b30`), `a6594d95…exe_` (`0x140018e60`),
-  `e5e8c139…elf_` (`0x2004b30`)
-- **Root cause:** these matches sit in code the pinned workspace has no
-  location for at all (`vw.getLocation(va) is None`; measured by
-  `scripts/triage/attribute_extras.py`). capa-x reaches it from three seed sources
-  with no Vivisect analogue: the raw `e8 <rel32>` byte sweep
-  (`add_swept_call_seeds`, `capa-x/src/extract/recovery/recovery.rs`), the entry
-  byte-pattern scan (`add_prologue_seeds`), and relocation-target candidates.
-  Vivisect discovers functions by codeflow, emulation, and a prologue scan
-  restricted to *still-undefined* space (`vivisect/analysis/generic/
-  funcentries.py`); it never sweeps raw bytes for call encodings.
-- **Upstream analogue:** `FEATURE_COUNT_TESTS_GHIDRA`'s "may render functions
-  as labels, as well as provide differing amounts of call references" — a
-  backend with a different function-discovery model gets its own expectations.
-- **Status:** accepted, as a **measured trade**, not an assumption.
-  Dropping the sweep in compatibility mode was measured on the full corpus:
-  extras 37 → 30, but missing 62 → 73 and agreement 98.42% → 98.36%, with the
-  `> 5-rule` sample count going 3 → 4. A variant requiring ≥ 2 distinct call
-  sites to agree on a target was also behind the baseline. Both reverted; the
-  heuristics buy more recall than the precision they cost. See
-  KD-005.
+- **Direction:** historically more matches
+- **Affected samples:** `34dbc85e...elf_`, `70fd3347...exe_`,
+  `82bf6347...exe_`, `9324d1a8...exe_`, `971e599e...exe_`,
+  `a6e9d94e...elf_`, and `e5e8c139...elf_`.
+- **Root cause:** raw `e8 <rel32>` scans and broad prologue patterns seeded
+  functions that the reference never defines. Earlier removal experiments
+  lost more genuine matches than they removed extras, so the heuristics
+  were retained as a measured trade. That result predates candidate and
+  callback recovery.
+- **Resolution:** x86/x64 compatibility recovery now uses the reference's
+  registered entry signatures after pointer, emucode, and callback discovery.
+  Broad prologue and raw call sweeps remain available to the native backend;
+  AArch64 keeps its existing recovery policy.
+  Removing the sweeps eliminates ten extras on six samples. The only new
+  miss in the initial experiment, `create pipe` on `74e0758e...exe_`, was
+  traced to unsupported `lock xadd` at `0x4037e8`. Supporting that operation
+  lets relocation slot `0x40b3f4` recover function `0x4037bc`, exactly through
+  the reference's `generic/relocations.py` path, without a raw call sweep.
+- **ELF relocation correction:** `e5e8c139...elf_` has an
+  `R_X86_64_RELATIVE` relocation at RVA `0x6c08`, with addend `0x4b30`
+  and a zero stored pointer. `vivisect/parsers/elf.py:loadElfRelocs` reads
+  the stored pointer for this relocation type. Compatibility recovery no
+  longer substitutes the RELA addend and invents function `0x2004b30`.
+  Native recovery retains its addend behavior.
+- **Status:** resolved for the listed extras. Synthetic tests distinguish
+  native sweeps from compatibility signatures, and real fixtures guard the
+  relocation-created pipe function and the zero-slot ELF case.
 
 ### KD-006 — indirect jump targets recovered by emulating the switch table
 
@@ -264,30 +276,35 @@ of this project's release contract.
   General emulated switches, including bases established outside this local
   sequence, remain outside this implementation.
 
-### KD-007: function starts created by the workspace emulator's call monitor
+### KD-007: callback and evaluated data-pointer function discovery
 
 - **Class:** recovery / function extent
-- **Direction:** capa-x reports fewer matches
-- **Affects:** the seven remaining misses on `a70052c4...exe_`, including
-  RC4, PE export parsing, and socket send/receive; the RC4 miss on
-  `49a34cfb...bb6.exe_`.
-- **Root cause:** `vivisect/impemu/monitor.py:AnalysisMonitor.apicall`
-  types emulated arguments with the `impapi` tables and creates functions
-  for arguments typed `funcptr`. `addAnalysisResults` also replays evaluated
-  dereferences through `guessDataPointer`. The values and API argument types
-  require workspace call analysis beyond a candidate classifier.
-- **Evidence:** live creation-stack tracing on `a70052c4` attributes
-  `0x405c40`, `0x405e80`, `0x4051a0`, `0x406980`, and `0x406aa0` to
-  `apicall`. The first two already exist and are marked no-return when
-  upstream's emucode module starts. Later roots `0x405290` and `0x406b80`
-  originate in emucode but depend on references exposed by those callbacks.
-  On `49a34cfb`, the previously attributed roots include `0x599940` and
-  `0x5ff610`.
-- **Corrected attribution:** `512a5575...c92.elf_` no longer differs after
-  KD-002/KD-003 candidate discovery. Its earlier attribution to this class
-  does not imply that the callback monitor is necessary for its rule set.
-- **Status:** remains outside the bounded interpreter in ADR 0007. This is
-  not a remaining absence of pointer classification or emucode discovery.
+- **Direction:** historically fewer matches
+- **Affected rules:** the seven former misses on `a70052c4...exe_`,
+  `enumerate gui resources` on `253309d8...dll_`, `delete registry key`
+  on `c335a9d4...exe_`, and RC4 on `49a34cfb...exe_`.
+- **Upstream mechanism:** `vivisect/impemu/monitor.py:AnalysisMonitor.apicall`
+  creates functions for concrete arguments named `funcptr` in the Windows
+  API tables. The x86 subclass in `analysis/i386/calling.py:prehook` also
+  records discrete LEA addresses. `addAnalysisResults` follows pointers
+  stored at those addresses through `guessDataPointer`.
+- **Implementation:** `callbacks.rs` reuses the bounded interpreter to track
+  x86 stack and Windows x64 register/stack arguments. Its API positions are
+  derived from Vivisect 1.3.2's Windows tables. Imported calls, register-held
+  imports, and direct jump thunks are supported. Unknown calls invalidate
+  argument state; unsupported instructions and budgets produce diagnostics.
+  Explicit callbacks can enter executable sections marked as dead data,
+  matching `apicall` rather than the heuristic candidate classifier.
+- **Evidence:** `CreateThread` discovers the missing roots on `a70052c4`
+  and `c335a9d4`. The latter's callback `0x402820` shares its section with
+  import data and would be wrongly rejected by a dead-data heuristic.
+  On `49a34cfb`, LEA at `0x5a02bb` references pointer slot `0x6a6b3c`,
+  which points to `0x599030`; that function calls RC4 at `0x599940`.
+  The slot itself is never promoted to a function. The x64 monitor has no
+  corresponding LEA hook, so this extra pointer-source behavior is x86 only.
+- **Status:** resolved for all ten listed missing rules. Full workspace
+  emulation, dynamically resolved API identities, and arbitrary computed
+  dereferences remain outside the bounded implementation. See ADR 0007.
 
 ### KD-008 — code the reference decodes but never wraps in a function
 
@@ -505,3 +522,23 @@ switch arms to reproduce the reference's ownership gap.
   KD-012; recovering the caller proves that no-return propagation is not its
   cause. Reproducing the match would invent a PEB access from conflicting
   instruction boundaries.
+
+### KD-015: XOR match in conflicting instruction streams
+
+- **Class:** recovery / instruction boundaries
+- **Direction:** capa-x reports fewer matches
+- **Affects:** `encode data using XOR`
+- **Sample:** `971e599e6e707349eccea2fd4c8e5f67.exe_`
+- **Evidence:** the pinned reference matches block `0x42bee1` in function
+  `0x42c6d9`. Its branch from `0x42bf01` enters the middle of the instruction
+  at `0x42bedf`. The resulting overlapping block includes `insb` at
+  `0x42bef3` and XOR at `0x42bef4`, supplying the loop/XOR evidence.
+  The surrounding reference stream also includes `out`, `insd`, unrelated
+  absolute memory accesses, and a far call. Recovery stops at privileged
+  instructions and does not reconstruct this overlapping loop.
+- **Upstream mechanism:** Vivisect's codeflow and code-block ownership allow
+  alternate branch-entry decodings; capa extracts the instructions exposed
+  by those blocks through `features/extractors/viv/extractor.py`.
+- **Status:** retained as a reference instruction-boundary difference,
+  alongside KD-014. Removing raw call sweeps also removes this sample's
+  unrelated extra `PEB access`; it does not manufacture the missing XOR loop.
