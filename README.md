@@ -181,12 +181,13 @@ inputs. Shared freeze tests separately check JSON evidence.
 | Reference rule/sample matches | 11,412 |
 | Divergent rules | 0 missing, 0 extra |
 | Samples with identical rule sets | 376/376 (100%) |
-| Samples with identical rule and match-address sets | 326/376 (86.7%) |
+| Samples with identical rule and match-address sets | 357/376 (94.9%) |
 
-The [match-address validation report](docs/validation/match-address-followup-2026-10-20.md)
-records the fixes and remaining differences. There are 50 samples with
-match-address differences. The two rule-name regressions are resolved, but
-the 100% exact-parity target is not yet met. This is corpus
+The [match-address validation report](docs/validation/match-address-checkpoint-2026-10-20.md)
+records the fixes and remaining differences. There are 19 samples with
+match-address differences: 20 missing and 30 extra addresses. No new address
+discrepancies were introduced relative to the preceding PR commit.
+The 100% exact-parity target is not yet met. This is corpus
 compatibility, not a claim of identical recovery or evidence trees for arbitrary
 binaries. Complete
 [original reference results](tests/reference-results/capa-10.0.0/README.md)

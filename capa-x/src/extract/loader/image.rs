@@ -1056,13 +1056,14 @@ impl LoadedImage {
             primary_code,
             mapped_bytes,
         };
-        // vivisect/analysis/elf/elfplt.py:getPLTs uses section names even
-        // though the image's executable mappings come from PT_LOAD segments.
+        // elfplt.getPLTs uses section names even though executable mappings
+        // come from PT_LOAD segments. Its .rela.plt entries are already typed
+        // relocation structures, so that range contains no undefined code.
         for section in &elf.section_headers {
             let Some(name) = elf.shdr_strtab.get_at(section.sh_name) else {
                 continue;
             };
-            if name.starts_with(".plt") || name == ".rela.plt" {
+            if name.starts_with(".plt") {
                 let start =
                     section
                         .sh_addr
@@ -1087,6 +1088,52 @@ impl LoadedImage {
             .chain(elf.dynrels.iter())
             .chain(elf.pltrelocs.iter())
         {
+            // parsers/elf.py applies unnamed R_386_RELATIVE and
+            // R_X86_64_RELATIVE from the stored word, including RELA records.
+            // The explicit RELA addend is deliberately not substituted.
+            if vivisect_compat
+                && matches!(architecture, Architecture::X86 | Architecture::X64)
+                && relocation.r_sym == 0
+                && relocation.r_type == goblin::elf::reloc::R_X86_64_RELATIVE
+            {
+                let address = relocation.r_offset.checked_add(load_bias).ok_or(
+                    ImageError::AddressOverflow {
+                        format: ImageFormat::Elf,
+                        context: "relative relocation address",
+                    },
+                )?;
+                let width = architecture.pointer_width();
+                let value = image.bytes_at(address, width).and_then(|bytes| {
+                    if width == 8 {
+                        bytes.try_into().ok().map(u64::from_le_bytes)
+                    } else {
+                        bytes.try_into().ok().map(u32::from_le_bytes).map(u64::from)
+                    }
+                });
+                if let Some(value) = value {
+                    let relocated = value.wrapping_add(image_base).to_le_bytes();
+                    if let Some((index, section)) = image
+                        .sections
+                        .iter()
+                        .enumerate()
+                        .find(|(_, section)| section.contains_va(address))
+                    {
+                        let offset = usize::try_from(address - section.address).ok();
+                        if let Some(destination) = offset.and_then(|offset| {
+                            let end = offset.checked_add(width)?;
+                            image.mapped_bytes.get_mut(index)?.get_mut(offset..end)
+                        }) {
+                            if let Some(source) = relocated.get(..width) {
+                                destination.copy_from_slice(source);
+                            }
+                        }
+                    }
+                } else {
+                    image
+                        .load_diagnostics
+                        .push(format!("unmapped ELF relative relocation at {address:#x}"));
+                }
+            }
             let Some(symbol) = elf.dynsyms.get(relocation.r_sym) else {
                 continue;
             };
@@ -1448,7 +1495,54 @@ impl LoadedImage {
                 reason: "INT1 has no operand for the reference i386 platform trap check".into(),
             });
         }
+        // opcode64's mandatory-prefix 0F tables leave 90..9F undefined.
+        // Recent decoders assign AVX-512 mask-register moves to these VEX
+        // encodings, but the pinned decoder rejects them.
+        let vex_opcode = opcode_offset.and_then(|offset| match bytes.get(offset)? {
+            0xc5 => Some((*bytes.get(offset + 1)? & 3, *bytes.get(offset + 2)?)),
+            0xc4 if bytes.get(offset + 1)? & 0x1f == 1 => {
+                Some((*bytes.get(offset + 2)? & 3, *bytes.get(offset + 3)?))
+            }
+            _ => None,
+        });
+        if self.architecture == Architecture::X64
+            && vex_opcode
+                .is_some_and(|(prefix, opcode)| prefix != 0 && (0x90..=0x9f).contains(&opcode))
+        {
+            return Err(ImageError::InvalidInstruction {
+                address,
+                reason: "undefined prefixed VEX opcode in the reference decoder".into(),
+            });
+        }
+        // Union of the defined opcode64 0F38/660F38/F20F38/F30F38
+        // entries. The pinned tables predate several AVX2/AVX-512
+        // operations accepted by iced-x86, including VPSLLVD (47).
+        if self.architecture == Architecture::X64
+            && opcode_offset.is_some_and(|offset| {
+                bytes.get(offset) == Some(&0xc4)
+                    && bytes.get(offset + 1).is_some_and(|map| map & 0x1f == 2)
+                    && bytes.get(offset + 3).is_some_and(|opcode| {
+                        !matches!(opcode,
+                            0x00..=0x10 | 0x13..=0x1a | 0x1c..=0x1e
+                            | 0x20..=0x25 | 0x28..=0x40 | 0x58..=0x5a
+                            | 0x78..=0x79 | 0x80..=0x82 | 0x96..=0x9f
+                            | 0xa6..=0xaf | 0xb6..=0xbf | 0xc8..=0xcd
+                            | 0xdb..=0xdf | 0xf0..=0xf3 | 0xf5..=0xf7)
+                    })
+            })
+        {
+            return Err(ImageError::InvalidInstruction {
+                address,
+                reason: "undefined VEX 0F38 opcode in the reference decoder".into(),
+            });
+        }
         let bound_offset = opcode_offset.filter(|offset| bytes.get(*offset) == Some(&0x62));
+        // opcode86 treats C4/C5 as LES/LDS even when ModRM selects a
+        // register. It does not reinterpret these bytes as a VEX prefix.
+        let far_load_offset = opcode_offset.filter(|offset| {
+            self.architecture == Architecture::X86
+                && matches!(bytes.get(*offset), Some(0xc4 | 0xc5))
+        });
         // The pinned opcode86.tbl32_0F leaves A6/A7 undefined, including
         // VIA PadLock instructions accepted by newer decoders.
         if opcode_offset.is_some_and(|offset| {
@@ -1457,6 +1551,33 @@ impl LoadedImage {
             return Err(ImageError::InvalidInstruction {
                 address,
                 reason: "opcode is undefined in the reference 0F A6/A7 table".into(),
+            });
+        }
+        // Vivisect 1.3.2 i386 opcode86.tbl32_0F38/660F38/F20F38/F30F38
+        // and tbl32_0F3A/660F3A leave these newer SIMD encodings undefined.
+        // Check the union of their entries: mandatory-prefix fallback can
+        // select the unprefixed table, but cannot define an absent opcode.
+        if self.architecture == Architecture::X86
+            && opcode_offset.is_some_and(|offset| {
+                let opcode = bytes.get(offset + 2).copied();
+                bytes.get(offset) == Some(&0x0f)
+                    && match bytes.get(offset + 1) {
+                        Some(0x38) => opcode.is_some_and(|opcode| {
+                            !matches!(opcode,
+                            0x00..=0x0b | 0x10 | 0x14..=0x15 | 0x17 | 0x1c..=0x1e
+                            | 0x20..=0x25 | 0x28..=0x2b | 0x30..=0x35 | 0x37..=0x3f
+                            | 0xdb..=0xdf | 0xf0..=0xf1 | 0xf6)
+                        }),
+                        Some(0x3a) => opcode.is_some_and(|opcode| {
+                            !matches!(opcode, 0x0f | 0x14 | 0x16 | 0x20 | 0x44 | 0x63 | 0xdf)
+                        }),
+                        _ => false,
+                    }
+            })
+        {
+            return Err(ImageError::InvalidInstruction {
+                address,
+                reason: "opcode is undefined in the reference three-byte SIMD tables".into(),
             });
         }
         // The same opcode table gives C6/C7 and 8F direct MOV/POP entries,
@@ -1472,10 +1593,27 @@ impl LoadedImage {
                 && matches!(bytes.get(offset + 1), Some(0x1c..=0x1f))
                 && bytes.get(offset + 2).is_some()
         });
+        // envi/archs/i386/disasm.py:ameth_o always consumes ptrsize bytes
+        // for A0..A3, even with an address-size prefix. Preserve that extent
+        // and displacement by replacing 67 with the effective segment prefix.
+        let moffs_offset = opcode_offset.filter(|offset| {
+            matches!(bytes.get(*offset), Some(0xa0..=0xa3))
+                && bytes
+                    .get(..*offset)
+                    .is_some_and(|prefixes| prefixes.contains(&0x67))
+        });
         let mut legacy_bytes = None;
-        if bound_offset.is_some() || alias_offset.is_some() || nop_offset.is_some() {
+        if bound_offset.is_some()
+            || far_load_offset.is_some()
+            || alias_offset.is_some()
+            || nop_offset.is_some()
+            || moffs_offset.is_some()
+        {
             let mut adjusted = bytes.to_vec();
             if let Some(opcode) = bound_offset.and_then(|offset| adjusted.get_mut(offset)) {
+                *opcode = 0x8b;
+            }
+            if let Some(opcode) = far_load_offset.and_then(|offset| adjusted.get_mut(offset)) {
                 *opcode = 0x8b;
             }
             if let Some(modrm) = alias_offset.and_then(|offset| adjusted.get_mut(offset + 1)) {
@@ -1487,6 +1625,19 @@ impl LoadedImage {
                 }
                 if let Some(modrm) = adjusted.get_mut(offset + 2) {
                     *modrm &= !0x38;
+                }
+            }
+            if let Some(prefixes) = moffs_offset.and_then(|offset| adjusted.get_mut(..offset)) {
+                let segment = prefixes
+                    .iter()
+                    .rev()
+                    .copied()
+                    .find(|byte| matches!(byte, 0x26 | 0x2e | 0x36 | 0x3e | 0x64 | 0x65))
+                    .unwrap_or(0x3e);
+                for prefix in prefixes {
+                    if *prefix == 0x67 {
+                        *prefix = segment;
+                    }
                 }
             }
             legacy_bytes = Some(adjusted);
@@ -1535,6 +1686,16 @@ impl LoadedImage {
                 iced_x86::Code::Bound_r32_m3232
             });
         }
+        if let Some(opcode) = far_load_offset.and_then(|offset| bytes.get(offset)) {
+            if !instruction.is_invalid() {
+                instruction.set_code(match (*opcode, instruction.op0_register().size()) {
+                    (0xc4, 2) => iced_x86::Code::Les_r16_m1616,
+                    (0xc4, _) => iced_x86::Code::Les_r32_m1632,
+                    (0xc5, 2) => iced_x86::Code::Lds_r16_m1616,
+                    _ => iced_x86::Code::Lds_r32_m1632,
+                });
+            }
+        }
         let mut mnemonic_override = None;
         let instruction = if instruction.is_invalid() {
             let Some((carrier, mnemonic, _)) = decode_undocumented(address, bytes) else {
@@ -1556,12 +1717,20 @@ impl LoadedImage {
                 reason: "decoder consumed beyond the mapped bytes".to_string(),
             })?
             .to_vec();
-        Ok(super::decoder::from_x86(
-            address,
-            raw,
-            instruction,
-            mnemonic_override,
-        ))
+        let mut decoded = super::decoder::from_x86(address, raw, instruction, mnemonic_override);
+        // The amd64 decoder leaves INS_TRAP fallthrough intact. Only the
+        // i386 decoder applies the platform-dependent interrupt restriction.
+        // INT3 is INS_DEBUG and remains terminal on both architectures.
+        if compatibility
+            && self.architecture == Architecture::X64
+            && matches!(
+                instruction.mnemonic(),
+                iced_x86::Mnemonic::Int | iced_x86::Mnemonic::Int1
+            )
+        {
+            decoded.flow = super::decoder::Flow::Next;
+        }
+        Ok(decoded)
     }
 
     /// AArch64 is fixed-width: every instruction is exactly 4 little-endian
@@ -2578,6 +2747,54 @@ mod tests {
     use super::*;
 
     #[test]
+    fn compatibility_rejects_new_vex_mask_register_encodings() {
+        let image = synthetic_image(
+            vec![0xc5, 0xf9, 0x92, 0xf8],
+            Permissions {
+                read: true,
+                write: false,
+                execute: true,
+            },
+        );
+        assert!(image.decode_at(0x1000).is_ok());
+        assert!(image.decode_at_compat(0x1000).is_err());
+    }
+
+    #[test]
+    fn amd64_traps_preserve_reference_codeflow_fallthrough() {
+        for bytes in [vec![0xf1], vec![0xcd, 0], vec![0xcd, 0x80]] {
+            let image = synthetic_image(
+                bytes,
+                Permissions {
+                    read: true,
+                    write: false,
+                    execute: true,
+                },
+            );
+            assert_eq!(
+                image.decode_at_compat(0x1000).unwrap().flow,
+                super::super::decoder::Flow::Next
+            );
+            assert_eq!(
+                image.decode_at(0x1000).unwrap().flow,
+                super::super::decoder::Flow::Terminal
+            );
+        }
+        let image = synthetic_image(
+            vec![0xcc],
+            Permissions {
+                read: true,
+                write: false,
+                execute: true,
+            },
+        );
+        assert_eq!(
+            image.decode_at_compat(0x1000).unwrap().flow,
+            super::super::decoder::Flow::Terminal
+        );
+    }
+
+    #[test]
     fn carved_pe_headers_handle_xor_and_truncated_section_tables() {
         let mut bytes = vec![0; 0x200];
         bytes[..2].copy_from_slice(b"MZ");
@@ -2623,6 +2840,30 @@ mod tests {
     }
 
     #[test]
+    fn compatibility_rejects_undefined_amd64_variable_vector_shift() {
+        let image = LoadedImage::from_shellcode(&[0xc4, 0xe2, 0x6d, 0x47, 0xd0], Architecture::X64);
+        assert!(image.decode_at(image.image_base).is_ok());
+        assert!(image.decode_at_compat(image.image_base).is_err());
+    }
+
+    #[test]
+    fn compatibility_i386_far_loads_do_not_consume_vex_payloads() {
+        for (bytes, mnemonic) in [
+            (&[0xc4, 0xfc, 0x89, 0x34, 0x24][..], iced_x86::Mnemonic::Les),
+            (&[0xc5, 0xf8, 0x58, 0xc0][..], iced_x86::Mnemonic::Lds),
+        ] {
+            let image = LoadedImage::from_shellcode(bytes, Architecture::X86);
+            let insn = image.decode_at_compat(image.image_base).unwrap();
+            assert_eq!(insn.bytes.len(), 2);
+            assert_eq!(insn.x86_instruction().mnemonic(), mnemonic);
+            assert_eq!(
+                insn.x86_instruction().op1_kind(),
+                iced_x86::OpKind::Register
+            );
+        }
+    }
+
+    #[test]
     fn compatibility_decodes_legacy_bound_and_modrm_aliases() {
         let image = LoadedImage::from_shellcode(
             &[0x62, 0xf1, 0x7f, 0x48, 0x6f, 0x2d, 0x4a, 0x42, 1, 0],
@@ -2658,6 +2899,42 @@ mod tests {
                 Err(ImageError::InvalidInstruction { .. })
             ));
         }
+    }
+
+    #[test]
+    fn compatibility_rejects_undefined_i386_three_byte_simd_encodings() {
+        for bytes in [
+            vec![0x66, 0x0f, 0x38, 0x40, 0xc1],    // pmulld
+            vec![0x66, 0x0f, 0x38, 0x41, 0xc1],    // phminposuw
+            vec![0x66, 0x0f, 0x3a, 0x08, 0xc1, 0], // roundps
+            vec![0x66, 0x0f, 0x3a, 0x15, 0xc1, 0], // pextrw
+        ] {
+            let image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+            assert!(image.decode_at(image.image_base).is_ok());
+            assert!(matches!(
+                image.decode_at_compat(image.image_base),
+                Err(ImageError::InvalidInstruction { .. })
+            ));
+        }
+        // opcode64 has a separate, newer SIMD table. PMULLD is valid there.
+        let image = LoadedImage::from_shellcode(&[0x66, 0x0f, 0x38, 0x40, 0xc1], Architecture::X64);
+        assert_eq!(
+            image
+                .decode_at_compat(image.image_base)
+                .unwrap()
+                .x86_instruction()
+                .mnemonic(),
+            iced_x86::Mnemonic::Pmulld
+        );
+        let image = LoadedImage::from_shellcode(&[0x66, 0x0f, 0x38, 0xdc, 0xc1], Architecture::X86);
+        assert_eq!(
+            image
+                .decode_at_compat(image.image_base)
+                .unwrap()
+                .x86_instruction()
+                .mnemonic(),
+            iced_x86::Mnemonic::Aesenc
+        );
     }
 
     #[test]
@@ -2701,6 +2978,36 @@ mod tests {
                 image.decode_at_compat(image.image_base),
                 Err(ImageError::InvalidInstruction { .. })
             ));
+        }
+    }
+
+    #[test]
+    fn compatibility_moffs_uses_pointer_width_despite_address_size_prefix() {
+        for architecture in [Architecture::X86, Architecture::X64] {
+            for opcode in 0xa0..=0xa3 {
+                let mut bytes = vec![0x64, 0x67, opcode];
+                bytes.extend_from_slice(&0x44332211u32.to_le_bytes());
+                if architecture == Architecture::X64 {
+                    bytes.extend_from_slice(&0x88776655u32.to_le_bytes());
+                }
+                let image = LoadedImage::from_shellcode(&bytes, architecture);
+                let decoded = image.decode_at_compat(image.image_base).unwrap();
+                assert_eq!(decoded.bytes, bytes);
+                assert_eq!(decoded.next_address, image.image_base + bytes.len() as u64);
+                assert_eq!(
+                    decoded.x86_instruction().segment_prefix(),
+                    iced_x86::Register::FS
+                );
+                assert_eq!(
+                    decoded.x86_instruction().memory_displacement64(),
+                    if architecture == Architecture::X86 {
+                        0x44332211
+                    } else {
+                        0x8877665544332211
+                    }
+                );
+                assert!(image.decode_at(image.image_base).unwrap().bytes.len() < bytes.len());
+            }
         }
     }
 

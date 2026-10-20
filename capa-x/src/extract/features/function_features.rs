@@ -415,6 +415,8 @@ mod tests {
             seeds: BTreeMap::new(),
             functions: BTreeMap::new(),
             function_order: BTreeMap::new(),
+            function_analysis_counts: BTreeMap::new(),
+            function_flirt_counts: BTreeMap::new(),
             function_location_counts: BTreeMap::new(),
             instruction_order: BTreeMap::new(),
             instructions: BTreeMap::new(),

@@ -1,7 +1,7 @@
 //! Bounded callback and concrete-callee discovery, following AnalysisMonitor.apicall.
 //! Argument positions come from Vivisect 1.3.2's impapi/windows tables.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
 use iced_x86::{Mnemonic, OpKind, Register};
 
@@ -167,20 +167,24 @@ fn argument(image: &LoadedImage, state: &State, index: usize) -> Option<u64> {
 }
 
 pub(super) fn enabled(image: &LoadedImage) -> bool {
-    image.format == ImageFormat::Pe
+    // analysis/__init__.py installs calling/emulation for both formats.
+    matches!(image.format, ImageFormat::Pe | ImageFormat::Elf)
         && matches!(image.architecture, Architecture::X86 | Architecture::X64)
 }
+
+pub(super) type DiscoveryResults = (Vec<(u64, SeedKind)>, Vec<(DecodedInstruction, u64)>);
 
 pub(super) fn discover(
     analysis: &mut Analysis,
     start: u64,
     noreturn: &BTreeSet<u64>,
     pointers: &mut super::pointers::Discovery,
-) -> BTreeMap<u64, SeedKind> {
+) -> DiscoveryResults {
     let image = &analysis.image;
-    let mut targets = BTreeMap::new();
+    let mut targets = Vec::<(u64, SeedKind)>::new();
     let mut pending = vec![(start, State::entry())];
     let mut visited = BTreeSet::new();
+    let mut observed_pointers = Vec::new();
     while let Some((mut address, mut state)) = pending.pop() {
         loop {
             if !visited.insert(address) {
@@ -191,7 +195,7 @@ pub(super) fn discover(
                     address,
                     message: format!("callback trace at {start:#x} exceeded its budget"),
                 });
-                return targets;
+                return (targets, observed_pointers);
             }
             if !image.is_executable_address(address) || image.is_uninitialized(address) {
                 break;
@@ -221,8 +225,29 @@ pub(super) fn discover(
                 break;
             }
             let op = insn.x86_instruction();
+            if op.memory_index() == Register::None
+                && !matches!(insn.flow, Flow::IndirectCall | Flow::IndirectBranch)
+                && (op.memory_size().size() == image.architecture.pointer_width()
+                    || (op.mnemonic() == Mnemonic::Lea && image.architecture == Architecture::X86))
+            {
+                if let Some(target) = insn
+                    .memory_target
+                    .and_then(|slot| super::read_pointer(image, slot))
+                {
+                    observed_pointers.push((insn.clone(), target));
+                }
+            }
             match insn.flow {
                 Flow::Call | Flow::IndirectCall => {
+                    // addAnalysisResults restores the reference for calls
+                    // actually reached by the emulator. _cb_noflow removed
+                    // the original reference when replacing the location.
+                    if let Some(target) = insn.direct_target {
+                        let sources = analysis.code_xrefs.entry(target).or_default();
+                        if !sources.contains(&address) {
+                            sources.push(address);
+                        }
+                    }
                     if image.architecture == Architecture::X86
                         && insn
                             .direct_target
@@ -248,7 +273,9 @@ pub(super) fn discover(
                             && image.is_executable_address(*target)
                             && !analysis.function_order.contains_key(target)
                     }) {
-                        targets.entry(target).or_insert(SeedKind::CallTarget);
+                        if !targets.iter().any(|(address, _)| *address == target) {
+                            targets.push((target, SeedKind::CallTarget));
+                        }
                     }
                     let api = imported.and_then(|name| callback_api(name, image.architecture));
                     if let Some((_, indexes, _)) = api {
@@ -260,7 +287,13 @@ pub(super) fn discover(
                                 image.is_executable_address(*target)
                                     && !super::pointers::covered(analysis, *target)
                             }) {
-                                targets.insert(target, SeedKind::ApiCallback);
+                                if let Some((_, kind)) =
+                                    targets.iter_mut().find(|(address, _)| *address == target)
+                                {
+                                    *kind = SeedKind::ApiCallback;
+                                } else {
+                                    targets.push((target, SeedKind::ApiCallback));
+                                }
                             }
                         }
                     }
@@ -283,30 +316,10 @@ pub(super) fn discover(
                         }
                         state.clobber_call();
                     } else {
-                        // Unknown calling convention and side effects: forget
-                        // the old frame. A new relative stack still permits
-                        // argument setup following this call to be evaluated.
-                        let mut next = State::entry();
-                        // Import identities in nonvolatile registers survive
-                        // ordinary calls, even when stack cleanup is unknown.
-                        for register in [
-                            Register::RBX,
-                            Register::RBP,
-                            Register::RSI,
-                            Register::RDI,
-                            Register::R12,
-                            Register::R13,
-                            Register::R14,
-                            Register::R15,
-                        ] {
-                            if let Some(value) = state
-                                .register(register)
-                                .filter(|value| image.import_locations.contains_key(value))
-                            {
-                                next.set_register(register, Some(value));
-                            }
-                        }
-                        state = next;
+                        // checkCall skips the callee and replaces only the
+                        // return register. Its private frame and other values
+                        // remain available for subsequent computed calls.
+                        state.clobber_call();
                     }
                     address = insn.next_address;
                 }
@@ -318,6 +331,44 @@ pub(super) fn discover(
                     address = target;
                 }
                 Flow::UnconditionalBranch | Flow::IndirectBranch => {
+                    // i386Emulator.readMemValue has no six/ten-byte case.
+                    // i_jmp returns None for these far pointers, which makes
+                    // executeOpcode advance to the next instruction.
+                    if op.op0_kind() == OpKind::Memory && matches!(op.memory_size().size(), 6 | 10)
+                    {
+                        address = insn.next_address;
+                        continue;
+                    }
+                    // checkBranches follows already resolved indirect edges,
+                    // independently of the selector's concrete value. Table
+                    // arms must belong to a defined code block at this point.
+                    if insn.flow == Flow::IndirectBranch {
+                        let table = op.op0_kind() == OpKind::Memory && op.memory_index_scale() == 4;
+                        let mut found = false;
+                        for (&target, sources) in &analysis.code_xrefs {
+                            if !sources.contains(&address) {
+                                continue;
+                            }
+                            if table
+                                && !analysis.functions.values().any(|function| {
+                                    function.blocks.iter().any(|block| {
+                                        block.addr <= target
+                                            && block
+                                                .insns
+                                                .last()
+                                                .is_some_and(|last| target < last.next_address)
+                                    })
+                                })
+                            {
+                                continue;
+                            }
+                            pending.push((target, state.clone()));
+                            found = true;
+                        }
+                        if found {
+                            break;
+                        }
+                    }
                     let Some(target) = state.operand(image, op, 0) else {
                         break;
                     };
@@ -360,5 +411,5 @@ pub(super) fn discover(
             }
         }
     }
-    targets
+    (targets, observed_pointers)
 }

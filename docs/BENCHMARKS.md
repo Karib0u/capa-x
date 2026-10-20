@@ -5,6 +5,16 @@ README. The measurements are reproducible evidence for a pinned implementation,
 ruleset, corpus, and host. They are not universal rankings.
 
 
+## Match-address checkpoint (2026-10-20)
+
+Fresh pinned-corpus comparisons reach 357/376 exact rule/address sets (94.9%),
+up from 326, while preserving 376/376 identical rule-name sets. There are
+20 missing and 30 extra addresses, with zero newly introduced discrepancies.
+The reference rejects one malformed input from the raw corpus of 377.
+See the [checkpoint report](validation/match-address-checkpoint-2026-10-20.md)
+for commands, validation, and every remaining address difference. No new
+performance claim is made by this parity checkpoint.
+
 ## Allocation and architecture audit (2026-10-20)
 
 Baseline: freshly fetched main `a203bd3`, release build on Apple M1 Max,

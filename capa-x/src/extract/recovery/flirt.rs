@@ -124,6 +124,26 @@ impl SignatureMatcher {
             .filter(|signature| signature.match_footer(bytes))
             .collect()
     }
+
+    fn has_local_candidate(&self, bytes: &[u8]) -> bool {
+        self.prefix_shapes.iter().any(|&(length, mask)| {
+            let Some(prefix) = bytes.get(..usize::from(length)) else {
+                return false;
+            };
+            let key = (length, mask, masked_prefix_value(prefix, mask));
+            self.prefixes.get(&key).is_some_and(|indices| {
+                indices
+                    .iter()
+                    .filter_map(|index| self.signatures.get(*index))
+                    .any(|signature| {
+                        signature
+                            .names
+                            .iter()
+                            .any(|symbol| matches!(symbol, Symbol::Local(name) if name.offset != 0))
+                    })
+            })
+        })
+    }
 }
 
 fn signature_prefix(signature: &FlirtSignature) -> (u8, u8, u64) {
@@ -394,13 +414,67 @@ enum CacheEntry {
 struct MatcherState<'a> {
     analysis: &'a Analysis,
     database: &'a SignatureDatabase,
-    code_xrefs_from: &'a BTreeMap<u64, Vec<u64>>,
-    data_xrefs_from: &'a BTreeMap<u64, Vec<u64>>,
+    code_xrefs_from: Option<&'a BTreeMap<u64, Vec<u64>>>,
+    data_xrefs_from: Option<&'a BTreeMap<u64, Vec<u64>>>,
     recognized: &'a mut BTreeMap<u64, String>,
     cache: BTreeMap<u64, CacheEntry>,
     function_order: usize,
     location_count: usize,
     local_starts: &'a mut BTreeSet<u64>,
+}
+
+pub(super) struct Discovery {
+    signatures: Signatures,
+    recognized: BTreeMap<u64, String>,
+}
+
+impl Discovery {
+    pub(super) fn new(signatures: Signatures) -> Self {
+        Self {
+            signatures,
+            recognized: BTreeMap::new(),
+        }
+    }
+
+    pub(super) fn function_completed(
+        &mut self,
+        analysis: &Analysis,
+        address: u64,
+    ) -> Result<BTreeSet<u64>, FlirtError> {
+        let mut locals = BTreeSet::new();
+        let Some(prefix) = analysis
+            .image
+            .bytes_at(address, SignatureMatcher::PREFIX_LEN)
+        else {
+            return Ok(locals);
+        };
+        if !self
+            .signatures
+            .databases
+            .iter()
+            .any(|database| database.matcher.has_local_candidate(prefix))
+        {
+            return Ok(locals);
+        }
+        for database in self.signatures.databases.iter() {
+            if self.recognized.contains_key(&address) {
+                break;
+            }
+            let mut state = MatcherState {
+                analysis,
+                database,
+                code_xrefs_from: None,
+                data_xrefs_from: None,
+                recognized: &mut self.recognized,
+                cache: BTreeMap::new(),
+                function_order: usize::MAX,
+                location_count: usize::MAX,
+                local_starts: &mut locals,
+            };
+            state.match_function(address)?;
+        }
+        Ok(locals)
+    }
 }
 
 fn index_xrefs_by_source(index: &BTreeMap<u64, Vec<u64>>) -> BTreeMap<u64, Vec<u64>> {
@@ -441,10 +515,23 @@ pub(super) fn identify_with_local_starts(
     addresses.sort_by_key(|address| {
         (
             analysis
-                .function_order
+                .function_analysis_counts
                 .get(address)
                 .copied()
-                .unwrap_or(usize::MAX),
+                .unwrap_or_else(|| {
+                    analysis
+                        .function_order
+                        .get(address)
+                        .copied()
+                        .unwrap_or(usize::MAX)
+                }),
+            std::cmp::Reverse(
+                analysis
+                    .function_order
+                    .get(address)
+                    .copied()
+                    .unwrap_or(usize::MAX),
+            ),
             *address,
         )
     });
@@ -458,15 +545,16 @@ pub(super) fn identify_with_local_starts(
             let mut state = MatcherState {
                 analysis,
                 database,
-                code_xrefs_from: &code_xrefs_from,
-                data_xrefs_from: &data_xrefs_from,
+                code_xrefs_from: Some(&code_xrefs_from),
+                data_xrefs_from: Some(&data_xrefs_from),
                 recognized: &mut recognized,
                 cache: BTreeMap::new(),
                 local_starts: &mut local_starts,
                 function_order: analysis
-                    .function_order
+                    .function_flirt_counts
                     .get(&address)
-                    .copied()
+                    .map(|count| count.saturating_sub(1))
+                    .or_else(|| analysis.function_order.get(&address).copied())
                     .unwrap_or(usize::MAX),
                 location_count: analysis
                     .function_location_counts
@@ -761,22 +849,44 @@ impl MatcherState<'_> {
             let Some(reference_address) = function_address.checked_add(offset) else {
                 return Ok(false);
             };
-            let Some(instruction_address) = self.containing_instruction(reference_address) else {
+            let Some(instruction_address) =
+                self.containing_instruction(reference_address)
+                    .filter(|start| {
+                        self.analysis
+                            .instruction_order
+                            .get(start)
+                            .is_none_or(|order| *order < self.location_count)
+                    })
+            else {
                 return Ok(false);
             };
 
             if reference.name == "." {
-                if self.data_xrefs_from.contains_key(&instruction_address) {
+                if self.data_xrefs_from.map_or_else(
+                    || {
+                        self.analysis
+                            .data_xrefs
+                            .values()
+                            .any(|sources| sources.contains(&instruction_address))
+                    },
+                    |index| index.contains_key(&instruction_address),
+                ) {
                     continue;
                 }
                 return Ok(false);
             }
 
-            let targets = self
-                .code_xrefs_from
-                .get(&instruction_address)
-                .cloned()
-                .unwrap_or_default();
+            let targets = self.code_xrefs_from.map_or_else(
+                || {
+                    self.analysis
+                        .code_xrefs
+                        .iter()
+                        .filter(|(_, sources)| sources.contains(&instruction_address))
+                        .map(|(target, _)| *target)
+                        .collect()
+                },
+                |index| index.get(&instruction_address).cloned().unwrap_or_default(),
+            );
             let mut matched = false;
             for target in targets {
                 if self.match_function(target)?.as_deref() == Some(reference.name.as_str()) {
@@ -831,6 +941,17 @@ impl MatcherState<'_> {
         }
         if let Some(address) = address.filter(|address| {
             self.function_exists(*address)
+                || (self.analysis.functions.contains_key(address)
+                    && self
+                        .analysis
+                        .function_order
+                        .get(address)
+                        .is_some_and(|order| {
+                            self.analysis
+                                .function_analysis_counts
+                                .get(&base)
+                                .is_some_and(|count| order < count)
+                        }))
                 || (local
                     && self.analysis.functions.contains_key(address)
                     && self
@@ -967,6 +1088,51 @@ mod tests {
             assert_eq!(libraries.get(&first).map(String::as_str), Some("root"));
             assert_eq!(libraries.contains_key(&second), expected);
         }
+    }
+
+    #[test]
+    fn signature_references_cannot_use_instructions_discovered_later() {
+        use crate::extract::image::SHELLCODE_BASE;
+        use crate::extract::recovery::analyze_shellcode;
+
+        // The entry creates the callee, root, then a later function whose
+        // CALL happens to satisfy a reference beyond root's own return.
+        let mut bytes = vec![
+            0xe8, 91, 0, 0, 0, 0xe8, 22, 0, 0, 0, 0xe8, 49, 0, 0, 0, 0xc3,
+        ];
+        bytes.resize(128, 0xcc);
+        bytes[32..35].copy_from_slice(&[0x31, 0xc0, 0xc3]);
+        bytes[64..70].copy_from_slice(&[0xe8, 27, 0, 0, 0, 0xc3]);
+        bytes[96..99].copy_from_slice(&[0x31, 0xc9, 0xc3]);
+        let mut analysis = analyze_shellcode(&bytes, Architecture::X86).unwrap();
+        analysis.image.format = ImageFormat::Pe;
+        let pattern = format!(
+            "31C0C3{} 00 0000 0040 :0000 root ^0021 callee\n31C9C3{} 00 0000 0020 :0000 callee\n---",
+            "..".repeat(29), "..".repeat(29)
+        );
+        let signatures = Signatures {
+            databases: vec![
+                parse_database(PathBuf::from("visibility.pat"), pattern.as_bytes()).unwrap(),
+            ]
+            .into(),
+        };
+        let libraries = identify_library_functions(&analysis, &signatures).unwrap();
+        assert_eq!(
+            libraries.get(&(SHELLCODE_BASE + 96)).map(String::as_str),
+            Some("callee")
+        );
+        assert!(!libraries.contains_key(&(SHELLCODE_BASE + 32)));
+        // Once the later location exists, the exact same signature is valid.
+        analysis
+            .function_location_counts
+            .insert(SHELLCODE_BASE + 32, usize::MAX);
+        assert_eq!(
+            identify_library_functions(&analysis, &signatures)
+                .unwrap()
+                .get(&(SHELLCODE_BASE + 32))
+                .map(String::as_str),
+            Some("root")
+        );
     }
 
     #[test]

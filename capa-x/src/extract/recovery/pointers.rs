@@ -88,7 +88,10 @@ impl Discovery {
 
     fn add(&mut self, analysis: &Analysis, target: u64, kind: SeedKind) {
         if (kind != SeedKind::Emulated || self.emucode_active)
-            && analysis.image.is_executable_address(target)
+            && analysis
+                .image
+                .section_containing(target)
+                .is_some_and(|section| section.permissions.read)
             && (kind != SeedKind::Emulated || !analysis.image.is_dead_data(target))
             && !covered(analysis, target)
             && !self.tried.contains(&(kind, target))
@@ -273,12 +276,12 @@ impl Discovery {
         analysis: &Analysis,
         instruction: &super::image::DecodedInstruction,
         during_flow: bool,
-    ) {
+    ) -> Option<u64> {
         if during_flow && instruction.x86_instruction().mnemonic() == Mnemonic::Lea {
-            return;
+            return None;
         }
         if !self.examined_instructions.insert(instruction.address) {
-            return;
+            return None;
         }
         let op = instruction.x86_instruction();
         for index in 0..op.op_count() {
@@ -297,7 +300,7 @@ impl Discovery {
             // returns None without an emulator, so its displacement
             // alone is neither a pointer nor a defined data location.
             if op.memory_index() != Register::None {
-                return;
+                return None;
             }
             if op.mnemonic() == Mnemonic::Lea {
                 // `i386ImmMemOper.getOperValue` returns None without an
@@ -311,7 +314,7 @@ impl Discovery {
                 // addAnalysisResults then calls guessDataPointer on the
                 // source slot. The amd64 monitor has no such LEA hook.
                 if analysis.image.architecture != Architecture::X86 {
-                    return;
+                    return None;
                 }
             }
             if !covered(analysis, target)
@@ -324,7 +327,7 @@ impl Discovery {
                     op.memory_size().size()
                 };
                 if size == 0 || analysis.image.bytes_at(target, size).is_none() {
-                    return;
+                    return None;
                 }
                 if matches!(
                     instruction.flow,
@@ -333,11 +336,11 @@ impl Discovery {
                     // makeOpcode creates a pointer for BR_DEREF, without
                     // following it or interpreting its bytes as a number.
                     self.mark_data(target, analysis.image.architecture.pointer_width());
-                    return;
+                    return None;
                 }
                 if let Some(size) = string_size(analysis, target) {
                     self.mark_noncode(target, size);
-                    return;
+                    return None;
                 }
                 let pointer = (size == analysis.image.architecture.pointer_width())
                     .then(|| super::read_pointer(&analysis.image, target))
@@ -346,12 +349,104 @@ impl Discovery {
                 if let Some(value) = pointer {
                     self.mark_data(target, size);
                     self.add(analysis, value, SeedKind::PointerTarget);
+                    return Some(value);
                 } else {
                     // guessDataPointer creates LOC_NUMBER for a scalar.
                     // Code flow cannot reclassify that location as code.
                     self.mark_noncode(target, size);
                 }
             }
+        }
+        None
+    }
+
+    pub(super) fn follow_observed_pointer(
+        &mut self,
+        analysis: &mut Analysis,
+        target: u64,
+        noreturn: &BTreeSet<u64>,
+    ) -> Option<u64> {
+        // AnalysisMonitor.addAnalysisResults follows each newly typed data
+        // pointer before the containing function's noret/FLIRT passes run.
+        if !self.candidates.remove(&(SeedKind::PointerTarget, target)) {
+            return None;
+        }
+        if self.tried.len() >= MAX_CANDIDATES {
+            analysis.diagnostics.push(RecoveryDiagnostic {
+                address: target,
+                message: format!("pointer evaluation stopped at {MAX_CANDIDATES} candidates"),
+            });
+            return None;
+        }
+        self.add(analysis, target, SeedKind::Emulated);
+        if !self.tried.insert((SeedKind::PointerTarget, target))
+            || covered(analysis, target)
+            || emucode::in_data(&self.data_locations, target)
+            || emucode::in_import(&analysis.image, target)
+        {
+            return None;
+        }
+        if let Some(size) = string_size(analysis, target) {
+            self.mark_noncode(target, size);
+            return None;
+        }
+        let signature = analysis
+            .seeds
+            .get(&target)
+            .is_some_and(|kinds| kinds.contains(&SeedKind::FunctionSignature));
+        let verdict = if signature {
+            Verdict::Code
+        } else {
+            emucode::evaluate_candidate(analysis, target, noreturn, &self.data_locations)
+        };
+        match verdict {
+            Verdict::Code => {
+                analysis
+                    .seeds
+                    .entry(target)
+                    .or_default()
+                    .insert(SeedKind::PointerTarget);
+                Some(target)
+            }
+            Verdict::Inconclusive { address, reason } => {
+                analysis.diagnostics.push(RecoveryDiagnostic {
+                    address: target,
+                    message: format!("candidate evaluation stopped at {address:#x}: {reason}"),
+                });
+                None
+            }
+            Verdict::NotCode => None,
+        }
+    }
+
+    pub(super) fn function_completed(&mut self, analysis: &Analysis, function: u64) {
+        // ms/hotpatch.py runs after codeblocks and before calling analysis.
+        if analysis.image.format != ImageFormat::Pe || !self.examined_functions.insert(function) {
+            return;
+        }
+        let Some(section) = analysis.image.section_containing(function) else {
+            return;
+        };
+        let Some(size) = function
+            .checked_sub(section.address)
+            .and_then(|size| usize::try_from(size).ok())
+        else {
+            return;
+        };
+        let Some(bytes) = analysis.image.bytes_at(section.address, size) else {
+            return;
+        };
+        let Some(&padding @ (0x90 | 0xcc)) = bytes.last() else {
+            return;
+        };
+        let count = bytes
+            .iter()
+            .rev()
+            .take_while(|&&byte| byte == padding)
+            .count();
+        let start = function.saturating_sub(count as u64);
+        if count >= 5 && !covered(analysis, start) {
+            self.mark_noncode(start, count);
         }
     }
 
@@ -365,40 +460,6 @@ impl Discovery {
         }
         if let Some(address) = self.next_emulated(analysis) {
             return Some(address);
-        }
-        if analysis.image.format == ImageFormat::Pe {
-            // ms/hotpatch.py:analyzeFunction marks a run of at least five
-            // identical NOP or INT3 bytes immediately before a new function.
-            // It runs before generic.emucode evaluates remaining candidates.
-            for &function in analysis.function_order.keys() {
-                if !self.examined_functions.insert(function) {
-                    continue;
-                }
-                let Some(section) = analysis.image.section_containing(function) else {
-                    continue;
-                };
-                let Some(size) = function
-                    .checked_sub(section.address)
-                    .and_then(|size| usize::try_from(size).ok())
-                else {
-                    continue;
-                };
-                let Some(bytes) = analysis.image.bytes_at(section.address, size) else {
-                    continue;
-                };
-                let Some(&padding @ (0x90 | 0xcc)) = bytes.last() else {
-                    continue;
-                };
-                let count = bytes
-                    .iter()
-                    .rev()
-                    .take_while(|&&byte| byte == padding)
-                    .count();
-                let start = function.saturating_sub(count as u64);
-                if count >= 5 && !covered(analysis, start) {
-                    self.mark_noncode(start, count);
-                }
-            }
         }
         // Drain this candidate batch before rescanning operands. Walking one
         // new function per call must not rescan the whole instruction map.
@@ -484,8 +545,7 @@ impl Discovery {
                 self.candidates.clear();
                 return None;
             }
-            if !analysis.image.is_executable_address(address)
-                || !self.tried.insert((kind, address))
+            if !self.tried.insert((kind, address))
                 || covered(analysis, address)
                 || emucode::in_data(&self.data_locations, address)
                 || emucode::in_import(&analysis.image, address)
@@ -493,13 +553,17 @@ impl Discovery {
             {
                 continue;
             }
-            if kind == SeedKind::PointerTarget {
+            let executable = analysis.image.is_executable_address(address);
+            if kind == SeedKind::PointerTarget || !executable {
                 if let Some(size) = string_size(analysis, address) {
                     // analyzePointer/followPointer creates a string location.
                     // Later traces must reject branches into these bytes.
                     self.mark_noncode(address, size);
                     continue;
                 }
+            }
+            if !executable {
+                continue;
             }
             // `isProbablyCode` accepts a registered entry signature before
             // running the watcher. The signature scanner already populated
@@ -575,10 +639,27 @@ fn string_size(analysis: &Analysis, address: u64) -> Option<usize> {
     // `VivWorkspace.analyzePointer` checks strings before code. Keep this
     // bounded and require the same printable ASCII and NUL terminator.
     let bytes = analysis.image.bytes_at(address, 4096)?;
+    // detectString also accepts short Pascal/Delphi strings when the
+    // preceding two- or four-byte length agrees with the NUL terminator.
+    let prefixed_length = |width: usize| {
+        let start = address.checked_sub(width as u64)?;
+        let bytes = analysis.image.bytes_at(start, width)?;
+        (bytes.len() == width).then(|| {
+            bytes.iter().enumerate().fold(0u64, |value, (index, byte)| {
+                value | (u64::from(*byte) << (index * 8))
+            })
+        })
+    };
+    let pascal_length = prefixed_length(2);
+    let delphi_length = prefixed_length(4);
     let printable = |byte: u8| byte.is_ascii_graphic() || byte == b' ' || matches!(byte, 9..=13);
     for (count, &byte) in bytes.iter().enumerate() {
         if byte == 0 {
-            if count >= 4 {
+            if count > 0
+                && (count >= 4
+                    || pascal_length == Some(count as u64)
+                    || delphi_length == Some(count as u64))
+            {
                 return Some(count + 1);
             }
             break;
@@ -614,4 +695,46 @@ fn insert_location(locations: &mut Vec<(u64, u64)>, start: u64, size: usize) {
         .filter(|_| first < last)
         .map_or(end, |(_, previous)| end.max(*previous));
     locations.splice(first..last, [(start, end)]);
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn observed_pointers_respect_the_candidate_budget() {
+        let mut analysis = super::super::analyze_shellcode(&[0xc3], Architecture::X86).unwrap();
+        let target = analysis.image.image_base;
+        let mut discovery = Discovery::new(&mut analysis, true);
+        discovery.tried = (0..MAX_CANDIDATES as u64)
+            .map(|address| (SeedKind::PointerTarget, address))
+            .collect();
+        discovery
+            .candidates
+            .insert((SeedKind::PointerTarget, target));
+        assert_eq!(
+            discovery.follow_observed_pointer(&mut analysis, target, &BTreeSet::new()),
+            None
+        );
+        assert_eq!(discovery.tried.len(), MAX_CANDIDATES);
+        assert!(analysis
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.address == target
+                && diagnostic.message.contains("pointer evaluation stopped")));
+    }
+
+    #[test]
+    fn length_prefixed_short_strings_are_data() {
+        let bytes = [
+            0xc3, 0xcc, 0xcc, 0xcc, 2, 0, 0, 0, b'y', b'y', 0, 0xcc, 0xff, 0xff, 3, 0, b'A', b'p',
+            b'r', 0, 0xff, 0xff, 0xff, 0xff, b'n', b'o', 0,
+        ];
+        let analysis = super::super::analyze_shellcode(&bytes, Architecture::X86).unwrap();
+        let start = analysis.image.image_base;
+        assert_eq!(string_size(&analysis, start + 8), Some(3));
+        assert_eq!(string_size(&analysis, start + 16), Some(4));
+        assert_eq!(string_size(&analysis, start + 24), None);
+    }
 }

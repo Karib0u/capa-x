@@ -67,7 +67,19 @@ fn compatibility_rva_targets(
     }
     let register = reg_operand(branch.x86_instruction(), 0)?;
     let add = previous(analysis, branch.address)?;
-    let load = previous(analysis, add.address)?;
+    // getSwitchBase/findOp searches past unrelated instructions, including
+    // an image-base LEA placed between the table load and the ADD.
+    let mut load = previous(analysis, add.address)?;
+    let mut remaining = MAX_DISPATCH_INSNS;
+    while !reg_operand(load.x86_instruction(), 0)
+        .is_some_and(|dest| dest.full_register() == register)
+    {
+        if remaining == 0 || load.flow != Flow::Next || has_entry(analysis, load.address) {
+            return None;
+        }
+        remaining -= 1;
+        load = previous(analysis, load.address)?;
+    }
     let sum = add.x86_instruction();
     let mov = load.x86_instruction();
     let base_register = reg_operand(sum, 1)?;
@@ -78,9 +90,10 @@ fn compatibility_rva_targets(
         || mov.mnemonic() != Mnemonic::Mov
         || !reg_operand(mov, 0)
             .is_some_and(|dest| dest.size() == 4 && dest.full_register() == register)
-        || !indexed_load(mov, base_register, mov.memory_index(), 4, 4)
+        || !indexed_load(mov, mov.memory_base(), mov.memory_index(), 4, 4)
         || mov.memory_index() == Register::None
-        || constant_before(analysis, load.address, base_register)? != analysis.image.image_base
+        || constant_before(analysis, add.address, base_register)? != analysis.image.image_base
+        || constant_before(analysis, load.address, mov.memory_base())? != analysis.image.image_base
     {
         return None;
     }
@@ -124,6 +137,7 @@ fn compatibility_rva_targets(
                         branch.address
                     ),
                 });
+                break;
             }
             super::emucode::Verdict::Code => {}
         }
@@ -274,6 +288,7 @@ fn absolute_targets(
                             address,
                             message: format!("switch {:#x} arm {target:#x} candidate evaluation inconclusive: {reason}", branch.address),
                         });
+                        break;
                     }
                     super::emucode::Verdict::Code => {}
                 }
@@ -689,6 +704,8 @@ fn x64_targets(
                             branch.address
                         ),
                     });
+                    indexes.retain(|value| *value < index);
+                    break;
                 }
                 super::emucode::Verdict::Code => {}
             }

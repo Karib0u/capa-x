@@ -10,13 +10,15 @@ historical causes so earlier measurements remain interpretable.
 The latest 2026-10-20 run covers all 377 native x86/x64 and shellcode inputs.
 Original capa rejects one malformed ELF. All 376 comparable inputs have
 identical rule-name sets: 11,412 reference rule/sample matches, zero missing,
-and zero extra. Exact rule and match-address sets agree on 326 inputs and
-differ on 50, improved from 321 on the freshly measured preceding PR commit.
+and zero extra. Exact rule and match-address sets agree on 357 inputs and
+differ on 19, improved from 326 on the freshly measured preceding PR commit.
+There are 20 missing and 30 extra addresses, with no newly introduced
+rule/address discrepancies.
 The extra `contain anti-disasm techniques` and `contain pusha popa sequence`
 regressions described in KD-025 are resolved.
 Match-location and evidence-tree compatibility are not complete.
 
-The [match-address report](docs/validation/match-address-followup-2026-10-20.md)
+The [match-address report](docs/validation/match-address-checkpoint-2026-10-20.md)
 records the fixes and links every remaining address difference. The
 [earlier full validation](docs/validation/full-corpus-2026-10-20.md) and
 [complete reference outputs](tests/reference-results/capa-10.0.0/README.md)

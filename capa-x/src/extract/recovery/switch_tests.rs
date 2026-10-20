@@ -160,6 +160,28 @@ fn compatibility_rva_switch_does_not_require_an_adjacent_guard() {
 }
 
 #[test]
+fn compatibility_switch_accepts_a_separate_base_reload_after_the_table_load() {
+    let mut code = vec![
+        0x48, 0x8d, 0x0d, 0xf9, 0xff, 0xff, 0xff, // lea rcx,image base
+        0x8b, 0x8c, 0x81, 0x80, 0, 0, 0, // mov ecx,[rcx+rax*4+0x80]
+        0x48, 0x8d, 0x05, 0xeb, 0xff, 0xff, 0xff, // lea rax,image base
+        0x48, 0x03, 0xc8, // add rcx,rax
+        0xff, 0xe1, // jmp rcx
+    ];
+    code.resize(0x8c, 0xcc);
+    for offset in [0x40, 0x44] {
+        code[offset] = 0xc3;
+    }
+    code[0x80..0x88].copy_from_slice(&[0x40, 0, 0, 0, 0x44, 0, 0, 0]);
+    let mut analysis = analyze_shellcode(&code, Architecture::X64).unwrap();
+    let jump = analysis.instructions[&(SHELLCODE_BASE + 24)].clone();
+    assert_eq!(
+        targets_compat(&mut analysis, &jump, &BTreeSet::new(), &mut Vec::new()),
+        Some(vec![SHELLCODE_BASE + 0x40, SHELLCODE_BASE + 0x44]),
+    );
+}
+
+#[test]
 fn compatibility_rva_switch_reports_exhausted_table_budget() {
     let (mut code, branch) = x64_code(false);
     code[2..7].fill(0x90);

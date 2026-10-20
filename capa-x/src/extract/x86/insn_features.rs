@@ -176,7 +176,19 @@ fn is_thunk_function(analysis: &Analysis, function: &Function) -> bool {
 /// instructions so it never treats a `mov`/`lea`'s memory operand as a code
 /// reference the way [`super::operand::classify_operand`] alone would.
 fn code_ref_from(analysis: &Analysis, va: u64) -> Option<u64> {
+    // VivCodeFlowContext._cb_noflow replaces the opcode location to set
+    // IF_NOFALL. delLocation also removes its outgoing code references.
     let insn = analysis.instructions.get(&va)?;
+    if analysis.noreturn_calls.contains(&va)
+        && !insn.direct_target.is_some_and(|target| {
+            analysis
+                .code_xrefs
+                .get(&target)
+                .is_some_and(|sources| sources.contains(&va))
+        })
+    {
+        return None;
+    }
     match insn.x86_instruction().flow_control() {
         // A conditional branch has exactly one `REF_CODE` xref -- its taken
         // target. `makeOpcode` (`vivisect/__init__.py:1420`) skips
@@ -769,13 +781,12 @@ fn extract_op_number_features(
         // looks like a valid address; assume it's not also a constant.
         return Vec::new();
     }
-    // capa/features/extractors/viv/insn.py only excludes `add esp, N`
-    // (32-bit `REG_ESP`) here, not `add rsp, N` on x64 -- preserved as-is.
+    // envi's i386 REG_ESP and amd64 REG_RSP share the base register index
+    // 4. The reference comparison therefore excludes both stack adjustments.
     if mnemonic == "add"
-        && matches!(
-            classify_operand(insn.x86_instruction(), 0),
-            Operand::Reg(Register::ESP)
-        )
+        && (insn.x86_instruction().op0_register() == Register::RSP
+            || (ctx.analysis.image.architecture == super::image::Architecture::X86
+                && insn.x86_instruction().op0_register() == Register::ESP))
     {
         return Vec::new();
     }
@@ -975,6 +986,8 @@ mod tests {
                 seeds: BTreeMap::new(),
                 functions: BTreeMap::new(),
                 function_order: BTreeMap::new(),
+                function_analysis_counts: BTreeMap::new(),
+                function_flirt_counts: BTreeMap::new(),
                 function_location_counts: BTreeMap::new(),
                 instruction_order: BTreeMap::new(),
                 instructions,
@@ -1192,6 +1205,24 @@ mod tests {
                 Feature::Api("ntdll.RtlAllocateHeap".to_string())
             )]
         );
+    }
+
+    #[test]
+    fn nofall_location_replacement_removes_direct_api_reference() {
+        let mut fixture = Fixture::build(
+            ImageFormat::Pe,
+            Architecture::X86,
+            vec![
+                (CODE_BASE, vec![0xe8, 0xfb, 0x0f, 0x00, 0x00]),
+                (0x2000, vec![0xff, 0x25, 0x00, 0x90, 0x00, 0x00]),
+            ],
+            Vec::new(),
+            BTreeMap::from([(0x9000, vec!["exit".to_string()])]),
+        );
+        fixture.analysis.noreturn_calls.insert(CODE_BASE);
+        let libraries = no_libraries();
+        let ctx = fixture.ctx(&libraries);
+        assert!(extract_insn_api_features(&ctx, fixture.insn(0), "call").is_empty());
     }
 
     #[test]
@@ -1455,6 +1486,20 @@ mod tests {
         let ctx = fixture.ctx(&libraries);
         let insn = fixture.insn(0);
         assert!(extract_op_number_features(&ctx, insn, "add", 1).is_empty());
+    }
+
+    #[test]
+    fn amd64_stack_adjustment_does_not_supply_export_directory_offset() {
+        let fixture = Fixture::build(
+            ImageFormat::Pe,
+            Architecture::X64,
+            vec![(CODE_BASE, vec![0x48, 0x81, 0xc4, 0x88, 0, 0, 0])],
+            Vec::new(),
+            BTreeMap::new(),
+        );
+        let libraries = no_libraries();
+        let ctx = fixture.ctx(&libraries);
+        assert!(extract_op_number_features(&ctx, fixture.insn(0), "add", 1).is_empty());
     }
 
     #[test]
