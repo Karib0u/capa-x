@@ -2009,13 +2009,24 @@ fn build_function_view(
     }
 
     let mut block_starts = BTreeSet::from([start]);
-    block_starts.extend(
-        analysis
-            .code_xrefs
-            .keys()
-            .filter(|address| reachable.contains(address))
-            .copied(),
-    );
+    // Intersect from the smaller side so small functions do not scan every
+    // code-reference target in the image. Both paths retain address order.
+    if reachable.len() < analysis.code_xrefs.len() {
+        block_starts.extend(
+            reachable
+                .iter()
+                .filter(|address| analysis.code_xrefs.contains_key(address))
+                .copied(),
+        );
+    } else {
+        block_starts.extend(
+            analysis
+                .code_xrefs
+                .keys()
+                .filter(|address| reachable.contains(address))
+                .copied(),
+        );
+    }
     for &address in &reachable {
         let Some(insn) = analysis.instructions.get(&address) else {
             continue;

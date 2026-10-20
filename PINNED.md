@@ -6,10 +6,10 @@ and re-runs the full difftest suite.
 
 | Component | Ref | Commit |
 |---|---|---|
-| `mandiant/capa` (`reference/capa`) | `v9.4.0` | `7a79f799a70f052e8382cdbeaec8115daba14a5b` |
-| `mandiant/capa-rules` (`rules`) | `v9.4.0` | `2af9fbfc1c9b4634dbeb76b5d34fca9389fa7f80` |
+| `mandiant/capa` (`reference/capa`) | `v10.0.0` | `85813ebc5b99ccdbe43147e46796d0bd6700f30a` |
+| `mandiant/capa-rules` (`rules`) | `v10.0.0` | `805f9eaccfb6a4e1ddffc809d71d1e2b5ccc15e5` |
 | `mandiant/capa-testfiles` (`tests/testfiles`) | `master` | `44e7363ac3a3fb1ffe1c36957188ad3e7683b57f` |
-| `flare-capa` (PyPI, `.venv`) | `9.4.0` | — |
+| `flare-capa` (PyPI, `.venv`) | `10.0.0` | n/a |
 | `dnfile` (`third_party/dnfile`, vendored fork) | `0.5.1-capa.5` | patched from [dnfile 0.5.1](https://crates.io/crates/dnfile/0.5.1) per [ADR 0003](docs/decisions/0003-clr-metadata.md); see `third_party/dnfile/PATCH.md` |
 
 `capa-testfiles` has no release tags; pin a fixed commit and bump

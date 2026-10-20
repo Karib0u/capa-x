@@ -73,6 +73,7 @@ with `--jobs 1` and another job count is a bug.
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
+python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
 `cargo test --workspace` is about 20 seconds. The slow acceptance and

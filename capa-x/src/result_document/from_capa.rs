@@ -93,7 +93,7 @@ pub fn rule_metadata(rule: &Rule) -> RuleMetadata {
         examples: rule.meta.examples.clone(),
         description: rule.meta.description.clone(),
         lib: rule.meta.lib,
-        is_subscope_rule: yaml_bool(raw, "capa/subscope"),
+        is_subscope_rule: yaml_bool(raw, "capa/subscope-rule"),
         maec: MaecMetadata {
             analysis_conclusion: yaml_str(raw, "maec/analysis-conclusion"),
             analysis_conclusion_ov: yaml_str(raw, "maec/analysis-conclusion-ov"),

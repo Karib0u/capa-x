@@ -1,7 +1,7 @@
 # Known divergences vs Python capa
 
 Every result difference between capa-x and the pinned Python capa
-(`flare-capa` 9.4.0 + the vivisect it pins, see [`PINNED.md`](PINNED.md)),
+(`flare-capa` and Vivisect versions in [`PINNED.md`](PINNED.md)),
 one entry per *class* of difference. Resolved entries retain their IDs and
 historical causes so earlier measurements remain interpretable.
 

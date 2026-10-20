@@ -19,8 +19,13 @@ on:
 jobs:
   build:
     name: build (${{ matrix.os }})
-    # The cron is for the difftest job only; see its `if:` below.
-    if: github.event_name != 'schedule'
+    # Schedules and label events are for difftest only.
+    if: github.event_name != 'schedule' && github.event.action != 'labeled'
+    # Keep cancellation at job level: a label event must not cancel builds.
+    # Non-PR runs use unique groups so pushes and manual runs never queue.
+    concurrency:
+      group: ${{ github.workflow }}-build-${{ matrix.os }}-${{ github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     strategy:
       fail-fast: false
       matrix:
@@ -56,6 +61,9 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Differential harness tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
 
@@ -77,7 +85,8 @@ jobs:
       #
       # Ubuntu only, and five samples: the property is a property of the join,
       # not of a platform or a corpus. The full 200-sample comparison is a
-      # pre-merge run, not a CI job.
+      # pre-merge run, not a CI job. Two sample workers bound resource use
+      # while preserving every job-count comparison and repetition.
       - name: determinism (--jobs 1 vs 2 vs 4)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -85,7 +94,7 @@ jobs:
           python3 scripts/determinism.py \
             --samples scripts/corpus-jobs.txt \
             --capa-cli target/release/capa-x \
-            --jobs 2,4 --repeat 3
+            --jobs 2,4 --repeat 3 --workers 2
 
   msrv:
     name: msrv (rust-version in Cargo.toml)
@@ -93,7 +102,10 @@ jobs:
     # Same reasoning as `build`: the schedule is for the difftest job only.
     # The MSRV cannot change without a commit, so a timer cannot catch
     # anything a push does not.
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'schedule' && github.event.action != 'labeled'
+    concurrency:
+      group: ${{ github.workflow }}-msrv-${{ github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     # A declared `rust-version` is only a claim until something builds on it.
     # This pins the exact floor rather than a range: raising the MSRV is a
     # deliberate edit to Cargo.toml, and this job is what makes an accidental
@@ -145,7 +157,10 @@ jobs:
   python-binding:
     name: python binding (J14)
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule'
+    if: github.event_name != 'schedule' && github.event.action != 'labeled'
+    concurrency:
+      group: ${{ github.workflow }}-python-binding-${{ github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -185,7 +200,7 @@ jobs:
         run: |
           python3 scripts/difftest.py --mode binding \
             --samples scripts/corpus-jobs.txt \
-            --capa-cli target/debug/capa-x --no-expected
+            --capa-cli target/debug/capa-x --no-expected --jobs 2
 
   difftest:
     name: difftest (freeze corpus)
@@ -197,7 +212,12 @@ jobs:
     if: >
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      contains(github.event.pull_request.labels.*.name, 'difftest')
+      (github.event_name == 'pull_request' &&
+       contains(github.event.pull_request.labels.*.name, 'difftest') &&
+       (github.event.action != 'labeled' || github.event.label.name == 'difftest'))
+    concurrency:
+      group: ${{ github.workflow }}-difftest-${{ github.event.pull_request.number || github.run_id }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -224,4 +244,4 @@ jobs:
         run: scripts/check_env.sh
 
       - name: Run difftest corpus
-        run: python3 scripts/difftest.py --mode freeze --samples scripts/corpus-freeze.txt
+        run: python3 scripts/difftest.py --mode freeze --samples scripts/corpus-freeze.txt --jobs 2

@@ -67,7 +67,9 @@ expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rul
                         min: 2,
                         max: None,
                     },
-                    description: None,
+                    description: Some(
+                        "Section names containing 8 space characters observed in Themida 3.0.x packed files",
+                    ),
                 },
                 Node {
                     stmt: And(

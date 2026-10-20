@@ -37,13 +37,8 @@ pub fn is_mixed_mode(net: &ClrData<'_>) -> bool {
     !net.flags.contains(&dnfile::ClrHeaderFlags::IlOnly)
 }
 
-/// `helpers.py get_dotnet_table_row`: deliberately reproduces an upstream
-/// off-by-one -- `row_index - 1 <= 0` rejects `row_index == 1` (the table's
-/// *first* row) as if it were a null reference, not just `row_index == 0`.
-/// This is the pinned behavioral spec (AGENTS.md: "Python capa ... wins"),
-/// and `resolve_nested_typedef_name`/`resolve_nested_typeref_name` both walk
-/// their chains through this exact helper upstream, so silently "fixing" it
-/// here would be a silent divergence, not an improvement.
+/// `helpers.py get_dotnet_table_row`: metadata RIDs are one-based; only
+/// zero is a null reference. capa 10.0.0 fixes the rejection of row 1.
 fn get_table_row_by_rid<'p, T>(
     net: &'p ClrData<'p>,
     table_name: &'static str,
@@ -52,7 +47,7 @@ fn get_table_row_by_rid<'p, T>(
 where
     T: MDTableRowTrait + 'static,
 {
-    if rid <= 1 {
+    if rid == 0 {
         return None;
     }
     let table = net.md_table(table_name).ok()?;
@@ -415,4 +410,24 @@ pub fn unmanaged_imports(net: &ClrData<'_>) -> Result<Vec<DnUnmanagedMethod>, Ex
         ));
     }
     Ok(out)
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn metadata_row_one_is_valid_and_zero_is_null() {
+        let bytes = include_bytes!(
+            "../../../../tests/testfiles/dotnet/dd9098ff91717f4906afe9dafdfa2f52.exe_"
+        );
+        let pe = super::super::load(bytes).expect("valid managed PE");
+        let net = pe.net().expect("CLR metadata");
+        assert!(get_table_row_by_rid::<mdtable::TypeDef>(net, "TypeDef", 0).is_none());
+        let first = get_table_row_by_rid::<mdtable::TypeDef>(net, "TypeDef", 1)
+            .expect("first row is valid");
+        assert_eq!(first.type_name, "<Module>");
+        assert!(get_table_row_by_rid::<mdtable::TypeDef>(net, "TypeDef", usize::MAX).is_none());
+    }
 }

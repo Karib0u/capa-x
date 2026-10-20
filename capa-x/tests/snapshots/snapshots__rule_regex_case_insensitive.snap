@@ -177,9 +177,11 @@ expression: "(& rule.name, & rule.namespace, & rule.scopes, & rule.is_lib, & rul
                         String(
                             Regex(
                                 CompiledRegex {
-                                    raw: "/(?<!\\w)ida[gqtuw]?(\\.exe)?$/i",
-                                    engine: Fancy(
-                                        (?si)(?<!\w)ida[gqtuw]?(\.exe)?$,
+                                    raw: "/\\bida[gqtuw]?(\\.exe)?$/i",
+                                    engine: Standard(
+                                        Regex(
+                                            "(?si)\\bida[gqtuw]?(\\.exe)?$",
+                                        ),
                                     ),
                                 },
                             ),

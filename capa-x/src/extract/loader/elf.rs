@@ -91,7 +91,12 @@ fn extract_file_import_names(elf: &Elf, buf: &[u8], out: &mut Vec<(Address, Feat
         let Some(name) = symbol_name_by_index.get(&reloc.r_sym) else {
             continue;
         };
-        out.push((Address::File(reloc.r_offset), Feature::Import(name.clone())));
+        // elffile.py extract_file_import_names: relocation slots are VAs,
+        // not offsets in the file (corrected in capa 10.0.0).
+        out.push((
+            Address::Absolute(reloc.r_offset),
+            Feature::Import(name.clone()),
+        ));
     }
 }
 
@@ -137,13 +142,8 @@ fn extract_file_strings(buf: &[u8], out: &mut Vec<(Address, Feature)>) {
 pub fn extract_elf(buf: &[u8]) -> Result<StaticFeatures, ExtractError> {
     let elf = Elf::parse(buf).map_err(|e| ExtractError::Parse(format!("ELF: {e}")))?;
 
-    // `ElfFeatureExtractor.get_base_address` falls off the end (implicit
-    // `None`) when there's no `PT_LOAD` segment (e.g. a relocatable `.o`,
-    // which has no program headers at all) -- `frz.Address.from_capa`
-    // encodes that as `NO_ADDRESS` (via the `a == NO_ADDRESS` branch,
-    // which -- `_NoAddress.__eq__` returning `True` unconditionally --
-    // actually matches *any* value, `None` included), so this mirrors that
-    // rather than treating it as a hard error.
+    // `ElfFeatureExtractor.get_base_address` returns NO_ADDRESS when there
+    // is no PT_LOAD segment, for example in a relocatable object.
     let base_address = elf
         .program_headers
         .iter()

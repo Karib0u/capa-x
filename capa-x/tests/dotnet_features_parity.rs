@@ -1,8 +1,6 @@
 //! Port of the pinned Python capa test suite's
-//! `fixtures.py::FEATURE_PRESENCE_TESTS_DOTNET` /
-//! `FEATURE_COUNT_TESTS_DOTNET` expectation tables (v9.4.0, see PINNED.md;
-//! `reference/capa/tests/fixtures.py:1147,1534`) -- the native .NET
-//! acceptance oracle.
+//! .NET assertions in `tests/fixtures/features/static.json` (v10.0.0,
+//! see PINNED.md), the native .NET acceptance oracle.
 //!
 //! Regenerate the two tables below (never by hand -- see each table's
 //! header) with `scripts/gen_fixture_tables.py dotnet`, run under the
@@ -151,7 +149,7 @@ struct CountRow {
 }
 
 /// Regenerate with `scripts/gen_fixture_tables.py dotnet` (see the module
-/// doc). 70 of the upstream table's 87 rows: the other 17 reference
+/// doc). 69 of the upstream manifest's 86 presence rows: the other 17 reference
 /// `hello-world`/`mixed-mode-64`, which live in `dnfile`'s own bundled test
 /// fixtures (`reference/capa/tests/data/dotnet/dnfile-testfiles/`) --  a
 /// *nested* submodule inside `reference/capa` (`tests/data`, pinned to its
@@ -174,14 +172,13 @@ const ROWS: &[Row] = &[
     Row { sample: "_1c444", scope: "file", feature: || import_("gdi32.CreateCompatibleBitmap"), expected: true },
     Row { sample: "_1c444", scope: "file", feature: || import_("CreateCompatibleBitmap"), expected: true },
     Row { sample: "_1c444", scope: "file", feature: || import_("gdi32::CreateCompatibleBitmap"), expected: false },
-    Row { sample: "_1c444", scope: "function=0x1F59, bb=0x1F59, insn=0x1F5B", feature: || characteristic_("unmanaged call"), expected: true },
+    Row { sample: "_1c444", scope: "function=0x1F59,bb=0x1F59,insn=0x1F5B", feature: || characteristic_("unmanaged call"), expected: true },
     Row { sample: "_1c444", scope: "function=0x1F68", feature: || api_("GetWindowDC"), expected: true },
-    Row { sample: "_1c444", scope: "function=0x1F68", feature: || api_("user32.GetWindowDC"), expected: false },
     Row { sample: "_1c444", scope: "function=0x1F68", feature: || num(13369376), expected: true },
     Row { sample: "_1c444", scope: "function=0x1F68", feature: || num(0), expected: true },
     Row { sample: "_1c444", scope: "function=0x1F68", feature: || num(1), expected: false },
-    Row { sample: "_1c444", scope: "function=0x1F68, bb=0x1F68, insn=0x1FF9", feature: || api_("System.Drawing.Image::FromHbitmap"), expected: true },
-    Row { sample: "_1c444", scope: "function=0x1F68, bb=0x1F68, insn=0x1FF9", feature: || api_("FromHbitmap"), expected: false },
+    Row { sample: "_1c444", scope: "function=0x1F68,bb=0x1F68,insn=0x1FF9", feature: || api_("System.Drawing.Image::FromHbitmap"), expected: true },
+    Row { sample: "_1c444", scope: "function=0x1F68,bb=0x1F68,insn=0x1FF9", feature: || api_("FromHbitmap"), expected: false },
     Row { sample: "_1c444", scope: "function=0x2544", feature: || characteristic_("unmanaged call"), expected: false },
     Row { sample: "_1c444", scope: "token=0x600000F", feature: || characteristic_("calls from"), expected: false },
     Row { sample: "_1c444", scope: "token=0x6000018", feature: || characteristic_("calls to"), expected: false },

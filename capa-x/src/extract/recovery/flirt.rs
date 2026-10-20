@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, OnceLock};
 
 use lancelot_flirt::{FlirtSignature, Name, SigElement, Symbol};
 
@@ -42,7 +43,7 @@ const DEFAULT_SIGNATURES: [(&str, &[u8]); 3] = [
     ),
 ];
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum FlirtError {
     #[error("signature path {path} does not exist")]
     MissingPath { path: PathBuf },
@@ -174,21 +175,37 @@ fn signature_head_matches(signature: &FlirtSignature, bytes: &[u8]) -> bool {
 
 /// Ordered FLIRT databases. Keeping databases separate preserves upstream's
 /// first-file-wins behavior instead of creating false ambiguity across files.
+#[derive(Clone)]
 pub struct Signatures {
-    databases: Vec<SignatureDatabase>,
+    databases: Arc<[SignatureDatabase]>,
 }
 
 impl Signatures {
+    /// Shares immutable bundled databases, initialized once and retained until
+    /// process exit. Cloning this handle does not copy parsed signatures.
     pub fn embedded() -> Result<Self, FlirtError> {
         Self::embedded_with_options(&AnalysisOptions::SERIAL)
     }
 
+    /// Like [`Self::embedded`], using the first caller's job count to load the
+    /// databases. Later callers reuse that result regardless of their job count.
     pub fn embedded_with_options(options: &AnalysisOptions) -> Result<Self, FlirtError> {
-        let databases = parallel::try_map(options.jobs, &DEFAULT_SIGNATURES, |(name, bytes)| {
-            let path = PathBuf::from(format!("(embedded signatures)/{name}"));
-            parse_database(path, bytes)
-        })?;
-        Ok(Self { databases })
+        // Bundled bytes are immutable for the life of the process. OnceLock
+        // serializes concurrent first callers; later analyses share the parsed
+        // databases. Custom paths deliberately bypass this cache.
+        static EMBEDDED: OnceLock<Result<Signatures, FlirtError>> = OnceLock::new();
+        EMBEDDED
+            .get_or_init(|| {
+                let databases =
+                    parallel::try_map(options.jobs, &DEFAULT_SIGNATURES, |(name, bytes)| {
+                        let path = PathBuf::from(format!("(embedded signatures)/{name}"));
+                        parse_database(path, bytes)
+                    })?;
+                Ok(Self {
+                    databases: databases.into(),
+                })
+            })
+            .clone()
     }
 
     /// Loads one `.sig`, `.pat`, or `.pat.gz` file, or every such file under
@@ -229,7 +246,9 @@ impl Signatures {
             let bytes = read_signature_file(path)?;
             parse_database(path.clone(), &bytes)
         })?;
-        Ok(Self { databases })
+        Ok(Self {
+            databases: databases.into(),
+        })
     }
 
     /// Loads an explicit, ordered list of `.sig`/`.pat`/`.pat.gz` files,
@@ -251,7 +270,9 @@ impl Signatures {
             let bytes = read_signature_file(path)?;
             databases.push(parse_database(path.clone(), &bytes)?);
         }
-        Ok(Self { databases })
+        Ok(Self {
+            databases: databases.into(),
+        })
     }
 
     pub fn is_empty(&self) -> bool {
@@ -403,7 +424,7 @@ pub fn identify_library_functions(
     let mut recognized = BTreeMap::new();
     let code_xrefs_from = index_xrefs_by_source(&analysis.code_xrefs);
     let data_xrefs_from = index_xrefs_by_source(&analysis.data_xrefs);
-    for database in &signatures.databases {
+    for database in signatures.databases.iter() {
         let mut state = MatcherState {
             analysis,
             database,
@@ -771,6 +792,62 @@ mod tests {
     use crate::extract::recovery::analyze;
 
     #[test]
+    fn embedded_signatures_are_shared_across_jobs_and_concurrent_callers() {
+        use crate::parallel::Jobs;
+        let signatures = std::thread::scope(|scope| {
+            let handles: Vec<_> = [1, 2, 4]
+                .into_iter()
+                .map(|jobs| {
+                    scope.spawn(move || {
+                        let options = AnalysisOptions {
+                            jobs: Jobs::new(jobs).unwrap(),
+                            ..AnalysisOptions::SERIAL
+                        };
+                        Signatures::embedded_with_options(&options).unwrap()
+                    })
+                })
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| handle.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        let serial = Signatures::embedded().unwrap();
+        assert!(!serial.is_empty());
+        for signatures in signatures {
+            assert!(Arc::ptr_eq(&serial.databases, &signatures.databases));
+        }
+    }
+
+    #[test]
+    fn custom_signature_paths_are_reloaded_after_changes() {
+        let path =
+            std::env::temp_dir().join(format!("capa-x-flirt-{}-reload.pat", std::process::id()));
+        let pat = |name| format!("558BEC{} 00 0000 0020 :0000 {name}\n---", ".".repeat(58));
+        fs::write(&path, pat("first")).unwrap();
+        let first = Signatures::from_path(&path).unwrap();
+        fs::write(&path, pat("second")).unwrap();
+        let second = Signatures::from_path(&path).unwrap();
+        fs::write(&path, b"invalid signature").unwrap();
+        assert!(Signatures::from_path(&path).is_err());
+        fs::remove_file(&path).unwrap();
+        assert!(matches!(
+            Signatures::from_path(&path),
+            Err(FlirtError::MissingPath { .. })
+        ));
+        let mut bytes = vec![0; 32];
+        bytes[..3].copy_from_slice(&[0x55, 0x8b, 0xec]);
+        assert_eq!(
+            first.databases[0].matcher.r#match(&bytes)[0].get_name(),
+            Some("first")
+        );
+        assert_eq!(
+            second.databases[0].matcher.r#match(&bytes)[0].get_name(),
+            Some("second")
+        );
+    }
+
+    #[test]
     fn parses_pat_and_matches_a_tiny_signature() {
         let path = PathBuf::from("tiny.pat");
         let pat = format!("558BEC{} 00 0000 0020 :0000 tiny\n---", ".".repeat(58));
@@ -827,7 +904,8 @@ mod tests {
         let pat = format!("{pattern} 00 0000 0020 :0000 __m5_test_library\n---");
         let signatures = Signatures {
             databases: vec![parse_database(PathBuf::from("test.pat"), pat.as_bytes())
-                .expect("generated PAT parses")],
+                .expect("generated PAT parses")]
+            .into(),
         };
 
         let libraries = identify_library_functions(&analysis, &signatures)
