@@ -108,6 +108,8 @@ pub struct Analysis {
     pub image: LoadedImage,
     pub seeds: BTreeMap<u64, BTreeSet<SeedKind>>,
     pub functions: BTreeMap<u64, Function>,
+    /// Discovered opcode locations. In compatibility mode, block extraction
+    /// may expose a different stream starting inside one of these locations.
     pub instructions: BTreeMap<u64, DecodedInstruction>,
     pub code_xrefs: BTreeMap<u64, Vec<u64>>,
     pub data_xrefs: BTreeMap<u64, Vec<u64>>,
@@ -146,6 +148,7 @@ impl Analysis {
 
 #[derive(Debug, Default)]
 struct DirectFlowGraph {
+    compatibility: bool,
     successors: BTreeMap<u64, Vec<Edge>>,
     /// Import-call fragments can create a function before the fragment's
     /// remaining instructions exist. Keep that codeblocks.py view.
@@ -326,7 +329,10 @@ fn recover_functions(
     let mut pending: VecDeque<u64> = initial.into();
     let mut function_starts = BTreeSet::new();
     let mut isolated_starts = BTreeSet::new();
-    let mut direct_flow = DirectFlowGraph::default();
+    let mut direct_flow = DirectFlowGraph {
+        compatibility: evaluate_candidates,
+        ..DirectFlowGraph::default()
+    };
     let mut late_waves_done = false;
     let mut early_candidates_done = !evaluate_candidates;
     let mut function_budget_reported = false;
@@ -1874,6 +1880,7 @@ fn discover_flow(
             // flow barrier. Once an instruction is present in this shared
             // graph, every later function view can traverse its recorded edges.
             if direct_flow.successors.contains_key(&address)
+                || (direct_flow.compatibility && instruction_location(analysis, address).is_some())
                 || !is_executable(&analysis.image, address)
             {
                 break;
@@ -1889,7 +1896,12 @@ fn discover_flow(
                 // cut this oversized walk down on the next recovery pass.
                 return calls;
             }
-            let insn = match analysis.image.decode_at(address) {
+            let decoded = if direct_flow.compatibility {
+                analysis.image.decode_at_compat(address)
+            } else {
+                analysis.image.decode_at(address)
+            };
+            let insn = match decoded {
                 Ok(insn) => insn,
                 Err(error) => {
                     analysis.diagnostics.push(RecoveryDiagnostic {
@@ -1899,7 +1911,7 @@ fn discover_flow(
                     break;
                 }
             };
-            if insn.is_privileged_barrier() {
+            if !direct_flow.compatibility && insn.is_privileged_barrier() {
                 analysis.diagnostics.push(RecoveryDiagnostic {
                     address,
                     message: "stopped recovery at privileged instruction".to_string(),
@@ -1972,6 +1984,17 @@ fn discover_flow(
                             pending.push_front(FlowTask::Path(target));
                             break;
                         }
+                        if direct_flow.compatibility
+                            && import_functions.is_none()
+                            && !direct_flow.successors.contains_key(&target)
+                        {
+                            // addCodeFlow completes a direct callee before
+                            // resuming its caller. First-created locations
+                            // determine later overlapping block boundaries.
+                            pending.push_front(FlowTask::Path(next));
+                            pending.push_front(FlowTask::Path(target));
+                            break;
+                        }
                     }
                     address = next;
                 }
@@ -2010,7 +2033,7 @@ fn discover_flow(
                         target: next,
                         kind: EdgeKind::Fallthrough,
                     }];
-                    if import_functions.is_none() {
+                    if !direct_flow.compatibility && import_functions.is_none() {
                         pending.push_back(FlowTask::Path(next));
                     }
                     if let Some(target) = insn.direct_target {
@@ -2018,14 +2041,14 @@ fn discover_flow(
                             target,
                             kind: EdgeKind::Branch,
                         });
-                        if import_functions.is_some() {
+                        if direct_flow.compatibility || import_functions.is_some() {
                             pending.push_front(FlowTask::Path(target));
                         } else {
                             pending.push_back(FlowTask::Path(target));
                         }
                         push_xref(&mut analysis.code_xrefs, target, address);
                     }
-                    if import_functions.is_some() {
+                    if direct_flow.compatibility || import_functions.is_some() {
                         pending.push_front(FlowTask::Path(next));
                     }
                     direct_flow.successors.insert(address, edges);
@@ -2051,7 +2074,7 @@ fn discover_flow(
                             }],
                         );
                         push_xref(&mut analysis.code_xrefs, target, address);
-                        if import_functions.is_some() {
+                        if direct_flow.compatibility || import_functions.is_some() {
                             pending.push_front(FlowTask::Path(target));
                         } else {
                             pending.push_back(FlowTask::Path(target));
@@ -2076,8 +2099,12 @@ fn discover_flow(
                         direct_flow.successors.insert(address, Vec::new());
                         break;
                     }
-                    let targets = super::switch::targets(analysis, &insn)
-                        .unwrap_or_else(|| jump_table_targets(&analysis.image, &insn));
+                    let targets = if direct_flow.compatibility {
+                        super::switch::targets_compat(analysis, &insn, noreturn)
+                    } else {
+                        super::switch::targets(analysis, &insn)
+                    }
+                    .unwrap_or_else(|| jump_table_targets(&analysis.image, &insn));
                     // codeblocks.py excludes BR_DEREF xrefs from a function's
                     // extent. A plain pointer jump can discover loose code,
                     // but does not own the pointed-to function or inherit its
@@ -2138,6 +2165,9 @@ fn build_function_view(
     start: u64,
     isolate_start: bool,
 ) -> Result<Function, RecoveryError> {
+    if direct_flow.compatibility {
+        return build_compatibility_view(analysis, direct_flow, start);
+    }
     let mut reachable = BTreeSet::new();
     let mut pending = VecDeque::from([start]);
     while let Some(address) = pending.pop_front() {
@@ -2248,6 +2278,116 @@ fn build_function_view(
             insns,
             succs,
         });
+    }
+    blocks.sort_by_key(|block| block.addr);
+    Ok(Function {
+        addr: start,
+        blocks,
+    })
+}
+
+fn instruction_location(analysis: &Analysis, address: u64) -> Option<&DecodedInstruction> {
+    analysis
+        .instructions
+        .range(..=address)
+        .next_back()
+        .map(|(_, insn)| insn)
+        .filter(|insn| address < insn.next_address)
+}
+
+/// Vivisect 1.3.2 generic/codeblocks.py advances by the existing location's
+/// size, even when a branch enters its interior. viv_utils.BasicBlock then
+/// decodes the resulting byte interval independently of those locations.
+fn build_compatibility_view(
+    analysis: &Analysis,
+    graph: &DirectFlowGraph,
+    start: u64,
+) -> Result<Function, RecoveryError> {
+    let mut pending = vec![start];
+    let mut done = BTreeSet::new();
+    let mut blocks = Vec::new();
+    let mut count = 0usize;
+    while let Some(block_start) = pending.pop() {
+        if !done.insert(block_start) {
+            continue;
+        }
+        let mut address = block_start;
+        let mut succs = Vec::new();
+        while let Some(location) = instruction_location(analysis, address) {
+            count += 1;
+            if count > MAX_INSNS_PER_FUNCTION {
+                return Err(RecoveryError::Limit(format!(
+                    "function {start:#x} exceeds {MAX_INSNS_PER_FUNCTION} instructions"
+                )));
+            }
+            if !analysis.instructions.contains_key(&address)
+                && analysis.image.decode_at_compat(address).is_err()
+            {
+                // Keep the defined prefix. An earlier codeblocks pass can
+                // create it before later codeflow exposes the invalid
+                // interior continuation; reanalysis retains that old block.
+                break;
+            }
+            let Some(next) = address.checked_add(location.bytes.len() as u64) else {
+                break;
+            };
+            let edges = graph.successors.get(&address);
+            let branches: Vec<_> = edges
+                .into_iter()
+                .flatten()
+                .filter(|edge| edge.kind != EdgeKind::Fallthrough)
+                .copied()
+                .collect();
+            pending.extend(branches.iter().map(|edge| edge.target));
+            let nofall = matches!(
+                location.flow,
+                Flow::UnconditionalBranch | Flow::IndirectBranch | Flow::Return | Flow::Terminal
+            ) || analysis.noreturn_calls.contains(&location.address);
+            address = next;
+            if nofall {
+                succs = branches;
+                break;
+            }
+            if next != start
+                && analysis
+                    .seeds
+                    .get(&next)
+                    .is_some_and(|kinds| kinds.contains(&SeedKind::Unwind))
+            {
+                break;
+            }
+            if !branches.is_empty() || analysis.code_xrefs.contains_key(&next) {
+                succs = branches;
+                succs.push(Edge {
+                    target: next,
+                    kind: EdgeKind::Fallthrough,
+                });
+                pending.push(next);
+                break;
+            }
+        }
+        let mut insns = Vec::new();
+        let mut cursor = block_start;
+        while cursor < address {
+            let decoded = analysis
+                .instructions
+                .get(&cursor)
+                .cloned()
+                .map(Ok)
+                .unwrap_or_else(|| analysis.image.decode_at_compat(cursor));
+            let Ok(insn) = decoded else {
+                break;
+            };
+            cursor = insn.next_address;
+            insns.push(insn);
+        }
+        if !insns.is_empty() {
+            blocks.push(BasicBlock {
+                addr: block_start,
+                insns,
+                succs,
+            });
+        }
     }
     blocks.sort_by_key(|block| block.addr);
     Ok(Function {
@@ -2874,6 +3014,54 @@ mod tests {
             .diagnostics
             .iter()
             .any(|diagnostic| diagnostic.message.contains("abandoned code walk")));
+    }
+
+    #[test]
+    fn compatibility_blocks_decode_inside_existing_instruction_locations() {
+        let code = [
+            0x68, 0x00, 0x64, 0xff, 0x30, // push immediate
+            0x64, 0x89, 0x20, // fs: mov [eax],esp
+            0x75, 0xf7, // jnz into the push's immediate
+            0xc3, 0x90, 0x90, 0x90, 0x90,
+        ];
+        let analysis = analyze_seeded_image(
+            noreturn_test_image(&code),
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(0x1000, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(!analysis.instructions.contains_key(&0x1001));
+        let block = analysis.functions[&0x1000]
+            .blocks
+            .iter()
+            .find(|block| block.addr == 0x1001)
+            .unwrap();
+        assert_eq!(block.insns[0].x86_instruction().mnemonic(), Mnemonic::Add);
+        assert_eq!(
+            block.insns[0].x86_instruction().memory_displacement64(),
+            0x30
+        );
+        assert!(block.insns.iter().any(|insn| insn.address == 0x1005));
+    }
+
+    #[test]
+    fn compatibility_codeflow_continues_through_string_io() {
+        for backend in [RecoveryBackend::VivisectCompat, RecoveryBackend::Native] {
+            let analysis = analyze_seeded_image(
+                noreturn_test_image(&[0x6c, 0x31, 0xc0, 0xc3]),
+                backend,
+                SeedMap::from([(0x1000, BTreeSet::from([SeedKind::EntryPoint]))]),
+                BTreeMap::new(),
+                Vec::new(),
+            )
+            .unwrap();
+            assert_eq!(
+                analysis.instructions.contains_key(&0x1003),
+                backend == RecoveryBackend::VivisectCompat
+            );
+        }
     }
 
     #[test]

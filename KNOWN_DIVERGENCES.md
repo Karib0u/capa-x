@@ -7,18 +7,15 @@ historical causes so earlier measurements remain interpretable.
 
 ## Current measured remainder
 
-The 2026-10-20 full-corpus run after loader and import-call ownership fixes
-has 4 rule-name differences across 4 of 200 samples, down from 18 differences
-across 10 samples on main `d660eec`. No sample regresses. See
-`docs/BENCHMARKS.md` for commands and validation. Historical sample lists
-below retain earlier attributions; this table is the current remainder.
+The 2026-10-20 full-corpus run has **zero rule-name differences across all
+200 samples**, with 6,300 reference-matched rules. The four formerly remaining
+differences, KD-008 and KD-014 through KD-016, are resolved in compatibility
+mode. See `docs/BENCHMARKS.md` for commands and validation.
 
-| Class | Missing | Extra | Samples |
-|---|---:|---:|---|
-| KD-008: switch-arm instruction ownership | 0 | 1 | `f5903519` |
-| KD-014: overlapping PEB block | 1 | 0 | `70fd3347` |
-| KD-015: conflicting XOR loop | 1 | 0 | `971e599e` |
-| KD-016: reference EVEX decoding | 0 | 1 | `f53dfa29` |
+This is measured matched-rule compatibility on the pinned corpus. It does
+not assert identical instruction recovery or JSON evidence locations for
+arbitrary binaries. Historical sample lists below retain earlier causes;
+native recovery intentionally keeps its broader decoder and switch behavior.
 
 ## Why a document like this is the right answer
 
@@ -326,16 +323,24 @@ of this project's release contract.
   typed pointer locations and cannot seed the import-call scan, matching
   `generic/relocations.py` and `VivWorkspace.findPointers`. This protects
   the signature-created function `0x40d22a` on `6f99a2c8`.
-- **Remaining rule/sample:** `check for unmoving mouse cursor` on `f5903519`.
+- **Resolved rule/sample:** `check for unmoving mouse cursor` on `f5903519`.
   The static switch resolver reaches `GetCursorPos` at `0x14007b1ad` and
   `0x14007b25e` under `0x140079a90`. Both sites are unowned in the reference
   but lie inside PE runtime-function interval `[0x140079a90, 0x14007bdd0)`.
-  General dynamic-switch ownership timing is not reproduced by the
-  import-call fix. These valid switch arms remain in scope.
+  A fresh trace corrects the earlier ownership attribution: these sites
+  have no opcode locations at all. `VivWorkspace.iterJumpTable` visits
+  consecutive RVA entries and stops when `isProbablyCode` rejects an arm,
+  even if a byte selector skips that entry. The first table stops at
+  `0x140079c3b`; the nested table stops at its first entry, `0x14007b17e`.
+  Both candidates encounter a concrete divide-by-zero anomaly.
+  Compatibility switch recovery now applies the bounded candidate evaluator
+  in table order. Inconclusive evaluations retain a diagnostic and the
+  statically validated arm; definite rejections stop the table.
 - **Corrected attribution:** the Base64 extra on `f53dfa29` is an EVEX
   decoder limitation in the reference, now KD-016.
-- **Status:** import-call ownership differences resolved; one documented
-  switch-arm ownership difference remains. Synthetic tests cover recursive
+- **Status:** the documented import-call and switch differences are resolved.
+  Native recovery retains the statically validated switch arms.
+  Synthetic tests cover recursive
   discovery, a separately reachable return, continuation discovery, native
   behavior, and relocation exclusion. Real samples guard the boundaries.
 
@@ -488,10 +493,12 @@ of this project's release contract.
   block under `0x407d58` while the workspace location at `0x407e41` still
   belongs to the five-byte push at `0x407e3d`. The full 31-instruction
   `0x407e2c` caller is now recovered and is not marked no-return.
-- **Status:** accepted reference false positive. Previously attributed to
-  KD-012; recovering the caller proves that no-return propagation is not its
-  cause. Reproducing the match would invent a PEB access from conflicting
-  instruction boundaries.
+- **Status:** resolved in compatibility mode. Discovery preserves the first
+  instruction location, as `VivCodeFlowContext._cb_opcode` does. Function
+  blocks advance by those location sizes, including for interior branch
+  entries, and decode the resulting byte intervals independently, matching
+  `generic/codeblocks.py` and `viv_utils.BasicBlock.instructions`.
+  This reproduces the reference's match from conflicting boundaries.
 
 ### KD-015: XOR match in conflicting instruction streams
 
@@ -509,9 +516,13 @@ of this project's release contract.
 - **Upstream mechanism:** Vivisect's codeflow and code-block ownership allow
   alternate branch-entry decodings; capa extracts the instructions exposed
   by those blocks through `features/extractors/viv/extractor.py`.
-- **Status:** retained as a reference instruction-boundary difference,
-  alongside KD-014. Removing raw call sweeps also removes this sample's
-  unrelated extra `PEB access`; it does not manufacture the missing XOR loop.
+- **Status:** resolved in compatibility mode using the location and block
+  distinction described in KD-014. Compatibility codeflow continues through
+  string I/O instructions. The pinned decoder's C6/C7 MOV and 8F POP aliases,
+  which ignore ModRM extension bits, keep the path to this loop decodable.
+  Candidate evaluation still rejects output instructions and decoder
+  anomalies, including when another queued branch could reach a return.
+  This prevents pointer discovery from treating data as code.
 
 ### KD-016: EVEX instructions unsupported by the reference decoder
 
@@ -527,6 +538,7 @@ of this project's release contract.
 - **Upstream evidence:** the pinned rule itself explicitly comments that
   its SSE/AVX example is unsupported by Vivisect and comments out this exact
   sample/address in `rules/nursery/decode-data-using-base64-via-vbmi-lookup-table.yml`.
-- **Status:** retained decoder difference. Previously included in KD-008
-  because instruction-address comparison reported unowned reference bytes.
-  Reproducing the extra's absence would require losing valid EVEX decoding.
+- **Status:** resolved in compatibility mode by interpreting opcode `0x62`
+  through the pinned decoder's legacy BOUND operand layout, including in
+  amd64 mode. Native decoding retains EVEX support. Previously included in
+  KD-008 because instruction-address comparison reported unowned bytes.

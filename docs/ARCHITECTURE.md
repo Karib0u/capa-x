@@ -103,6 +103,11 @@ to the shared freeze and matching layers.
   callee's instruction view at creation, keeping later loose instructions
   separate from function ownership. The compatibility ELF loader binds only
   reference import relocation types; native loading retains broader bindings.
+  Compatibility blocks distinguish opcode locations from the instruction
+  streams extracted from their byte intervals, preserving overlapping
+  reference blocks. Legacy BOUND and ModRM aliases follow the pinned decoder.
+  Switch tables stop at definite candidate-evaluation failures in table order.
+  Native recovery retains modern decoding and complete guarded switches.
   Full PE analysis uses workspace segment names, while file-only analysis
   uses pefile section names. File-only PE/ELF format features have file scope.
   x86/x64 compatibility recovery uses registered entry signatures rather than broad

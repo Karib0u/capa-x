@@ -37,12 +37,31 @@ fn layout_corpus_recovers_every_deterministic_seed_without_empty_blocks() {
             }
         }
         for function in analysis.functions.values() {
-            assert!(!function.blocks.is_empty(), "{name}: empty function");
+            assert!(
+                !function.blocks.is_empty(),
+                "{name}: empty function {:#x}",
+                function.addr
+            );
             for block in &function.blocks {
                 assert!(!block.insns.is_empty(), "{name}: empty block");
                 assert_eq!(block.addr, block.insns[0].address);
+                let (_, location) = analysis
+                    .instructions
+                    .range(..=block.addr)
+                    .next_back()
+                    .unwrap();
+                assert!(block.addr < location.next_address);
+                // A reference block can start inside an existing location.
+                // Its extracted stream must cover contiguous mapped bytes,
+                // but need not duplicate the location map's boundaries.
+                for pair in block.insns.windows(2) {
+                    assert_eq!(pair[0].next_address, pair[1].address);
+                }
                 for insn in &block.insns {
-                    assert!(analysis.instructions.contains_key(&insn.address));
+                    assert_eq!(
+                        analysis.image.bytes_at(insn.address, insn.bytes.len()),
+                        Some(insn.bytes.as_slice())
+                    );
                 }
             }
         }
@@ -58,6 +77,92 @@ fn recovery_populates_code_data_and_call_indexes() {
     assert!(!analysis.data_xrefs.is_empty());
     assert!(!analysis.callers.is_empty());
     assert!(!analysis.callees.is_empty());
+}
+
+#[test]
+fn compatibility_preserves_reference_overlapping_block_streams() {
+    for (sample, function, block, evidence) in [
+        (
+            "70fd3347786ed7a4a43910e6778ef296.exe_",
+            0x407d58,
+            0x407e41,
+            0x407e45,
+        ),
+        (
+            "971e599e6e707349eccea2fd4c8e5f67.exe_",
+            0x42c6d9,
+            0x42bee1,
+            0x42bef4,
+        ),
+    ] {
+        let bytes = std::fs::read(root().join("tests/testfiles").join(sample)).unwrap();
+        let analysis = analyze(&bytes).unwrap();
+        let block = analysis.functions[&function]
+            .blocks
+            .iter()
+            .find(|candidate| candidate.addr == block)
+            .unwrap();
+        assert!(block.insns.iter().any(|insn| insn.address == evidence));
+        if sample.starts_with("971e") {
+            assert_eq!(block.insns.last().unwrap().direct_target, Some(block.addr));
+        } else {
+            assert_eq!(
+                block.insns[0].x86_instruction().memory_displacement64(),
+                0x30
+            );
+        }
+    }
+}
+
+#[test]
+fn compatibility_reproduces_decoder_and_switch_candidate_limits() {
+    let samples = root().join("tests/testfiles");
+    let evex = std::fs::read(samples.join("f53dfa294d6979145fbb34303cf73bb6.exe_")).unwrap();
+    let analysis = analyze(&evex).unwrap();
+    assert_eq!(
+        analysis.instructions[&0x1400083d9]
+            .x86_instruction()
+            .mnemonic(),
+        iced_x86::Mnemonic::Bound
+    );
+    let native = capa_x::extract::recovery::analyze_with_backend(
+        &evex,
+        capa_x::extract::recovery::RecoveryBackend::Native,
+    )
+    .unwrap();
+    assert_ne!(
+        native.instructions[&0x1400083d9]
+            .x86_instruction()
+            .mnemonic(),
+        iced_x86::Mnemonic::Bound
+    );
+
+    let switch = std::fs::read(
+        samples.join("f59035192098e44b86c4648a0de4078edbe80352260276f4755d15d354f5fc58.exe_"),
+    )
+    .unwrap();
+    let analysis = analyze(&switch).unwrap();
+    let addresses: BTreeSet<_> = analysis.functions[&0x140079a90]
+        .blocks
+        .iter()
+        .flat_map(|block| block.insns.iter().map(|insn| insn.address))
+        .collect();
+    assert!(addresses.contains(&0x140079bd8));
+    assert!(!addresses.contains(&0x14007b1ad));
+    assert!(!addresses.contains(&0x14007b25e));
+}
+
+#[test]
+fn candidate_anomalies_do_not_claim_data_as_instruction_locations() {
+    for (sample, data) in [
+        ("5dd0b130d5c3d40c69e3972f39fd7d62.exe_", 0x41bf5c),
+        ("648fc498110b11b4313a47a776e6ba40.exe_", 0x56ce38),
+    ] {
+        let bytes = std::fs::read(root().join("tests/testfiles").join(sample)).unwrap();
+        let analysis = analyze(&bytes).unwrap();
+        assert!(!analysis.functions.contains_key(&data), "{sample}");
+        assert!(!analysis.instructions.contains_key(&data), "{sample}");
+    }
 }
 
 #[test]
