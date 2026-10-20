@@ -8,6 +8,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::io::Read;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
@@ -57,6 +58,12 @@ pub enum FlirtError {
     CompilePanic { path: PathBuf },
     #[error("matching signature file {path} at {address:#x}: matcher panicked")]
     MatchPanic { path: PathBuf, address: u64 },
+    #[error("matching signature file {path} at {address:#x}: {context}")]
+    MatchStorage {
+        path: PathBuf,
+        address: u64,
+        context: &'static str,
+    },
     #[error("matching signature file {path} at {address:#x}: matched signature has no root name")]
     MissingRootName { path: PathBuf, address: u64 },
 }
@@ -74,34 +81,83 @@ struct SignatureDatabase {
 /// to initialize. The first eight head bytes are enough to form a selective
 /// index without changing any matching rule: candidates still pass through
 /// lancelot's head, CRC, tail-byte, and footer checks below.
+///
+/// Symbol records share one flat buffer and duplicate names share one UTF-8
+/// string buffer. The dependency's private footer/tail data stays intact.
+/// Only fully matched candidates regain owned names for reference resolution
+/// and the dependency's ambiguous-match ordering.
 struct SignatureMatcher {
-    signatures: Vec<FlirtSignature>,
+    signatures: Box<[FlirtSignature]>,
+    symbol_ranges: Box<[Range<usize>]>,
+    symbols: Box<[StoredSymbol]>,
+    names: Box<str>,
     prefix_shapes: Vec<(u8, u8)>,
     prefixes: HashMap<(u8, u8, u64), Vec<usize>>,
+}
+
+#[derive(Clone, Copy)]
+enum SymbolKind {
+    Public,
+    Local,
+    Reference,
+}
+
+struct StoredSymbol {
+    kind: SymbolKind,
+    offset: i64,
+    name: Range<usize>,
 }
 
 impl SignatureMatcher {
     const PREFIX_LEN: usize = 8;
 
-    fn with_signatures(signatures: Vec<FlirtSignature>) -> Self {
+    fn with_signatures(mut signatures: Vec<FlirtSignature>) -> Self {
         let mut shapes = BTreeSet::new();
         let mut prefixes: HashMap<(u8, u8, u64), Vec<usize>> = HashMap::new();
-        for (index, signature) in signatures.iter().enumerate() {
+        let mut symbol_ranges = Vec::with_capacity(signatures.len());
+        let mut symbols = Vec::with_capacity(signatures.iter().map(|s| s.names.len()).sum());
+        let mut names = String::new();
+        let mut interned: HashMap<String, Range<usize>> = HashMap::new();
+        for (index, signature) in signatures.iter_mut().enumerate() {
             let (length, mask, value) = signature_prefix(signature);
             shapes.insert((length, mask));
             prefixes
                 .entry((length, mask, value))
                 .or_default()
                 .push(index);
+            let start = symbols.len();
+            for symbol in std::mem::take(&mut signature.names) {
+                let (kind, name) = match symbol {
+                    Symbol::Public(name) => (SymbolKind::Public, name),
+                    Symbol::Local(name) => (SymbolKind::Local, name),
+                    Symbol::Reference(name) => (SymbolKind::Reference, name),
+                };
+                let range = interned.entry(name.name).or_insert_with_key(|name| {
+                    let start = names.len();
+                    names.push_str(name);
+                    start..names.len()
+                });
+                symbols.push(StoredSymbol {
+                    kind,
+                    offset: name.offset,
+                    name: range.clone(),
+                });
+            }
+            symbol_ranges.push(start..symbols.len());
         }
+        // Release the temporary interner before trimming the retained buffers.
+        drop(interned);
         Self {
-            signatures,
+            signatures: signatures.into_boxed_slice(),
+            symbol_ranges: symbol_ranges.into_boxed_slice(),
+            symbols: symbols.into_boxed_slice(),
+            names: names.into_boxed_str(),
             prefix_shapes: shapes.into_iter().collect(),
             prefixes,
         }
     }
 
-    fn r#match(&self, bytes: &[u8]) -> Vec<&FlirtSignature> {
+    fn r#match(&self, bytes: &[u8]) -> Result<Vec<FlirtSignature>, &'static str> {
         let mut candidates = Vec::new();
         for &(length, mask) in &self.prefix_shapes {
             let length = usize::from(length);
@@ -117,12 +173,53 @@ impl SignatureMatcher {
         candidates.dedup();
         candidates
             .into_iter()
-            .filter_map(|index| self.signatures.get(index))
-            .filter(|signature| signature_head_matches(signature, bytes))
-            .filter(|signature| signature.match_crc16(bytes))
-            .filter(|signature| signature.match_tail_bytes(bytes))
-            .filter(|signature| signature.match_footer(bytes))
+            .filter_map(|index| {
+                self.signatures
+                    .get(index)
+                    .map(|signature| (index, signature))
+            })
+            .filter(|(_, signature)| signature_head_matches(signature, bytes))
+            .filter(|(_, signature)| signature.match_crc16(bytes))
+            .filter(|(_, signature)| signature.match_tail_bytes(bytes))
+            .filter(|(_, signature)| signature.match_footer(bytes))
+            .map(|(index, signature)| self.restore_symbols(index, signature))
             .collect()
+    }
+
+    fn restore_symbols(
+        &self,
+        index: usize,
+        signature: &FlirtSignature,
+    ) -> Result<FlirtSignature, &'static str> {
+        let range = self
+            .symbol_ranges
+            .get(index)
+            .ok_or("missing symbol range")?;
+        let symbols = self
+            .symbols
+            .get(range.clone())
+            .ok_or("invalid symbol range")?;
+        let names = symbols
+            .iter()
+            .map(|symbol| {
+                let name = Name {
+                    offset: symbol.offset,
+                    name: self
+                        .names
+                        .get(symbol.name.clone())
+                        .ok_or("invalid name range")?
+                        .to_owned(),
+                };
+                Ok(match symbol.kind {
+                    SymbolKind::Public => Symbol::Public(name),
+                    SymbolKind::Local => Symbol::Local(name),
+                    SymbolKind::Reference => Symbol::Reference(name),
+                })
+            })
+            .collect::<Result<Vec<_>, &'static str>>()?;
+        let mut restored = signature.clone();
+        restored.names = names;
+        Ok(restored)
     }
 }
 
@@ -640,15 +737,9 @@ impl MatcherState<'_> {
         };
         let candidates: Vec<FlirtSignature> =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let candidates: Vec<FlirtSignature> = self
-                    .database
-                    .matcher
-                    .r#match(bytes)
-                    .into_iter()
-                    .cloned()
-                    .collect();
+                let candidates = self.database.matcher.r#match(bytes)?;
                 if candidates.len() < 2 {
-                    return candidates;
+                    return Ok(candidates);
                 }
 
                 // Candidate order is observable when signatures share a root
@@ -657,11 +748,16 @@ impl MatcherState<'_> {
                 // candidates, avoiding its corpus-wide wildcard tree while
                 // retaining that tie-break.
                 let ordering = lancelot_flirt::FlirtSignatureSet::with_signatures(candidates);
-                ordering.r#match(bytes).into_iter().cloned().collect()
+                Ok(ordering.r#match(bytes).into_iter().cloned().collect())
             }))
             .map_err(|_| FlirtError::MatchPanic {
                 path: self.database.path.clone(),
                 address,
+            })?
+            .map_err(|context| FlirtError::MatchStorage {
+                path: self.database.path.clone(),
+                address,
+                context,
             })?;
 
         let mut valid = Vec::new();
@@ -792,6 +888,130 @@ mod tests {
     use crate::extract::recovery::analyze;
 
     #[test]
+    fn pooled_symbols_round_trip_kinds_offsets_names_and_order() {
+        let mut parsed = lancelot_flirt::pat::parse(
+            "55.............................................................. 00 0000 0020 :0000 root\n---",
+        )
+        .unwrap();
+        let original = parsed.first_mut().unwrap();
+        original.names = vec![
+            Symbol::Local(Name {
+                offset: 0,
+                name: "shared_λ".into(),
+            }),
+            Symbol::Reference(Name {
+                offset: -7,
+                name: "shared_λ".into(),
+            }),
+            Symbol::Public(Name {
+                offset: i64::MAX,
+                name: "other".into(),
+            }),
+            Symbol::Reference(Name {
+                offset: i64::MIN,
+                name: ".".into(),
+            }),
+        ];
+        parsed.push(parsed[0].clone());
+        let expected = parsed.clone();
+        let matcher = SignatureMatcher::with_signatures(parsed);
+        assert_eq!(matcher.names.len(), "shared_λother.".len());
+        assert!(matcher.signatures.iter().all(|s| s.names.capacity() == 0));
+        let mut bytes = vec![0; 32];
+        bytes[0] = 0x55;
+        let actual = matcher.r#match(&bytes).unwrap();
+        assert_eq!(actual.len(), expected.len());
+        for (actual, expected) in actual.iter().zip(&expected) {
+            assert_eq!(actual.names, expected.names);
+            assert_eq!(format!("{actual:?}"), format!("{expected:?}"));
+            assert_eq!(root_name(actual), Some("shared_λ"));
+        }
+    }
+
+    #[test]
+    fn pooled_signatures_preserve_crc_tail_footer_and_short_buffer_checks() {
+        // lancelot-flirt 0.10.0, src/lib.rs::crc16 for the fixture bytes AB CD.
+        let crc = 0xf959;
+        let pat = format!(
+            "55{} 02 {crc:04X} 0027 :0000 root :0003@ local ^0005 ref 90..C3 (0004: 7E)\n---",
+            ".".repeat(62),
+        );
+        let parsed = lancelot_flirt::pat::parse(&pat).unwrap();
+        let original = parsed[0].clone();
+        let matcher = SignatureMatcher::with_signatures(parsed);
+        let oracle = lancelot_flirt::FlirtSignatureSet::with_signatures(vec![original.clone()]);
+        let mut matching = vec![0; 39];
+        matching[0] = 0x55;
+        matching[32..34].copy_from_slice(&[0xab, 0xcd]);
+        matching[34] = 0x90;
+        matching[36] = 0xc3;
+        matching[38] = 0x7e;
+        assert_eq!(matcher.r#match(&matching).unwrap().len(), 1);
+        assert_eq!(
+            format!("{:?}", matcher.r#match(&matching).unwrap()[0]),
+            format!("{original:?}")
+        );
+        for length in 0..=matching.len() {
+            let bytes = &matching[..length];
+            assert_eq!(
+                matcher.r#match(bytes).unwrap().len(),
+                oracle.r#match(bytes).len()
+            );
+        }
+        for index in 0..matching.len() {
+            let mut bytes = matching.clone();
+            bytes[index] ^= 0xff;
+            assert_eq!(
+                matcher.r#match(&bytes).unwrap().len(),
+                oracle.r#match(&bytes).len()
+            );
+        }
+    }
+
+    #[test]
+    #[ignore = "round trips every bundled signature and measures retained storage"]
+    fn pooled_signatures_preserve_all_bundled_records() {
+        use std::mem::size_of;
+        let mut before = 0;
+        let mut after = 0;
+        let mut count = 0;
+        for (_, bytes) in DEFAULT_SIGNATURES {
+            let parsed = lancelot_flirt::sig::parse(bytes).unwrap();
+            // Debug includes the private tail bytes and footer as well as all
+            // symbol kinds, offsets, and names. Keep that oracle before packing.
+            let expected: Vec<_> = parsed.iter().map(|s| format!("{s:?}")).collect();
+            before += parsed.capacity() * size_of::<FlirtSignature>();
+            for signature in &parsed {
+                before += signature.byte_sig.0.capacity() * size_of::<SigElement>();
+                before += signature.names.capacity() * size_of::<Symbol>();
+                for symbol in &signature.names {
+                    let (Symbol::Public(name) | Symbol::Local(name) | Symbol::Reference(name)) =
+                        symbol;
+                    before += name.name.capacity();
+                }
+            }
+            let matcher = SignatureMatcher::with_signatures(parsed);
+            after += std::mem::size_of_val(matcher.signatures.as_ref());
+            after += std::mem::size_of_val(matcher.symbol_ranges.as_ref());
+            after += std::mem::size_of_val(matcher.symbols.as_ref()) + matcher.names.len();
+            for (index, (signature, expected)) in
+                matcher.signatures.iter().zip(expected).enumerate()
+            {
+                after += signature.byte_sig.0.capacity() * size_of::<SigElement>();
+                let restored = matcher.restore_symbols(index, signature).unwrap();
+                assert_eq!(format!("{restored:?}"), expected);
+                assert_eq!(restored.byte_sig_size, signature.byte_sig_size);
+                assert_eq!(restored.size_of_function, signature.size_of_function);
+                count += 1;
+            }
+        }
+        // Both sides exclude unchanged prefix indexes, private tail/footer
+        // allocations, allocator overhead, and temporary parser/interner data.
+        println!("signatures={count} retained_bytes_before={before} retained_bytes_after={after}");
+        assert!(after < before);
+    }
+
+    #[test]
     fn embedded_signatures_are_shared_across_jobs_and_concurrent_callers() {
         use crate::parallel::Jobs;
         let signatures = std::thread::scope(|scope| {
@@ -838,11 +1058,11 @@ mod tests {
         let mut bytes = vec![0; 32];
         bytes[..3].copy_from_slice(&[0x55, 0x8b, 0xec]);
         assert_eq!(
-            first.databases[0].matcher.r#match(&bytes)[0].get_name(),
+            first.databases[0].matcher.r#match(&bytes).unwrap()[0].get_name(),
             Some("first")
         );
         assert_eq!(
-            second.databases[0].matcher.r#match(&bytes)[0].get_name(),
+            second.databases[0].matcher.r#match(&bytes).unwrap()[0].get_name(),
             Some("second")
         );
     }
@@ -854,7 +1074,7 @@ mod tests {
         let database = parse_database(path, pat.as_bytes()).expect("tiny PAT parses");
         let mut bytes = vec![0u8; 32];
         bytes[..3].copy_from_slice(&[0x55, 0x8b, 0xec]);
-        let matches = database.matcher.r#match(&bytes);
+        let matches = database.matcher.r#match(&bytes).unwrap();
         assert_eq!(matches.len(), 1);
         assert_eq!(matches[0].get_name(), Some("tiny"));
     }

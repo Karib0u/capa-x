@@ -4,6 +4,140 @@ This page records the methodology behind the summary numbers in the project
 README. The measurements are reproducible evidence for a pinned implementation,
 ruleset, corpus, and host. They are not universal rankings.
 
+## P1 signature-storage prototype (2026-10-20)
+
+Baseline: main `87a68ae`, Rust 1.96.0 release builds, Apple M1 Max,
+macOS 27.0.1. All measurements in this section were run against that baseline
+and this prototype. The earlier audit below uses a different baseline.
+
+### Implementation and decision
+
+The prototype moves symbol records out of 711,752 individual signature
+vectors into one contiguous buffer per database. Duplicate names share a
+UTF-8 buffer, and the retained signature array is trimmed to its exact length.
+All three symbol kinds, signed offsets, duplicates, and original order remain
+intact. Fully matched candidates regain owned names before recursive reference
+resolution and the existing ambiguous-match ordering step.
+
+Head patterns, CRC checks, private tail bytes, and private footers remain in
+the original `lancelot-flirt` representation. This deliberately avoids a new
+parser or a fork of the dependency. There are no new dependencies, unsafe
+code, or changes to pinned inputs. Custom SIG, PAT, and compressed PAT paths
+use the same representation and continue to reload on each request.
+
+**Decision: useful memory prototype, with an initialization regression.**
+Runtime interning adds work after parsing. Bundled signatures pay that cost
+once per process; every independent CLI invocation pays it again.
+Evaluate this trade before merging. A generated compact representation for
+bundled signatures is a separate follow-up, with its own format/version and
+tail/footer compatibility work.
+
+### Isolated signature loading
+
+Each executable runs in a fresh process. Runs alternate before/after order.
+Run zero warms filesystem caches; the table shows medians of the following
+five runs. RSS is sampled with `ps` after loading while signatures remain
+live. Peak RSS and CPU time come from `wait4`. These are process measurements,
+including allocator retention, rather than just the sizes of Rust values.
+Our compilation, tests, and differential checks had completed before this
+measurement; this remains a shared workstation.
+
+| Jobs | Metric | Main | Prototype | Change |
+|---:|---|---:|---:|---:|
+| 1 | Resident memory after load | 605.2 MiB | 401.7 MiB | -33.6% |
+| 1 | Peak resident memory | 605.2 MiB | 422.2 MiB | -30.2% |
+| 1 | Load wall time | 617.9 ms | 781.2 ms | +26.4% |
+| 1 | Process CPU time | 615.5 ms | 778.1 ms | +26.4% |
+| 4 | Resident memory after load | 602.4 MiB | 368.4 MiB | -38.8% |
+| 4 | Peak resident memory | 602.5 MiB | 440.3 MiB | -26.9% |
+| 4 | Load wall time | 315.8 ms | 415.9 ms | +31.7% |
+| 4 | Process CPU time | 635.4 ms | 838.7 ms | +32.0% |
+
+The full-corpus storage test independently measured retained buffer sizes:
+363,015,071 bytes before versus 194,189,045 bytes after, or **346.2 to
+185.2 MiB (-46.5%)**. Both totals exclude unchanged prefix indexes, private
+tail/footer allocations, allocator overhead, and temporary parsing/interning
+data. They should not be equated with RSS or total allocation traffic.
+The prototype still parses the complete original signatures before packing.
+
+Build the CLI and the loader harness separately against each revision,
+preserving both executables before rebuilding:
+
+```bash
+cargo build --release -p capa-x -p capa-x-cli
+rustc --edition=2021 -O scripts/bench_signatures.rs \
+  --extern capa_x=target/release/libcapa_x.rlib \
+  -L dependency=target/release/deps -o /tmp/load-main
+cp target/release/capa-x /tmp/capa-main
+# Repeat the build on the prototype, using /tmp/load-new and /tmp/capa-new.
+python3 scripts/bench_signature_storage.py /tmp/load-main /tmp/load-new \
+  > /tmp/signature-storage.json
+```
+
+The harness source can be copied to the baseline checkout before compiling;
+it uses the same existing public API on both revisions.
+
+### Complete CLI runs
+
+Alternating fresh CLI processes, jobs 1, one warm-up plus three measured runs
+per version and sample. Medians include rules, analysis, JSON serialization,
+and process lifetime. `scripts/bench.py` supplies the invocation and `wait4`
+measurement, with stdout redirected to the null device.
+
+| Sample | Main wall | Prototype wall | Main peak RSS | Prototype peak RSS |
+|---|---:|---:|---:|---:|
+| `Practical Malware Analysis Lab 10-03.sys_` | 0.820 s | 0.985 s | 660.1 MiB | 475.1 MiB |
+| `03b236b2` DLL | 1.419 s | 1.645 s | 792.9 MiB | 606.2 MiB |
+| `112f9f0e` large PE | 8.944 s | 9.270 s | 1,854.8 MiB | 1,731.5 MiB |
+
+This is a measured memory reduction, not an end-to-end speedup. Wall time
+increased by 20.0%, 16.0%, and 3.7%, respectively, on this run. The large
+sample's lower percentage reflects its much larger recovery/matching cost.
+The peak-memory reduction varies because released allocator storage can be
+reused later during analysis.
+
+For a broader rerun, use `scripts/bench.py --samples scripts/corpus-bench.txt
+--jobs 1 --runs 3 --markdown` against each saved CLI via `--capa-cli`.
+Alternate versions when assessing a small timing difference.
+
+### Validation
+
+- All 711,752 bundled signatures round-trip through the pooled representation,
+  including the dependency's debug rendering of private tail/footer data.
+- Targeted tests cover duplicate and Unicode names, all symbol kinds, signed
+  offset extremes, name order, CRC, footer, tail bytes, and truncated buffers.
+- 464 workspace tests pass. The full-bundle round-trip test is additionally
+  run explicitly because it is marked ignored for routine local runs.
+- All 23 smoke samples match the pinned reference, with no baseline regressions.
+- Complete JSON documents match main on the 30-sample union of smoke,
+  benchmark, and determinism corpora. Only timestamp, version, argv, and rules
+  path metadata are removed; evidence order and duplicates remain observable.
+- 30 runs across jobs 1, 2, and 4 on five samples are byte-identical after the
+  repository's standard determinism normalization.
+- Formatting, Clippy 1.98.1, and six Python script tests pass.
+
+```bash
+cargo test -p capa-x --test features_parity
+cargo test --workspace
+cargo test -p capa-x pooled_signatures_preserve_all_bundled_records \
+  -- --ignored --nocapture
+python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt \
+  --capa-cli target/release/capa-x --jobs 6
+python3 scripts/determinism.py --samples scripts/corpus-jobs.txt \
+  --capa-cli target/release/capa-x --jobs 1,2,4 --repeat 2 --workers 2
+```
+
+The smoke run reused a reference cache verified as pinned capa 10.0.0.
+Outer-corpus and all ignored robustness gates remain pre-merge checks.
+
+### Follow-up priorities
+
+| Priority | Work | Complexity | Reward / impact |
+|---|---|---|---|
+| P1 prototype | Pooled symbols and interned names | Medium, implemented | Measured 203 MiB lower serial loaded RSS; costs about 163 ms per cold serial load |
+| P1 next step | Generate compact bundled signatures ahead of runtime | High | Could remove parsing and packing overhead while retaining the memory gain; not measured |
+| P2 | Ordered instruction-coverage cursor | Medium | Remains the next CPU-focused experiment; this prototype does not establish a recovery speedup |
+
 
 ## Allocation and architecture audit (2026-10-20)
 
