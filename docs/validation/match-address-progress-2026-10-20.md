@@ -1,5 +1,9 @@
 # Match-address parity progress, 2026-10-20
 
+This records the initial PR commit. The
+[follow-up measurement](match-address-followup-2026-10-20.md) restores rule-name
+agreement and increases exact match-address agreement.
+
 The worktree was fast-forwarded to main `a667d54` before these changes.
 A fresh baseline reproduced 251 identical rule/address sets. The updated
 implementation improves that to 321, retaining every previously identical

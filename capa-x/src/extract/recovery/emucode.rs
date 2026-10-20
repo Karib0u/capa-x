@@ -227,6 +227,9 @@ impl State {
             // operations. Like vector moves, they invalidate the abstract
             // destination without changing scalar registers or control flow.
             Xorps | Xorpd | Pxor | Andps | Andpd | Pand | Pandn | Orps | Orpd | Por => None,
+            // envi/archs/i386/emu.py aliases i_mulss to i_mulsd. Neither
+            // writes scalar registers or flags needed by this interpreter.
+            Mulsd | Mulss => None,
             // The same upstream emulator implements these lane operations.
             // Vector values stay unknown, including extracted scalar values.
             Punpcklbw | Punpcklwd | Punpckldq | Punpcklqdq | Punpckhbw | Punpckhwd | Punpckhdq
@@ -282,7 +285,7 @@ impl State {
             Dec => left.map(|value| value.wrapping_sub(1)),
             Neg => left.map(u64::wrapping_neg),
             Not => left.map(|value| !value),
-            Shl | Shr | Sar => {
+            Shl | Sal | Shr | Sar => {
                 let size = if op.op0_kind() == OpKind::Register {
                     op.op0_register().size()
                 } else {
@@ -292,7 +295,7 @@ impl State {
                     let bits = size.clamp(1, 8) * 8;
                     let count = (b & if bits == 64 { 63 } else { 31 }) as u32;
                     match op.mnemonic() {
-                        Shl => a.wrapping_shl(count),
+                        Shl | Sal => a.wrapping_shl(count),
                         Shr => (a & mask(size)).wrapping_shr(count),
                         _ => {
                             let signed = ((a << (64 - bits)) as i64) >> (64 - bits);
@@ -890,6 +893,24 @@ mod tests {
             verdict(&[0x0f, 0xba, 0x2c, 0x24, 0x08, 0xc3]),
             Verdict::Code
         );
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn sal_alias_preserves_the_shifted_scalar_value() {
+        let image = LoadedImage::from_shellcode(&[0xc1, 0xf0, 2], Architecture::X86);
+        let mut state = State::entry();
+        state.set_register(Register::EAX, Some(3));
+        let shift = image.decode_at_compat(image.image_base).unwrap();
+        state.step(&image, shift.x86_instruction()).unwrap();
+        assert_eq!(state.register(Register::EAX), Some(12));
+    }
+
+    #[test]
+    fn scalar_simd_multiplication_does_not_terminate_candidate_evaluation() {
+        for prefix in [0xf2, 0xf3] {
+            assert_eq!(verdict(&[prefix, 0x0f, 0x59, 0xc1, 0xc3]), Verdict::Code);
+        }
     }
 
     #[test]

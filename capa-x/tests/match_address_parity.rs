@@ -43,6 +43,12 @@ fn recovered_functions_match_all_reference_rule_addresses() {
         "e5369ac309f1be6d77afeeb3edab0ed8.exe_",
         // A function falls through an unwind entry but keeps its creation extent.
         "e3a6fbbc9b315141da37e5abbae05bf20aa9f48d5f569c6353360f59a0315245.exe_",
+        // Extended selectors and image-relative dispatch without a nearby guard.
+        "276f691a3df25481f59d79781799e35f.exe_",
+        "82bf6347acf15e5d883715dc289d8a2b.exe_",
+        "a6594d9550d56ddeaac8b3140821e698eefb7163ba29f0119c2ef19beb6040b0.exe_",
+        "ad4229879180e267f431ac6666b6a0a2.exe_",
+        "f59035192098e44b86c4648a0de4078edbe80352260276f4755d15d354f5fc58.exe_",
     ] {
         let bytes = std::fs::read(root.join("tests/testfiles").join(sample)).unwrap();
         let input = Input {
@@ -66,5 +72,45 @@ fn recovered_functions_match_all_reference_rule_addresses() {
             })
             .collect();
         assert_eq!(&actual, expected.get(sample).unwrap(), "{sample}");
+    }
+}
+
+#[test]
+fn overlapping_data_and_calling_traces_do_not_add_rule_names() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let expected: BTreeMap<String, BTreeMap<String, BTreeSet<RdAddress>>> =
+        serde_json::from_reader(GzDecoder::new(
+            File::open(root.join("tests/reference-results/capa-10.0.0/matches.json.gz")).unwrap(),
+        ))
+        .unwrap();
+    let mut paths = Vec::new();
+    collect_rule_file_paths(&root.join("rules"), &mut paths);
+    paths.sort();
+    let rules = MatchingRuleSet::new(
+        paths
+            .iter()
+            .map(|path| Rule::from_yaml_file(path).unwrap())
+            .collect(),
+    )
+    .unwrap();
+    // These samples still have address differences. This test specifically
+    // guards the two rule-name regressions introduced by the preceding change.
+    for sample in [
+        "648fc498110b11b4313a47a776e6ba40.exe_",
+        "971e599e6e707349eccea2fd4c8e5f67.exe_",
+    ] {
+        let bytes = std::fs::read(root.join("tests/testfiles").join(sample)).unwrap();
+        let input = Input {
+            bytes: &bytes,
+            sample_path: sample.into(),
+            rules_paths: vec!["rules".into()],
+            argv: Some(Vec::new()),
+        };
+        let result = analyze(&input, &rules, &AnalysisOptions::SERIAL).unwrap();
+        assert_eq!(
+            result.rules.keys().collect::<BTreeSet<_>>(),
+            expected[sample].keys().collect::<BTreeSet<_>>(),
+            "{sample}"
+        );
     }
 }

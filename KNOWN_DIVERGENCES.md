@@ -8,15 +8,15 @@ historical causes so earlier measurements remain interpretable.
 ## Current measured remainder
 
 The latest 2026-10-20 run covers all 377 native x86/x64 and shellcode inputs.
-Original capa rejects one malformed ELF. Of the 376 comparable inputs, 374 have
+Original capa rejects one malformed ELF. All 376 comparable inputs have
 identical rule-name sets: 11,412 reference rule/sample matches, zero missing,
-and two extra. Exact rule and match-address sets agree on 321 inputs and
-differ on 55, improved from 251 on the updated main baseline. The extra
-`contain anti-disasm techniques` and `contain pusha popa sequence` matches are
-regressions described in KD-025.
+and zero extra. Exact rule and match-address sets agree on 326 inputs and
+differ on 50, improved from 321 on the freshly measured preceding PR commit.
+The extra `contain anti-disasm techniques` and `contain pusha popa sequence`
+regressions described in KD-025 are resolved.
 Match-location and evidence-tree compatibility are not complete.
 
-The [match-address report](docs/validation/match-address-progress-2026-10-20.md)
+The [match-address report](docs/validation/match-address-followup-2026-10-20.md)
 records the fixes and links every remaining address difference. The
 [earlier full validation](docs/validation/full-corpus-2026-10-20.md) and
 [complete reference outputs](tests/reference-results/capa-10.0.0/README.md)
@@ -682,10 +682,11 @@ of this project's release contract.
   decoder and emulator.
 - **Coverage:** synthetic tests exercise completion order, signature interiors,
   computed jumps, IAT identities, packed operations, and prefixed LOOP targets.
-  `match_address_parity.rs` compares complete rule/address sets for six inputs
-  with the immutable reference index. The full corpus gains 70 identical
-  samples and preserves every previously identical sample. The remaining
-  55 differing inputs are listed in the current validation report.
+  `match_address_parity.rs` compares complete rule/address sets for eleven
+  inputs with the immutable reference index. The initial PR gained 70 exact
+  samples; the follow-up gains five more and preserves every previously exact
+  sample. The remaining 50 differing inputs are listed in the current
+  validation report.
 
 ### KD-025: extra function scopes expose pusha/popa matches
 
@@ -697,13 +698,20 @@ of this project's release contract.
   function scopes matching `contain pusha popa sequence`, crossing the parent
   rule's threshold. This sample already had address differences on main; the
   new rule-name match is a regression, not an accepted baseline change.
-- **Upstream mechanism:** `impemu/monitor.py:AnalysisMonitor.apicall` discovers
-  concrete callees while `generic/codeblocks.py` captures function ownership.
-  The timing and ownership of these overlapping scopes remain incompatible.
+- **Upstream mechanism:** `WorkspaceEmulator.runFunction` checks no-return
+  locations only after the entry opcode. A call at trace entry can therefore
+  expose later concrete callees to `AnalysisMonitor.apicall`, even though the
+  captured function blocks end at that call. The calling monitor also rejects
+  the all-zero bad opcode before following more calls. Applying those rules
+  restores the parent rule's threshold behavior.
 - **Additional sample:** `648fc498110b11b4313a47a776e6ba40.exe_` gains
   `contain pusha popa sequence` at function `0x5fa068`. This was absent from
-  the main baseline. The exact discovery step causing this additional scope
-  still needs isolation; it must not be assumed to share the threshold cause
-  above.
-- **Status:** unresolved. The exact-parity gains do not justify treating the
-  current branch as ready to merge. Expected baselines remain unchanged.
+  the main baseline. A typed pointer at `0x5fa114` is partially overwritten by
+  the instruction at `0x5fa113`. The reference location map keeps the pointer
+  suffix at `0x5fa117`, which stops codeflow before a false pusha/popa sequence.
+  Preserve exact pointer spans separately from merged data intervals to
+  reproduce that boundary.
+- **Status:** resolved for rule names. A permanent integration test compares
+  both complete rule-name sets with the immutable reference. Synthetic tests
+  cover trace-entry exceptions, bad opcodes, and pointer suffixes. Both samples
+  still have match-address differences. Expected baselines remain unchanged.

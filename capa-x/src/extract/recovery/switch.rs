@@ -2,8 +2,8 @@
 //!
 //! The x64 shape corresponds to Vivisect 1.3.2's
 //! analysis/generic/switchcase.py:getSwitchBase (load, add base, jump),
-//! including its optional byte selector table. Unlike that emulator hook,
-//! we require an adjacent unsigned bounds check and explicit base creation.
+//! including its optional byte selector table. Native recovery requires a
+//! guard; compatibility also accepts proven image-relative MOV/ADD/JMP tables.
 //! AArch64's BinExport2 reference supplies already-resolved CFG edges; its
 //! native counterpart recognizes ADRP/ADD/LDRSW/ADD/BR with the same guard.
 //! Unsupported sequences keep the existing unresolved-branch diagnostic.
@@ -18,8 +18,8 @@ use super::Analysis;
 #[path = "switch_tests.rs"]
 mod tests;
 
-// Local analysis budgets, not upstream constants. Never truncate a table:
-// an excessive bound or one invalid entry rejects the entire dispatch.
+// Local analysis budgets, not upstream constants. Exceeding a budget rejects
+// the dispatch; compatibility may stop earlier at a reference table boundary.
 const MAX_CASES: u64 = 256;
 const MAX_DISPATCH_INSNS: usize = 10;
 
@@ -41,12 +41,98 @@ pub(super) fn targets_compat(
         Some(noreturn),
         &mut diagnostics,
         &mut locations,
-    );
+    )
+    .or_else(|| {
+        compatibility_rva_targets(analysis, branch, noreturn, &mut diagnostics, &mut locations)
+    });
     analysis.diagnostics.extend(diagnostics);
     if targets.is_some() {
         table_locations.extend(locations);
     }
     targets
+}
+
+/// generic/switchcase.py:getSwitchBase recognizes a MOV/ADD/JMP dispatch
+/// without requiring a nearby bounds check. This fallback proves the image
+/// base statically; unresolved register values retain the branch diagnostic.
+fn compatibility_rva_targets(
+    analysis: &Analysis,
+    branch: &DecodedInstruction,
+    noreturn: &std::collections::BTreeSet<u64>,
+    diagnostics: &mut Vec<super::RecoveryDiagnostic>,
+    table_locations: &mut Vec<(u64, usize)>,
+) -> Option<Vec<u64>> {
+    if analysis.image.architecture != Architecture::X64 {
+        return None;
+    }
+    let register = reg_operand(branch.x86_instruction(), 0)?;
+    let add = previous(analysis, branch.address)?;
+    let load = previous(analysis, add.address)?;
+    let sum = add.x86_instruction();
+    let mov = load.x86_instruction();
+    let base_register = reg_operand(sum, 1)?;
+    if branch.x86_instruction().mnemonic() != Mnemonic::Jmp
+        || sum.mnemonic() != Mnemonic::Add
+        || base_register == register
+        || reg_operand(sum, 0) != Some(register)
+        || mov.mnemonic() != Mnemonic::Mov
+        || !reg_operand(mov, 0)
+            .is_some_and(|dest| dest.size() == 4 && dest.full_register() == register)
+        || !indexed_load(mov, base_register, mov.memory_index(), 4, 4)
+        || mov.memory_index() == Register::None
+        || constant_before(analysis, load.address, base_register)? != analysis.image.image_base
+    {
+        return None;
+    }
+    let base = analysis.image.image_base;
+    let table = base.checked_add_signed(mov.memory_displacement64() as i64)?;
+    let mut targets = Vec::new();
+    for index in 0..=MAX_CASES {
+        let slot = table.checked_add(index.checked_mul(4)?)?;
+        if index != 0
+            && (analysis.code_xrefs.contains_key(&slot) || analysis.data_xrefs.contains_key(&slot))
+        {
+            break;
+        }
+        let Some(raw) = read_u32(&analysis.image, slot) else {
+            break;
+        };
+        // VivWorkspace.iterJumpTable rebases only values below the image base.
+        let raw = u64::from(raw);
+        let target = if raw < base {
+            base.checked_add(raw)?
+        } else {
+            raw
+        };
+        if !analysis.image.is_executable_address(target) {
+            break;
+        }
+        if index == MAX_CASES {
+            diagnostics.push(super::RecoveryDiagnostic {
+                address: branch.address,
+                message: format!("RVA switch exceeds {MAX_CASES} entries"),
+            });
+            return None;
+        }
+        match super::emucode::evaluate_candidate(analysis, target, noreturn, &[]) {
+            super::emucode::Verdict::NotCode => break,
+            super::emucode::Verdict::Inconclusive { address, reason } => {
+                diagnostics.push(super::RecoveryDiagnostic {
+                    address,
+                    message: format!(
+                        "switch {:#x} arm {target:#x} candidate evaluation inconclusive: {reason}",
+                        branch.address
+                    ),
+                });
+            }
+            super::emucode::Verdict::Code => {}
+        }
+        if !targets.contains(&target) {
+            targets.push(target);
+        }
+    }
+    table_locations.push((table, analysis.image.architecture.pointer_width()));
+    Some(targets)
 }
 
 fn targets_with_policy(
@@ -512,16 +598,23 @@ fn x64_targets(
     }
     // CMP r32 does not clear the upper half of the register. CDQE or an
     // immediately preceding 32-bit assignment must establish it.
-    if selector.size() == 4 && !sign_extend {
+    if noreturn.is_none() && selector.size() == 4 && !sign_extend {
         if has_entry(analysis, compare.address) {
             return None;
         }
         let prior = previous(analysis, compare.address)?.x86_instruction();
-        if !matches!(
+        let zero_extended = matches!(
             prior.mnemonic(),
-            Mnemonic::Lea | Mnemonic::Mov | Mnemonic::Sub | Mnemonic::Add
-        ) || reg_operand(prior, 0)? != selector
-        {
+            Mnemonic::Lea | Mnemonic::Mov | Mnemonic::Movzx | Mnemonic::Sub | Mnemonic::Add
+        ) && reg_operand(prior, 0) == Some(selector);
+        // A signed dword load before the unsigned guard also establishes
+        // the full index. Negative values fail CMP r32 against this bounded
+        // case count, leaving only nonnegative, correctly extended values.
+        let sign_extended = prior.mnemonic() == Mnemonic::Movsxd
+            && reg_operand(prior, 0) == Some(selector.full_register())
+            && (reg_operand(prior, 1).is_some_and(|source| source.size() == 4)
+                || prior.op1_kind() == OpKind::Memory && prior.memory_size().size() == 4);
+        if !zero_extended && !sign_extended {
             return None;
         }
     }

@@ -215,6 +215,11 @@ pub(super) fn discover(
                 };
                 &decoded
             };
+            // i386/calling.py:AnalysisMonitor.prehook rejects the decoder's
+            // all-zero bad opcode before executing it or following more calls.
+            if insn.bytes.as_slice() == [0, 0] {
+                break;
+            }
             let op = insn.x86_instruction();
             match insn.flow {
                 Flow::Call | Flow::IndirectCall => {
@@ -259,9 +264,13 @@ pub(super) fn discover(
                             }
                         }
                     }
-                    if insn
-                        .direct_target
-                        .is_some_and(|target| noreturn.contains(&target))
+                    // WorkspaceEmulator.runFunction permits the first opcode
+                    // even when it is a no-return call. The calling monitor
+                    // can discover concrete callees in the loose bytes after
+                    // that call without expanding the function's code blocks.
+                    if address != start
+                        && (noreturn.contains(&address)
+                            || analysis.noreturn_calls.contains(&address))
                     {
                         break;
                     }
@@ -341,6 +350,9 @@ pub(super) fn discover(
                     // on-disk IAT value. Preserve it through register calls.
                     if let Some(slot) = import_slot {
                         state.set_register(op.op0_register(), Some(slot));
+                    }
+                    if address != start && noreturn.contains(&address) {
+                        break;
                     }
                     address = insn.next_address;
                 }

@@ -1,6 +1,6 @@
 //! Candidate sources for `generic.pointers`, `pointertables`, and `emucode`.
 
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use iced_x86::{Mnemonic, OpKind, Register};
 
@@ -33,6 +33,7 @@ pub(super) struct Discovery {
     scanned: bool,
     emucode_active: bool,
     data_locations: Vec<(u64, u64)>,
+    pointer_locations: BTreeMap<u64, u64>,
     code_barriers: Vec<(u64, u64)>,
     candidate_limit_hit: bool,
     relocation_index: usize,
@@ -69,6 +70,7 @@ impl Discovery {
             scanned: !enabled,
             emucode_active: enabled,
             data_locations: Vec::new(),
+            pointer_locations: BTreeMap::new(),
             code_barriers: Vec::new(),
             candidate_limit_hit: false,
             relocation_index: 0,
@@ -103,8 +105,30 @@ impl Discovery {
         &self.code_barriers
     }
 
+    pub(super) fn is_pointer_tail(&self, analysis: &Analysis, address: u64) -> bool {
+        // locmap retains the uncovered suffix when an opcode overwrites the
+        // beginning of a pointer. _cb_opcode stops at that suffix. During
+        // codeblocks analysis, delLocation(pointer_start) removes the
+        // overlapping opcode instead of freeing the suffix for more code.
+        self.pointer_locations
+            .range(..address)
+            .next_back()
+            .is_some_and(|(&start, &end)| {
+                address < end
+                    && analysis
+                        .instructions
+                        .range(..=start)
+                        .next_back()
+                        .is_some_and(|(&opcode, insn)| opcode < start && start < insn.next_address)
+                    && !covered(analysis, address)
+            })
+    }
+
     pub(super) fn mark_data(&mut self, start: u64, size: usize) {
         insert_location(&mut self.data_locations, start, size);
+        if let Some(end) = start.checked_add(size as u64) {
+            self.pointer_locations.insert(start, end);
+        }
     }
 
     fn mark_noncode(&mut self, start: u64, size: usize) {

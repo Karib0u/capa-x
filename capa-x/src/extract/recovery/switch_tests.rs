@@ -87,6 +87,44 @@ fn x64_dispatch_accepts_base_before_guard_and_explicit_sign_extension() {
 }
 
 #[test]
+fn x64_dispatch_accepts_extended_load_before_unsigned_guard() {
+    for load in [
+        &[0x48, 0x63, 0x01][..], // movsxd rax,dword [rcx]
+        &[0x0f, 0xb6, 0x01][..], // movzx eax,byte [rcx]
+    ] {
+        let mut code = load.to_vec();
+        code.extend_from_slice(&[0x83, 0xf8, 2, 0x77, 0x38]); // cmp eax,2; ja 0x40
+        code.extend_from_slice(&[0x4c, 0x8d, 0x1d, 0xf1, 0xff, 0xff, 0xff]); // lea r11,base
+        code.extend_from_slice(&[0x41, 0x8b, 0x8c, 0x83, 0x80, 0, 0, 0]); // mov ecx,[r11+rax*4+0x80]
+        code.extend_from_slice(&[0x49, 0x03, 0xcb]); // add rcx,r11
+        let branch = SHELLCODE_BASE + code.len() as u64;
+        code.extend_from_slice(&[0xff, 0xe1]); // jmp rcx
+        code.resize(0x8c, 0xcc);
+        for (i, offset) in [0x40u32, 0x44, 0x48].into_iter().enumerate() {
+            code[offset as usize] = 0xc3;
+            code[0x80 + i * 4..0x84 + i * 4].copy_from_slice(&offset.to_le_bytes());
+        }
+        let expected = Some(vec![
+            SHELLCODE_BASE + 0x40,
+            SHELLCODE_BASE + 0x44,
+            SHELLCODE_BASE + 0x48,
+        ]);
+        let mut analysis = analyze_shellcode(&code, Architecture::X64).unwrap();
+        let jump = analysis.instructions[&branch].clone();
+        assert_eq!(targets(&analysis, &jump), expected);
+        assert_eq!(
+            targets_compat(&mut analysis, &jump, &BTreeSet::new(), &mut Vec::new()),
+            expected
+        );
+        assert_eq!(
+            analysis.functions[&SHELLCODE_BASE].blocks.len(),
+            5,
+            "the function owns the guard, dispatch, and three arms"
+        );
+    }
+}
+
+#[test]
 fn compatibility_stops_at_rejected_table_entry_before_selector_remapping() {
     let (mut code, branch) = x64_code(true);
     // Entry one divides by a known zero. Although the byte selector skips
@@ -102,6 +140,45 @@ fn compatibility_stops_at_rejected_table_entry_before_selector_remapping() {
         targets_compat(&mut analysis, &jump, &BTreeSet::new(), &mut Vec::new()),
         Some(vec![SHELLCODE_BASE + 0x40])
     );
+}
+
+#[test]
+fn compatibility_rva_switch_does_not_require_an_adjacent_guard() {
+    let (mut code, branch) = x64_code(false);
+    code[2..7].fill(0x90);
+    let mut analysis = analyze_shellcode(&code, Architecture::X64).unwrap();
+    let jump = analysis.instructions[&branch].clone();
+    assert_eq!(targets(&analysis, &jump), None);
+    assert_eq!(
+        targets_compat(&mut analysis, &jump, &BTreeSet::new(), &mut Vec::new()),
+        Some(vec![
+            SHELLCODE_BASE + 0x40,
+            SHELLCODE_BASE + 0x44,
+            SHELLCODE_BASE + 0x48,
+        ])
+    );
+}
+
+#[test]
+fn compatibility_rva_switch_reports_exhausted_table_budget() {
+    let (mut code, branch) = x64_code(false);
+    code[2..7].fill(0x90);
+    code.truncate(0x80);
+    for _ in 0..=MAX_CASES {
+        code.extend_from_slice(&0x40u32.to_le_bytes());
+    }
+    let mut analysis = analyze_shellcode(&code, Architecture::X64).unwrap();
+    let jump = analysis.instructions[&branch].clone();
+    let mut locations = Vec::new();
+    assert_eq!(
+        targets_compat(&mut analysis, &jump, &BTreeSet::new(), &mut locations),
+        None
+    );
+    assert!(locations.is_empty());
+    assert!(analysis.diagnostics.iter().any(|diagnostic| {
+        diagnostic.address == branch
+            && diagnostic.message == format!("RVA switch exceeds {MAX_CASES} entries")
+    }));
 }
 
 #[test]

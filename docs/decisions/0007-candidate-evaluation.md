@@ -56,6 +56,9 @@ Keep candidate selection separate from evaluation:
   x86 stack and Windows x64 register/stack values. Explicit callbacks can
   enter executable sections marked as dead data, as the upstream call
   monitor does; they cannot split existing instructions.
+  Match the calling emulator's entry-opcode exception for no-return locations:
+  it may discover callees after an entry call without expanding that function's
+  captured blocks. Stop at the calling monitor's all-zero bad opcode.
 - Keep broad prologue and raw call sweeps for the native backend and
   AArch64, which has no Vivisect reference backend. Candidate, callback, and
   registered-signature recovery replace them in x86/x64 compatibility mode. Support `xadd` so relocation-backed functions do not
@@ -67,6 +70,8 @@ Keep candidate selection separate from evaluation:
   reference's depth-first order and stops at existing locations, including
   instruction interiors. Block construction advances by location sizes;
   extraction decodes each resulting interval from its own start.
+  Preserve the uncovered suffix of a typed pointer when an instruction
+  overwrites its prefix; that suffix remains a codeflow barrier.
 - Use the pinned decoder's legacy BOUND and MOV/POP ModRM aliases in
   compatibility mode. Native decoding retains modern instruction support.
   Explicit codeflow may traverse string I/O, while candidate evaluation
@@ -75,6 +80,10 @@ Keep candidate selection separate from evaluation:
   the first definite candidate rejection as `iterJumpTable` does. Keep
   inconclusive results visible through diagnostics and retain their
   statically validated targets. Native switches retain the full guarded table.
+  When no guarded table resolves, recognize the compatibility MOV/ADD/JMP
+  form with a statically proven image base, even without an adjacent guard.
+  Stop at referenced table boundaries, invalid targets, or rejected candidates.
+  The existing 256-case resource limit reports a diagnostic on overflow.
 
 Ordered candidate maps and path scheduling preserve reproducible results.
 The native backend keeps its existing heuristic policy.

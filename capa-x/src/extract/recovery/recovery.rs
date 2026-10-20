@@ -2141,6 +2141,7 @@ fn discover_flow(
             // flow barrier. Once an instruction is present in this shared
             // graph, every later function view can traverse its recorded edges.
             if super::emucode::in_data(pointers.code_barriers(), address)
+                || (direct_flow.compatibility && pointers.is_pointer_tail(analysis, address))
                 || (direct_flow.compatibility
                     && super::emucode::in_import(&analysis.image, address))
                 || direct_flow.successors.contains_key(&address)
@@ -3315,6 +3316,50 @@ mod tests {
     }
 
     #[test]
+    fn calling_trace_continues_past_a_noreturn_call_only_at_its_entry() {
+        for prefix in [false, true] {
+            let mut bytes = Vec::new();
+            if prefix {
+                bytes.push(0x90);
+            }
+            for target in [0x40u32, 0x50] {
+                let next = bytes.len() as u32 + 5;
+                bytes.push(0xe8);
+                bytes.extend_from_slice(&(target - next).to_le_bytes());
+            }
+            bytes.push(0xc3);
+            bytes.resize(0x50, 0xcc);
+            bytes.push(0xc3);
+            let analysis = callback_image(&bytes, Architecture::X86, "kernel32.OtherApi");
+            assert!(analysis.noreturn.contains(&0x1040));
+            assert_eq!(analysis.functions.contains_key(&0x1050), !prefix);
+            assert!(
+                analysis.functions[&0x1000]
+                    .blocks
+                    .iter()
+                    .flat_map(|block| &block.insns)
+                    .all(|insn| insn.address < 0x1005 + u64::from(prefix)),
+                "calling analysis must not expand the captured code scope"
+            );
+        }
+    }
+
+    #[test]
+    fn calling_trace_stops_on_the_reference_bad_opcode() {
+        let mut bytes = vec![
+            0xe8, 0x3b, 0, 0, 0, // call nonreturning function at 0x1040
+            0, 0, // bad opcode rejected by the calling monitor
+            0xe8, 0x44, 0, 0, 0, // call 0x1050
+            0xc3,
+        ];
+        bytes.resize(0x50, 0xcc);
+        bytes.push(0xc3);
+        let analysis = callback_image(&bytes, Architecture::X86, "kernel32.OtherApi");
+        assert!(analysis.noreturn.contains(&0x1040));
+        assert!(!analysis.functions.contains_key(&0x1050));
+    }
+
+    #[test]
     fn calling_trace_does_not_treat_import_contents_as_a_callee() {
         let mut bytes = vec![0xff, 0x15, 0, 0x20, 0, 0, 0xc3];
         bytes.resize(0x40, 0xcc);
@@ -3531,6 +3576,30 @@ mod tests {
         .unwrap();
         assert!(analysis.functions.contains_key(&target));
         assert!(analysis.seeds[&target].contains(&SeedKind::PointerTarget));
+    }
+
+    #[test]
+    fn partially_overwritten_pointer_stops_code_flow_at_its_remaining_bytes() {
+        for pointer_offset in [0, 1] {
+            let mut bytes = vec![0xc3];
+            bytes.resize(32, 0xcc);
+            bytes.extend_from_slice(&[0x83, 0xc0, 1, 0x60, 0x61, 0xc3]);
+            let mut analysis = callback_image(&bytes, Architecture::X86, "kernel32.OtherApi");
+            let start = 0x1020;
+            let mut pointers = super::super::pointers::Discovery::new(&mut analysis, true);
+            pointers.mark_data(start + pointer_offset, 4);
+            let mut graph = DirectFlowGraph {
+                compatibility: true,
+                ..DirectFlowGraph::default()
+            };
+            discover_direct_flow(&mut analysis, &mut graph, start, &mut pointers);
+            assert!(analysis.instructions.contains_key(&start));
+            assert_eq!(
+                analysis.instructions.contains_key(&(start + 3)),
+                pointer_offset == 0,
+                "only a pointer whose prefix was overwritten retains a data suffix"
+            );
+        }
     }
 
     #[test]
