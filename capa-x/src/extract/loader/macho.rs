@@ -1,5 +1,5 @@
 //! Mach-O file/global feature extraction. This is a capa-x extension because
-//! pinned capa 9.4.0 has no raw Mach-O input or Python source to port from;
+//! pinned capa 10.0.0 has no raw Mach-O input or Python source to port from;
 //! the structural and feature fixture corpus is the oracle. See
 //! [`super::image::ImageFormat::Macho`]'s doc comment.
 //!

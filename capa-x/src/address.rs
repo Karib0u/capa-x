@@ -82,11 +82,8 @@ impl Address {
     /// `__len__` override either, so plain-object default truthiness (always
     /// `True`) applies.
     ///
-    /// Used by `capabilities/static.rs`'s `find_file_capabilities` port,
-    /// which special-cases `if va:` when folding `extract_file_features()`
-    /// into the file scope's `FeatureSet` -- a file feature at literal
-    /// address/offset/token `0` is recorded with an *empty* location set
-    /// rather than `{0}` (capa/capabilities/common.py).
+    /// File-scope matching tests NO_ADDRESS explicitly since capa 10.0.0;
+    /// it must not use truthiness, because numeric address zero is valid.
     pub fn is_truthy(&self) -> bool {
         match self {
             Address::Absolute(v) | Address::Relative(v) | Address::File(v) => *v != 0,

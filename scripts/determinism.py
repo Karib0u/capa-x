@@ -57,7 +57,7 @@ def run(capa_cli: Path, rules: Path, sample: Path, jobs: int) -> dict:
             f"{proc.stderr.strip()[:400]}"
         )
     doc = json.loads(proc.stdout)
-    normalize_result_doc(doc)
+    normalize_result_doc(doc, normalize_evidence=False)
     return doc
 
 

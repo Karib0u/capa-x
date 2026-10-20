@@ -56,6 +56,9 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      - name: Differential harness tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
       - name: cargo fmt --check
         run: cargo fmt --all -- --check
 

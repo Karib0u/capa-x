@@ -277,23 +277,15 @@ fn node_cost(node: &Node) -> u32 {
     }
 }
 
-/// port of `capa/optimizer.py`: `optimize_statement`. Sorts (stably) the
-/// *immediate* children of an And/Or/Some by ascending cost, then stops --
-/// it does **not** recurse into those children to also optimize any nested
-/// And/Or/Some. Only `Not`/`Range` (which wrap a single child, nothing to
-/// sort) recurse, looking for a compound statement further down to
-/// optimize. This shallow-recursion behavior is upstream's actual behavior
-/// (`optimize_statement` returns immediately after sorting an And/Or/Some,
-/// never calling itself on the now-reordered children) -- verified against
-/// real `capa -j` output (difftest): a compound statement nested two
-/// levels inside another And/Or/Some keeps its original declaration order.
+/// `capa/optimizer.py optimize_statement`: stably sort immediate children
+/// by cost, then recurse in upstream traversal order.
 fn optimize_node(node: &mut Node) {
     match &mut node.stmt {
-        Statement::And(children) | Statement::Or(children) => {
+        Statement::And(children) | Statement::Or(children) | Statement::Some { children, .. } => {
             children.sort_by_key(node_cost);
-        }
-        Statement::Some { children, .. } => {
-            children.sort_by_key(node_cost);
+            for child in children {
+                optimize_node(child);
+            }
         }
         Statement::Not(child) => optimize_node(child),
         Statement::Subscope { body, .. } => optimize_node(body),
@@ -482,6 +474,31 @@ mod tests {
 
     fn rule(yaml: &str) -> Rule {
         Rule::from_yaml(yaml).unwrap_or_else(|e| panic!("test rule failed to parse: {e}"))
+    }
+
+    #[test]
+    fn optimizer_recurses_into_and_or_and_some_children() {
+        for statement in ["and", "or", "1 or more"] {
+            let r = rule(&format!(
+                "rule:\n  meta:\n    name: nested\n    authors: [t]\n    scopes:\n      static: file\n      dynamic: unsupported\n  features:\n    - {statement}:\n      - or:\n        - string: /expensive/\n        - os: windows\n      - string: other\n"
+            ));
+            let set = MatchingRuleSet::new(vec![r]).expect("valid ruleset");
+            let root = &set.get("nested").unwrap().body.stmt;
+            let children = match root {
+                Statement::And(children)
+                | Statement::Or(children)
+                | Statement::Some { children, .. } => children,
+                _ => panic!("expected compound root"),
+            };
+            let nested = children
+                .iter()
+                .find_map(|child| match &child.stmt {
+                    Statement::Or(children) => Some(children),
+                    _ => None,
+                })
+                .expect("nested or");
+            assert!(matches!(&nested[0].stmt, Statement::Leaf(Feature::Os(os)) if os == "windows"));
+        }
     }
 
     #[test]

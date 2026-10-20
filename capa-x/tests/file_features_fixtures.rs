@@ -91,3 +91,21 @@ fn strings_match_python_for_five_samples() {
         );
     }
 }
+
+#[test]
+fn elf_import_locations_are_virtual_addresses() {
+    // capa 10.0.0 elffile.py: relocation slots use AbsoluteVirtualAddress.
+    let data = std::fs::read(testfiles_dir().join("bb38149ff4b5c95722b83f24ca27a42b.elf_"))
+        .unwrap_or_else(|e| panic!("reading ELF fixture: {e}"));
+    let features = capa_x::extract::loader::elf::extract_elf(&data)
+        .unwrap_or_else(|e| panic!("extracting ELF features: {e}"));
+    for (name, address) in [("__cxa_finalize", 0x1fd4), ("__cxa_atexit", 0x1fd8)] {
+        let locations: Vec<_> = features
+            .file_features
+            .iter()
+            .filter(|(_, feature)| *feature == capa_x::features::Feature::Import(name.into()))
+            .map(|(address, _)| *address)
+            .collect();
+        assert_eq!(locations, vec![capa_x::address::Address::Absolute(address)]);
+    }
+}

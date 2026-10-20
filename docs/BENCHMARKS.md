@@ -4,9 +4,69 @@ This page records the methodology behind the summary numbers in the project
 README. The measurements are reproducible evidence for a pinned implementation,
 ruleset, corpus, and host. They are not universal rankings.
 
-## Accuracy
+## capa 10.0.0 compatibility
 
-The current accuracy result was measured on the release tree against Python
+Measured on 2026-10-20 against the capa and capa-rules v10.0.0 commits in
+[`PINNED.md`](../PINNED.md), with the existing pinned sample corpus.
+Reference results were generated afresh for this version, in a separate
+`.cache/capa10/` directory. The historical release measurements below still
+refer to capa 9.4.0.
+
+| Check | Result |
+|---|---:|
+| Unmodified rules parsed | 1,054 |
+| Native 200-sample rule-name comparison | 98.56%; 161/200 identical; 61 missing and 30 extra of 6,300 reference rules |
+| Native smoke regression gate | No regressions; 16/23 identical, 16 known rule divergences |
+| Freeze rule names and match addresses | 62/62 samples identical |
+| Full JSON evidence from shared freezes | 62/62 samples identical |
+| Native .NET rule names | 8/8 samples identical; 228/228 reference rules |
+| AArch64 ELF against BinExport2 | 2/3 identical; 1 missing of 29 reference rules (`KD-013`) |
+| Reproducible v10 freezes and v10 result-document schema | 10/10 fixtures; jobs 1 and 4 identical |
+
+The native `full` mode compares rule names; the freeze modes also check
+match addresses and JSON evidence. All 91 native divergences match the
+existing recorded baseline, which is unchanged.
+
+The JSON comparison ignores invocation metadata, synthetic rule suffixes,
+and ordering in location sets and spliced match/subscope evidence. Ordinary
+And/Or/Some child order remains significant. The determinism check preserves
+all evidence ordering, including the ordering ignored for Python parity.
+
+The compatibility changes cover .NET backward-branch loops, CLR metadata row
+one, global-only .NET format features, recursive rule optimization, numeric
+zero versus `NO_ADDRESS` evidence, ELF import virtual addresses, signed hex
+and operand counts in rules, count descriptions, and subscope metadata.
+The .NET and AArch64 assertion tables now come from upstream's JSON fixture
+manifests. Ten result-document fixtures were regenerated with capa 10.0.0.
+
+An additional file-only extractor probe on the 23 smoke samples reports only
+the existing format-placement difference: Python's `PefileFeatureExtractor`
+and `ElfFeatureExtractor` emit `format` at file scope, while the full native
+backend emits it globally, as Vivisect does. All other dumped file/global
+features agree. The PE format-placement difference was also reproduced with
+capa 9.4.0; this probe is distinct from the full native rule comparison.
+
+Reproduction (after `scripts/setup_dev.sh` and `cargo build --release`):
+
+```bash
+python3 -m unittest discover -s scripts -p 'test_*.py'
+python3 scripts/difftest.py --mode json --samples scripts/corpus-freeze.txt \
+  --capa-cli target/release/capa-x --cache-dir .cache/capa10/interop --jobs 6
+python3 scripts/difftest.py --mode freeze --samples scripts/corpus-freeze.txt \
+  --capa-cli target/release/capa-x --cache-dir .cache/capa10/interop --jobs 6
+python3 scripts/difftest.py --profile dotnet --mode full \
+  --samples scripts/corpus-dotnet.txt --capa-cli target/release/capa-x \
+  --cache-dir .cache/capa10/dotnet --jobs 6
+python3 scripts/difftest.py --profile aarch64-binexport --mode full \
+  --samples scripts/corpus-aarch64.txt --capa-cli target/release/capa-x \
+  --cache-dir .cache/capa10/aarch64 --jobs 3
+python3 scripts/difftest.py --mode full --samples scripts/corpus-outer.txt \
+  --capa-cli target/release/capa-x --cache-dir .cache/capa10/outer --jobs 6
+```
+
+## Historical v1.0.0 accuracy (capa 9.4.0)
+
+This release accuracy result was measured on the release tree against Python
 capa 9.4.0 and the pinned capa-rules release over the 200-sample corpus in
 `scripts/corpus-outer.txt`. The exact command, host, failures, and timeouts
 are recorded in the release measurement log below.

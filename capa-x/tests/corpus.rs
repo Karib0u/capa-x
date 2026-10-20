@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 use capa_x::capabilities::MatchingRuleSet;
 use capa_x::rules::{collect_rule_file_paths, Rule, RuleSet};
 
-/// pinned count for `rules/` @ v9.4.0 (PINNED.md). Update deliberately,
+/// pinned count for `rules/` @ v10.0.0 (PINNED.md). Update deliberately,
 /// alongside a PINNED.md version bump, if this ever changes.
-const PINNED_RULE_COUNT: usize = 1042;
+const PINNED_RULE_COUNT: usize = 1054;
 
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

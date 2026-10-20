@@ -17,7 +17,7 @@ const DESCRIPTION_SEPARATOR: &str = " = ";
 /// capa/rules/__init__.py: VALID_ARCH
 const VALID_ARCH: &[&str] = &["i386", "amd64", "aarch64", "any"];
 /// capa/rules/__init__.py: VALID_FORMAT, extended with `macho`
-/// -- a capa-x extension, since pinned capa 9.4.0 has no raw Mach-O
+/// -- a capa-x extension, since pinned capa 10.0.0 has no raw Mach-O
 /// input at all. Official capa-rules never reference it (they stay
 /// unmodified, forever); this only lets capa-x's own rules and this
 /// crate's synthetic-rule tests use `format: macho`. Any other value is
@@ -198,7 +198,7 @@ pub fn build_statements(d: &serde_yaml::Mapping, scopes: Scopes) -> Result<Node,
             }
         }
         _ if key.starts_with("count(") && key.ends_with(')') => {
-            build_count(&key, raw_value, scopes, popped_description)
+            build_count(&key, raw_value, scopes, sibling_description(d)?)
         }
         _ if key.ends_with(" or more") => {
             let prefix = key.strip_suffix(" or more").unwrap_or(&key);
@@ -383,6 +383,22 @@ fn build_instruction_subscope(
     })
 }
 
+fn parse_operand_index(key: &str, suffix: &str) -> Result<u8, RuleError> {
+    let index_str = key
+        .strip_prefix("operand[")
+        .and_then(|s| s.strip_suffix(suffix))
+        .ok_or_else(|| RuleError::invalid(format!("invalid operand feature: {key}")))?;
+    let index: u8 = index_str
+        .parse()
+        .map_err(|_| RuleError::invalid("operand index must be a nonnegative integer"))?;
+    if index > MAX_OPERAND_INDEX {
+        return Err(RuleError::invalid(format!(
+            "operand index must be between 0 and {MAX_OPERAND_INDEX}"
+        )));
+    }
+    Ok(index)
+}
+
 fn build_operand(
     key: &str,
     suffix: &str,
@@ -390,19 +406,7 @@ fn build_operand(
     scopes: Scopes,
     ctor: impl Fn(u8, i128) -> Result<Feature, RuleError>,
 ) -> Result<Node, RuleError> {
-    let index_str = &key["operand[".len()..key.len() - suffix.len()];
-    let index: i128 = index_str
-        .parse()
-        .map_err(|_| RuleError::invalid("operand index must be an integer"))?;
-    if index < 0 || index > MAX_OPERAND_INDEX as i128 {
-        // upstream would raise an uncaught IndexError here (`OperandNumber.NAMES[index]`)
-        // for index >= MAX_OPERAND_COUNT; we turn that into a clean error instead
-        // of panicking, per the project's "no panics on untrusted input" rule.
-        return Err(RuleError::invalid(format!(
-            "operand index must be between 0 and {MAX_OPERAND_INDEX}"
-        )));
-    }
-    let index = index as u8;
+    let index = parse_operand_index(key, suffix)?;
 
     let raw_value = d
         .get(key)
@@ -473,6 +477,21 @@ fn feature_from_named_value(
                 RuleError::invalid(format!("offset value out of range: {n}"))
             })?))
         }
+        key if key.starts_with("operand[") && key.ends_with("].number") => {
+            Ok(Feature::OperandNumber(
+                parse_operand_index(key, "].number")?,
+                crate::features::NumberValue::Int(expect_int(value, key)?),
+            ))
+        }
+        key if key.starts_with("operand[") && key.ends_with("].offset") => {
+            let n = expect_int(value, key)?;
+            Ok(Feature::OperandOffset(
+                parse_operand_index(key, "].offset")?,
+                i64::try_from(n).map_err(|_| {
+                    RuleError::invalid(format!("operand offset value out of range: {n}"))
+                })?,
+            ))
+        }
         "mnemonic" => Ok(Feature::Mnemonic(expect_string(value, key)?)),
         "characteristic" => Ok(Feature::Characteristic(expect_string(value, key)?)),
         "export" => Ok(Feature::Export(expect_string(value, key)?)),
@@ -500,14 +519,8 @@ fn build_count(
     key: &str,
     count_value: &Value,
     scopes: Scopes,
-    popped_description: Option<String>,
+    range_description: Option<String>,
 ) -> Result<Node, RuleError> {
-    // pop_statement_description_entry only fires for sequence values, and
-    // `count(...)`'s value is always the min/max spec (a scalar), so
-    // popped_description is always None here; keep the parameter anyway to
-    // make that invariant explicit at call sites.
-    debug_assert!(popped_description.is_none());
-
     let inner = key
         .strip_prefix("count(")
         .and_then(|s| s.strip_suffix(')'))
@@ -561,7 +574,7 @@ fn build_count(
             min: min.unwrap_or(0),
             max,
         },
-        description,
+        description: range_description.or(description),
     })
 }
 
@@ -640,14 +653,13 @@ fn parse_u32(s: &str) -> Result<u32, RuleError> {
     u32::try_from(v).map_err(|_| RuleError::invalid(format!("value out of range: {v}")))
 }
 
-/// port of `parse_int`: hex if `0x`-prefixed, else decimal. Note this does
-/// *not* special-case a leading `-` before `0x` (matching upstream, which
-/// has the same gap) -- in practice this is never hit because a `-0x..`
-/// scalar is already resolved to a native YAML integer before reaching this
-/// function (verified empirically against both PyYAML and serde_yaml).
+/// `capa/rules/__init__.py parse_int`: signed hexadecimal or decimal.
 fn parse_int(s: &str) -> Result<i128, RuleError> {
     let s = s.trim();
-    if let Some(hex) = s.strip_prefix("0x") {
+    if let Some(hex) = s.strip_prefix("-0x") {
+        i128::from_str_radix(&format!("-{hex}"), 16)
+            .map_err(|e| RuleError::invalid(format!("invalid hex integer: {s} ({e})")))
+    } else if let Some(hex) = s.strip_prefix("0x") {
         i128::from_str_radix(hex, 16)
             .map_err(|e| RuleError::invalid(format!("invalid hex integer: {s} ({e})")))
     } else {
@@ -894,7 +906,8 @@ fn expect_bytes(v: RawScalar, field: &str) -> Result<Vec<u8>, RuleError> {
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
-    use crate::rules::{Rule, RuleError, Statement};
+    use super::build_statements;
+    use crate::rules::{Rule, RuleError, Scope, Scopes, Statement};
 
     /// wraps one `features:` list item in a minimal, otherwise-valid rule.
     fn parse_body(feature_yaml: &str) -> Result<Statement, RuleError> {
@@ -985,6 +998,60 @@ mod tests {
             parse_body("operand[5].number: 1").is_err(),
             "index 5 exceeds MAX_OPERAND_INDEX"
         );
+    }
+
+    #[test]
+    fn count_operand_features_and_signed_hex() {
+        assert!(matches!(
+            parse_body("count(operand[0].number(-0x10)): 2"),
+            Ok(Statement::Range {
+                feature: crate::features::Feature::OperandNumber(
+                    0,
+                    crate::features::NumberValue::Int(-16)
+                ),
+                min: 2,
+                ..
+            })
+        ));
+        assert!(matches!(
+            parse_body("count(operand[4].offset(-0x20)): 1 or more"),
+            Ok(Statement::Range {
+                feature: crate::features::Feature::OperandOffset(4, -32),
+                min: 1,
+                ..
+            })
+        ));
+        assert!(matches!(
+            parse_body("number: '-0x10 = negative'"),
+            Ok(Statement::Leaf(crate::features::Feature::Number(
+                crate::features::NumberValue::Int(-16)
+            )))
+        ));
+        for key in [
+            "operand[5].number",
+            "operand[-1].offset",
+            "operand[x].number",
+        ] {
+            assert!(parse_body(&format!("count({key}(1)): 2")).is_err());
+        }
+        assert!(parse_body("count(operand[0].offset(-0xnothex)): 1").is_err());
+    }
+
+    #[test]
+    fn count_preserves_sibling_description() {
+        for spec in ["2", "2 or more", "2 or fewer", "(1, 4)"] {
+            let yaml = format!("count(mnemonic(mov)): {spec}\ndescription: count explanation");
+            let mapping: serde_yaml::Mapping = serde_yaml::from_str(&yaml).unwrap();
+            let node = build_statements(
+                &mapping,
+                Scopes {
+                    static_: Some(Scope::Function),
+                    dynamic: None,
+                },
+            )
+            .unwrap();
+            assert_eq!(node.description.as_deref(), Some("count explanation"));
+        }
     }
 
     #[test]

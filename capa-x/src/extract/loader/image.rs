@@ -226,7 +226,7 @@ pub enum ImageFormat {
     Elf,
     /// `-f sc32`/`sc64`: a raw code blob with no container format at all.
     Sc,
-    /// `-f macho`: a capa-x extension -- pinned capa 9.4.0 has
+    /// `-f macho`: a capa-x extension -- pinned capa 10.0.0 has
     /// no raw Mach-O input, so this is never a parity claim, only capa's own
     /// feature semantics applied to a format upstream does not accept.
     Macho,

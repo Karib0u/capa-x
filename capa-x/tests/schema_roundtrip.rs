@@ -15,7 +15,8 @@
 //! note ("the round-trip test in task 1 is what catches these").
 //!
 //! Regenerating fixtures: see `scripts/difftest.py`'s `ensure_cached`;
-//! these files are its `--mode json` reference cache, copied verbatim.
+//! these files are its capa 10.0.0 `--mode json` reference cache. Only
+//! invocation paths are replaced with the portable `/build/capa-x` prefix.
 
 use std::path::Path;
 

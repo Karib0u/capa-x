@@ -693,13 +693,14 @@ def rust_json(capa_cli: Path, rules_dir: Path, freeze_path: Path, rust_cache: Pa
         raise RuntimeError(f"capa-x-cli did not produce valid JSON for {freeze_path}: {e}\n{stdout[:2000]}") from e
 
 
-def normalize_result_doc(doc: dict) -> None:
+def normalize_result_doc(doc: dict, *, normalize_evidence: bool = True) -> None:
     """
     strip the fields that are expected to differ between the pinned Python
     capa and capa-x (tool identity/invocation, wall-clock time, and the
     exact `-r` path string each side was invoked with), and de-duplicate
     exact-duplicate match entries, so the remaining structural diff is
-    meaningful. Mutates `doc` in place.
+    meaningful. Mutates `doc` in place. Set `normalize_evidence=False` for
+    determinism checks, where evidence order must remain observable.
 
     The dedup step works around a quirk in production capa's default
     matcher: `RuleSet.match()` calls the feature-indexed `_match()`
@@ -732,7 +733,32 @@ def normalize_result_doc(doc: dict) -> None:
                 continue
             seen.add(key)
             deduped.append(entry)
-        rule["matches"] = deduped
+        rule["matches"] = normalize_match_evidence(deduped) if normalize_evidence else deduped
+
+
+def normalize_match_evidence(value, key: str | None = None):
+    """Canonicalize set-derived evidence without reordering rule statements.
+
+    Match/subscope nodes splice children by iterating location sets or
+    namespace members. And/Or/Some retain their optimized statement order.
+    """
+    if isinstance(value, dict):
+        result = {k: normalize_match_evidence(v, k) for k, v in value.items()}
+        if key == "captures":
+            result = {k: sorted(v, key=_canon) for k, v in result.items()}
+        node = result.get("node", {})
+        if "children" in result and (
+            node.get("feature", {}).get("type") == "match"
+            or node.get("statement", {}).get("type") == "subscope"
+        ):
+            result["children"] = sorted(result["children"], key=_canon)
+        return result
+    if isinstance(value, list):
+        result = [normalize_match_evidence(v) for v in value]
+        return sorted(result, key=_canon) if key == "locations" else result
+    if key == "match" and isinstance(value, str):
+        return _strip_synthetic_suffixes(value)
+    return value
 
 
 _SYNTHETIC_SUFFIX_RE = re.compile(r"/([0-9a-f]{32}|[0-9]+)$")
@@ -818,29 +844,7 @@ def diff_value(a, b, path: str, problems: list[str], key: str | None = None, lim
                 diff_value(a[k], b[k], f"{path}.{k}", problems, key=k, limit=limit)
     elif isinstance(a, list):
         if len(a) != len(b):
-            if key == "children" and _children_match_as_multiset(a, b):
-                return
             problems.append(f"  {path}: length mismatch: {len(a)} (python) vs {len(b)} (rust)")
-            return
-        if key == "children":
-            # `Match.from_capa`'s namespace-match splicing
-            # (`ns_rules = rules.rules_by_namespace[ns_name]`) iterates rules
-            # in the order the reference `RuleSet` happened to end up with,
-            # which traces back to `os.walk()`'s filesystem-native (not
-            # sorted, not portable) directory-entry order -- so which
-            # namespace member's subtree appears first among a `match:
-            # <namespace>`'s spliced children isn't a meaningful ordering to
-            # begin with. Positional compare first (cheap, and correct for
-            # every ordinary And/Or/Some, whose child order *is* meaningful
-            # and which capa-x's optimizer port now reproduces exactly);
-            # only fall back to set comparison if that actually finds a
-            # difference.
-            scratch: list[str] = []
-            for i, (x, y) in enumerate(zip(a, b)):
-                diff_value(x, y, f"{path}[{i}]", scratch, key=key, limit=limit)
-            if scratch and _children_match_as_multiset(a, b):
-                return
-            problems.extend(scratch)
             return
         for i, (x, y) in enumerate(zip(a, b)):
             diff_value(x, y, f"{path}[{i}]", problems, key=key, limit=limit)

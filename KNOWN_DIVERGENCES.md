@@ -1,7 +1,7 @@
 # Known divergences vs Python capa
 
 Every result difference between capa-x and the pinned Python capa
-(`flare-capa` 9.4.0 + the vivisect it pins, see [`PINNED.md`](PINNED.md)) that
+(`flare-capa` and Vivisect versions in [`PINNED.md`](PINNED.md)) that
 is **accepted rather than fixed**, one entry per *class* of difference.
 
 ## Why a document like this is the right answer

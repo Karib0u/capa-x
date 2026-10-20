@@ -32,7 +32,7 @@ pub const RULES_PIN: &str = rules_pin!();
 /// mean leaking a `String` for a value known at compile time.
 macro_rules! rules_pin {
     () => {
-        "v9.4.0"
+        "v10.0.0"
     };
 }
 use rules_pin;
