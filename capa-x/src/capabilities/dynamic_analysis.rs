@@ -57,7 +57,7 @@ pub fn find_call_capabilities(
     let mut features = FeatureSet::new();
     seed(&mut features, call_features, global_features);
 
-    let (_, matches) = ruleset.match_scope(Scope::Call, &features, call_addr)?;
+    let matches = ruleset.match_scope_results(Scope::Call, &features, call_addr)?;
     promote_matches(ruleset, &mut features, &matches);
 
     Ok((features, matches))
@@ -121,9 +121,11 @@ impl<'a> SpanOfCallsMatcher<'a> {
                 .extend(locs.iter().copied());
         }
 
-        let (_, matches) =
-            self.ruleset
-                .match_scope(Scope::SpanOfCalls, &self.current_features, call_addr)?;
+        let matches = self.ruleset.match_scope_results(
+            Scope::SpanOfCalls,
+            &self.current_features,
+            call_addr,
+        )?;
 
         let newly_encountered: Vec<&String> = matches
             .keys()
@@ -176,7 +178,7 @@ pub fn find_thread_capabilities(
 
     seed(&mut features, &thread.features, global_features);
 
-    let (_, thread_matches) = ruleset.match_scope(Scope::Thread, &features, thread_addr)?;
+    let thread_matches = ruleset.match_scope_results(Scope::Thread, &features, thread_addr)?;
     promote_matches(ruleset, &mut features, &thread_matches);
 
     Ok((features, thread_matches, span_matcher.matches, call_matches))
@@ -206,7 +208,7 @@ pub fn find_process_capabilities(
     for (thread_addr, thread) in &process.threads {
         let (thread_features, this_thread_matches, this_span_matches, this_call_matches) =
             find_thread_capabilities(ruleset, *thread_addr, thread, global_features)?;
-        engine::merge(&mut process_features, &thread_features);
+        engine::merge_owned(&mut process_features, thread_features);
         extend_matches(&mut thread_matches, this_thread_matches);
         extend_matches(&mut span_matches, this_span_matches);
         extend_matches(&mut call_matches, this_call_matches);
@@ -217,8 +219,8 @@ pub fn find_process_capabilities(
     // capa/capabilities/dynamic.py: `ProcessCapabilities.feature_count = len(process_features)`.
     let feature_count = process_features.len();
 
-    let (_, process_matches) =
-        ruleset.match_scope(Scope::Process, &process_features, process_addr)?;
+    let process_matches =
+        ruleset.match_scope_results(Scope::Process, &process_features, process_addr)?;
 
     Ok((
         process_matches,
@@ -258,7 +260,7 @@ pub fn find_file_capabilities(
 
     let feature_count = file_features.len();
 
-    let (_, matches) = ruleset.match_scope(Scope::File, &file_features, Address::NoAddress)?;
+    let matches = ruleset.match_scope_results(Scope::File, &file_features, Address::NoAddress)?;
     Ok((matches, feature_count))
 }
 

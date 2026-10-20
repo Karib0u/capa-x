@@ -51,6 +51,21 @@ pub fn merge(fs: &mut FeatureSet, other: &FeatureSet) {
     }
 }
 
+/// Consume a finished child scope, reusing its keys and location sets.
+/// Existing entries keep their insertion positions, as in `merge`.
+pub(crate) fn merge_owned(fs: &mut FeatureSet, other: FeatureSet) {
+    for (feature, locs) in other {
+        match fs.entry(feature) {
+            indexmap::map::Entry::Vacant(entry) => {
+                entry.insert(locs);
+            }
+            indexmap::map::Entry::Occupied(mut entry) => {
+                entry.get_mut().extend(locs);
+            }
+        }
+    }
+}
+
 /// capa/engine.py: `MatchResults = Mapping[str, list[tuple[Address, Result]]]`.
 pub type MatchResults = HashMap<String, Vec<(Address, MatchResult)>>;
 
@@ -697,6 +712,26 @@ mod tests {
             m.insert(f, locs.into_iter().collect());
         }
         m
+    }
+
+    #[test]
+    fn owned_merge_preserves_order_empty_entries_and_location_union() {
+        let first = Feature::Api("first".into());
+        let second = Feature::Api("second".into());
+        let empty = Feature::Format("pe".into());
+        let mut borrowed = fs(vec![(first.clone(), vec![Address::Absolute(1)])]);
+        let mut owned = borrowed.clone();
+        let child = fs(vec![
+            (second, vec![Address::Absolute(2)]),
+            (first, vec![Address::Absolute(1), Address::Absolute(3)]),
+            (empty, vec![]),
+        ]);
+        merge(&mut borrowed, &child);
+        merge_owned(&mut owned, child);
+        assert_eq!(
+            borrowed.iter().collect::<Vec<_>>(),
+            owned.iter().collect::<Vec<_>>()
+        );
     }
 
     fn ev(node: &Node, fs: &FeatureSet) -> bool {

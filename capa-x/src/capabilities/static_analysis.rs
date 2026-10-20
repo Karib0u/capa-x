@@ -68,7 +68,7 @@ pub fn find_instruction_capabilities(
     let mut features = FeatureSet::new();
     seed(&mut features, insn_features, global_features);
 
-    let (_, matches) = ruleset.match_scope(Scope::Instruction, &features, insn_addr)?;
+    let matches = ruleset.match_scope_results(Scope::Instruction, &features, insn_addr)?;
     promote_matches(ruleset, &mut features, &matches);
 
     Ok((features, matches))
@@ -87,13 +87,13 @@ pub fn find_basic_block_capabilities(
     for (insn_addr, insn) in &bb.instructions {
         let (insn_features, matches) =
             find_instruction_capabilities(ruleset, *insn_addr, &insn.features, global_features)?;
-        engine::merge(&mut features, &insn_features);
+        engine::merge_owned(&mut features, insn_features);
         extend_matches(&mut insn_matches, matches);
     }
 
     seed(&mut features, &bb.features, global_features);
 
-    let (_, bb_matches) = ruleset.match_scope(Scope::BasicBlock, &features, bb_addr)?;
+    let bb_matches = ruleset.match_scope_results(Scope::BasicBlock, &features, bb_addr)?;
     promote_matches(ruleset, &mut features, &bb_matches);
 
     Ok((features, bb_matches, insn_matches))
@@ -117,7 +117,7 @@ pub fn find_code_capabilities(
     for (bb_addr, bb) in &func.basic_blocks {
         let (bb_features, this_bb_matches, this_insn_matches) =
             find_basic_block_capabilities(ruleset, *bb_addr, bb, global_features)?;
-        engine::merge(&mut function_features, &bb_features);
+        engine::merge_owned(&mut function_features, bb_features);
         extend_matches(&mut bb_matches, this_bb_matches);
         extend_matches(&mut insn_matches, this_insn_matches);
     }
@@ -131,8 +131,8 @@ pub fn find_code_capabilities(
     // `rdoc.FunctionFeatureCount` in the result document.
     let feature_count = function_features.len();
 
-    let (_, function_matches) =
-        ruleset.match_scope(Scope::Function, &function_features, fn_addr)?;
+    let function_matches =
+        ruleset.match_scope_results(Scope::Function, &function_features, fn_addr)?;
 
     Ok((function_matches, bb_matches, insn_matches, feature_count))
 }
@@ -159,7 +159,7 @@ pub fn find_file_capabilities(
     // capa/capabilities/common.py: `FileCapabilities.feature_count = len(file_features)`.
     let feature_count = file_features.len();
 
-    let (_, matches) = ruleset.match_scope(Scope::File, &file_features, Address::NoAddress)?;
+    let matches = ruleset.match_scope_results(Scope::File, &file_features, Address::NoAddress)?;
     Ok((matches, feature_count))
 }
 

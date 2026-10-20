@@ -4,6 +4,201 @@ This page records the methodology behind the summary numbers in the project
 README. The measurements are reproducible evidence for a pinned implementation,
 ruleset, corpus, and host. They are not universal rankings.
 
+
+## Allocation and architecture audit (2026-10-20)
+
+Baseline: freshly fetched main `a203bd3`, release build on Apple M1 Max,
+macOS 27.0.1, single analysis job, unchanged pinned rules and samples.
+Measurements below were rerun for this audit. This is a shared workstation;
+background compilation caused substantial wall-time outliers in some CLI
+runs, so small end-to-end changes should not be treated as established wins.
+
+### Implemented changes
+
+- Scope matching borrows the feature map until the first successful rule
+  needs to publish dependency features. The internal results-only entry point
+  avoids returning a deep copy that scope drivers immediately discard. The
+  public `match_scope` contract still returns an owned feature map.
+- Completed instruction/block/thread feature sets move into their parents.
+  New keys reuse their existing location trees; duplicate keys retain their
+  original insertion positions and union their locations.
+- Embedded-PE carving scans bytes once, deriving the only possible XOR key
+  from each candidate's first byte. It previously scanned separately for all
+  256 keys. Sorting successful hits by descending key and ascending offset
+  preserves the reference's LIFO evidence order. Existing header bounds and
+  the existing `MAX_OFFSET_PE_AFTER_MZ` limit remain unchanged.
+
+No dependencies, rule syntax, extraction boundaries, or public result schemas
+change. The matcher still clones on successful scopes, so this reduces
+allocation churn without eliminating the large retained feature tree.
+
+### Matching measurements
+
+`scripts/bench_matching.rs` loads rules and extracts one sample once, then
+runs the static matcher six times with `AnalysisOptions::SERIAL`. Run zero
+warms the matcher; these are medians of runs 1 through 5. The timer includes
+scope aggregation and matching, excluding extraction, rule loading, output
+printing, and destruction of the returned capabilities. These measurements
+isolate the allocation changes; the carving change is outside this timer.
+
+| Sample prefix | Functions / blocks / instructions | Main | Updated | Time reduction |
+|---|---:|---:|---:|---:|
+| `03b236b2` | 672 / 13,046 / 55,344 | 194.36 ms | 152.48 ms | 21.5% |
+| `112f9f0e` | 7,432 / 93,351 / 692,275 | 2,244.49 ms | 1,810.47 ms | 19.3% |
+
+Alternating complete CLI runs (one warm-up per binary, three measured runs
+per binary, jobs 1) illustrate why this is a phase-level claim:
+
+| Sample prefix | Main wall median | Updated wall median | Main / updated peak RSS |
+|---|---:|---:|---:|
+| `03b236b2` | 1.568 s | 1.471 s | 795 / 795 MiB |
+| `2826b762` | 1.107 s | 0.975 s | 680 / 680 MiB |
+| `112f9f0e` | 11.110 s | 15.667 s | 1,850 / 1,852 MiB |
+
+The last sample's updated wall times ranged from 9.786 to 16.689 s, while
+main ranged from 11.087 to 11.191 s. Its matching phase still fell from a
+2.427 s median to 2.009 s; the wall-time regression was in loading/recovery
+while other processes were running. This run does not establish an overall
+speedup, and peak RSS is effectively unchanged. Recheck complete runs on an
+idle host before using these changes for end-to-end performance claims.
+
+The instruction counts include each function's view, so shared instructions
+can be counted more than once. This is the work actually sent to matching.
+
+Build the harness against each revision's release library separately. Keep
+the resulting executables before rebuilding the library:
+
+```bash
+cargo build --release -p capa-x
+rustc --edition=2021 -O scripts/bench_matching.rs \
+  --extern capa_x=target/release/libcapa_x.rlib \
+  -L dependency=target/release/deps -o /tmp/bench-matching
+/tmp/bench-matching tests/testfiles/03b236b23b1ec37c663527c1f53af3fe.dll_
+/tmp/bench-matching tests/testfiles/112f9f0e8d349858a80dd8c14190e620.exe_
+```
+
+To reproduce the signature capacity inspection with the same Rust toolchain
+used for the release build:
+
+```bash
+flirt_rlib=$(ls -t target/release/deps/liblancelot_flirt-*.rlib | head -n 1)
+rustc --edition=2021 -O scripts/inspect_signature_allocations.rs \
+  --extern lancelot_flirt="$flirt_rlib" \
+  -L dependency=target/release/deps -o /tmp/inspect-signatures
+/tmp/inspect-signatures capa-x/sigs/*.sig
+```
+
+For complete CLI runs, preserve the main binary before rebuilding, then run
+`scripts/bench.py --samples scripts/corpus-bench.txt --jobs 1 --runs 3`
+against each binary using `--capa-cli` and separate `--json` paths. Alternate
+versions when comparing a small effect. Peak RSS measures the whole process;
+it is not an allocation count or a measure of total allocation traffic.
+
+### Implementation complexity versus impact
+
+Complexity includes implementation and compatibility validation, not only
+code size. Rewards for proposed work are hypotheses grounded in the audit;
+they are not measured speedups or amounts of reclaimable memory.
+
+| Optimization | Status | Complexity | Reward / impact | Main validation challenge |
+|---|---|---|---|---|
+| Borrow feature maps and move completed child scopes | Implemented | Low | Measured 19.3-21.5% less matching time on two samples; lower allocation churn | Preserve insertion order, location unions, dependency matches, and full evidence |
+| Scan embedded PEs once across all XOR keys | Implemented | Low | Removes 256 separate byte scans; most useful on larger files | Preserve descending-key/ascending-offset order and header bounds |
+| Compact and precompile bundled FLIRT signatures | Proposed | Medium-high | Largest identified cold PE memory opportunity: about 346 MiB of major parsed-buffer capacity; could also reduce initialization time | Preserve ambiguous-match ordering and custom-signature parsing; compact storage and precompilation can be separate steps |
+| Use an ordered cursor for instruction coverage | Proposed | Medium | Targets a sampled recovery CPU hotspot by removing repeated B-tree predecessor searches | Preserve overlapping coverage, relocation-slot priority, and pointer-width skipping |
+| Share decoded instructions and store their bytes inline | Proposed | High | Potentially substantial recovery memory and allocation reduction across overlapping function views | Preserve ownership snapshots, shared tails, and both decoder architectures |
+| Add a batch CLI that reuses rules and signatures | Proposed | Low-medium | Strong reward for many small inputs: amortizes about 0.2 s of rule loading per process plus PE signature initialization | Keep per-sample metadata, errors, and output ordering isolated |
+| Cache compiled rules across processes | Proposed | Medium-high | Targets about 0.2 s of repeated startup cost for independent CLI invocations | Correct invalidation for rule contents, parser versions, custom rules, and filters |
+| Stream bounded batches of function features into matching | Proposed | High | Potentially substantial peak-memory reduction by releasing the complete feature tree earlier | Preserve the freeze seam, global metadata, layout, feature counts, and deterministic results |
+| Intern repeated features or use small location storage | Proposed | Medium | Potentially lower allocation traffic in extraction and matching; benefit not yet quantified | Preserve feature equality, first-insertion order, and location-set behavior |
+
+For the next small change, prioritize batch reuse for throughput or the
+coverage cursor for large-sample recovery. For memory reduction, start by
+prototyping compact signatures before changing the recovery and freeze models.
+
+### Larger opportunities, ranked by workload
+
+1. **Cold PE memory and startup: compact or precompile bundled signatures.**
+   The baseline 3 KB packed PE uses about 659 MiB peak RSS, with about 0.6 s
+   in loading/recovery, despite almost no analysis work. A direct probe of
+   the pinned `lancelot_flirt::sig::parse` output found 711,752 signatures.
+   Their vector capacities reserve 1,033,668 signature slots. Signature
+   slots, pattern buffers, symbol vectors, and name strings alone account
+   for approximately 346 MiB of requested capacity, excluding allocator
+   overhead, tail bytes, and prefix indexes. Compact immutable arrays and a
+   shared string table are the largest memory opportunity. Precompiling the
+   bundled corpus could also remove runtime decompression and object
+   construction. Keep runtime parsing and contextual errors for custom
+   signatures, and preserve original ordering for ambiguous matches.
+   `shrink_to_fit` is a smaller experiment, but cannot remove the parser's
+   transient peak or the many independent allocations. No compact-storage
+   speedup or memory reduction is claimed here.
+2. **Large-sample recovery: avoid repeated ordered-map searches and owned
+   instruction copies.** A 10-second native CPU sample on `112f9f0e` captured
+   1,695 stacks. Of these, 191 were inside the import scan's coverage query,
+   including 182 in B-tree range navigation. `fragment_starts` queries
+   instruction coverage for each scanned address. An ordered coverage cursor
+   can avoid repeated predecessor searches while preserving relocation-slot
+   priority and pointer-width skipping. Separately, `build_function_view`
+   copies decoded instructions, each of which owns a byte vector; tail-block
+   composition clones those views again. An immutable instruction arena with
+   address/index references and inline instruction bytes would reduce both
+   allocation and cache pressure. Preserve function views captured at
+   creation, overlapping instruction ownership, and shared-tail behavior.
+   The profile samples only a window of one run, not whole-run percentages.
+3. **Batch throughput: reuse rules and signatures across inputs.** Small ELF
+   samples take about 0.21-0.24 s, almost all in rule loading. The library
+   already accepts a reusable `MatchingRuleSet`, and bundled signatures
+   already use `OnceLock`; a batch CLI can expose this amortization without a
+   new analysis abstraction. For independent single-file processes, a
+   versioned compiled-rule cache would need content-based invalidation for
+   rule sources and parser semantics, including custom rules and errors.
+4. **Large-sample retained memory: stream completed function features into
+   matching.** The current API materializes the entire `Freeze` tree before
+   matching and builds location sets at each nested scope. A bounded batch
+   of per-function extraction/matching could release features earlier while
+   retaining ordered results, feature counts, and layout metadata. Keep the
+   freeze import/export seam available for parity tests. First measure live
+   allocations by phase: peak RSS alone cannot distinguish signature storage,
+   decoded-code copies, and the retained feature tree. Interning repeated
+   mnemonic/characteristic strings and small location storage are secondary
+   candidates after that measurement.
+
+Adding more workers does not remove these costs. In the baseline ten-sample
+run, extraction plus matching accounts for a median 1.3% of total time and
+at most 27.7%. Those fractions describe these samples only. No change to
+hashing, evidence order, or feature-set insertion order is proposed.
+
+
+### Compatibility checks
+
+- `cargo test -p capa-x --test features_parity`: all four tests pass.
+- `cargo test --workspace`: 454 tests pass; six slow gates remain ignored.
+- Full JSON from freshly run main and updated binaries agrees for all 29
+  samples in the union of the smoke and benchmark corpora at jobs 1.
+  Only invocation metadata is normalized; evidence order and duplicates
+  remain observable.
+- The full smoke differential against pinned Python capa 10.0.0 agrees on all
+  23 samples and 731 reference-matched rules, with zero missing/extra rules.
+  Rust results were recomputed with `--no-rust-cache`; all retained Python
+  reference documents were checked to report version 10.0.0.
+- `scripts/determinism.py --samples scripts/corpus-jobs.txt --jobs 1,2,4
+  --repeat 2 --workers 3`: all 30 runs across five samples agree byte for byte.
+- `cargo +1.98.1 clippy --workspace --all-targets -- -D warnings`,
+  `cargo fmt --all -- --check`, `git diff --check`, `scripts/check_env.sh`,
+  and all six Python harness tests pass. The explicit Clippy toolchain
+  recognizes the repository's existing MSRV-preserving lint attributes.
+- Regression tests cover all 256 carving keys, repeated candidates,
+  key/offset output order, starting offsets, truncated headers, and the
+  existing PE-header distance bound. Matcher tests compare full evidence
+  against the exhaustive evaluator, including dependent and namespace rules;
+  owned merge tests check empty locations, insertion order, and deduplication.
+
+These performance measurements cover static PE/ELF workloads. Dynamic matching
+uses the same borrowing optimization and passes its existing workspace tests,
+but no dynamic throughput or memory claim is made. The larger representation
+changes above remain proposals and need their own measurements and parity gates.
+
 ## Loader and import-call ownership compatibility (capa 10.0.0)
 
 Measured on 2026-10-20 against freshly fetched main `d660eec`. Both sides
