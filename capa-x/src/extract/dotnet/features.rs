@@ -11,7 +11,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-use dnfile::lang::cil::enums::OpCodeValue;
+use dnfile::lang::cil::enums::{FlowControl, OpCodeValue};
 use dnfile::lang::cil::instruction::{Instruction, Operand};
 use dnfile::stream::meta_data_tables::mdtables::{self as mdtable, table_name_2_index};
 use dnfile::{ClrData, DnPe};
@@ -429,11 +429,30 @@ fn extract_instruction_features(
 // function scope: `dnfile/function.py`
 // ---------------------------------------------------------------------
 
+/// `dnfile/function.py extract_function_loop`: a branch or switch with any
+/// target strictly before the instruction indicates a loop.
+fn has_backward_branch(insn: &Instruction) -> bool {
+    if !matches!(
+        insn.opcode.flow_control,
+        FlowControl::Branch | FlowControl::Cond_Branch
+    ) {
+        return false;
+    }
+    let backward = |operand: &Operand| matches!(operand, Operand::Int(target) if i128::from(*target) < insn.offset as i128);
+    match &insn.operand {
+        Operand::Arguments(targets) => targets.iter().any(backward),
+        operand => backward(operand),
+    }
+}
+
 /// `function.py FUNCTION_HANDLERS`, in order: calls to, calls from,
-/// recursive call. `extract_function_loop` is upstream `NotImplementedError`
-/// (no .NET codeflow graph -- see `function.rs`'s module doc) and is not
-/// ported.
-fn extract_function_features(token: u32, graph: &CallGraph, out: &mut Vec<(Address, Feature)>) {
+/// recursive call, loop.
+fn extract_function_features(
+    token: u32,
+    instructions: &[Instruction],
+    graph: &CallGraph,
+    out: &mut Vec<(Address, Feature)>,
+) {
     for &caller in graph.calls_to(token) {
         out.push((
             Address::DnToken(caller),
@@ -450,6 +469,12 @@ fn extract_function_features(token: u32, graph: &CallGraph, out: &mut Vec<(Addre
         out.push((
             Address::DnToken(token),
             Feature::Characteristic("recursive call".to_string()),
+        ));
+    }
+    if instructions.iter().any(has_backward_branch) {
+        out.push((
+            Address::DnToken(token),
+            Feature::Characteristic("loop".to_string()),
         ));
     }
 }
@@ -487,10 +512,8 @@ fn global_features(pe: &DnPe<'_>, net: &ClrData<'_>) -> Result<Vec<Feature>, Ext
 }
 
 /// `dnfile/file.py FILE_HANDLERS`, in order: import names, function names,
-/// strings, format (yielded again here -- see the module doc's note on
-/// upstream's own duplicate global/file `Format` emission, confirmed against
-/// a live run of pinned Python capa), mixed-mode characteristic, namespace,
-/// class.
+/// strings, mixed-mode characteristic, namespace, class. Format features
+/// are emitted only at global scope, matching capa 10.0.0.
 fn extract_file_features(
     net: &ClrData<'_>,
     buf: &[u8],
@@ -525,9 +548,6 @@ fn extract_file_features(
             Feature::String(StringFeature::Plain(s.s)),
         ));
     }
-
-    out.push((Address::NoAddress, Feature::Format("dotnet".to_string())));
-    out.push((Address::NoAddress, Feature::Format("pe".to_string())));
 
     if names::is_mixed_mode(net) {
         out.push((
@@ -616,7 +636,7 @@ pub fn extract_dotnet_from_pe(
     let functions: BTreeMap<Address, FunctionFeatures> =
         parallel::map(options.jobs, &bodies, |f| {
             let mut ffeatures = Vec::new();
-            extract_function_features(f.token, &graph, &mut ffeatures);
+            extract_function_features(f.token, &f.body.instructions, &graph, &mut ffeatures);
 
             let mut instructions: BTreeMap<Address, InstructionFeatures> = BTreeMap::new();
             for insn in &f.body.instructions {
@@ -659,4 +679,81 @@ pub fn extract_dotnet_from_pe(
         file_features: file,
         functions,
     })
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_features_are_global_only() {
+        let bytes = include_bytes!(
+            "../../../../tests/testfiles/dotnet/dd9098ff91717f4906afe9dafdfa2f52.exe_"
+        );
+        let features = extract_dotnet(bytes, &AnalysisOptions::SERIAL).unwrap();
+        for format in ["pe", "dotnet"] {
+            assert!(features
+                .global_features
+                .contains(&Feature::Format(format.into())));
+        }
+        assert!(!features
+            .file_features
+            .iter()
+            .any(|(_, f)| matches!(f, Feature::Format(_))));
+    }
+
+    fn instruction(flow: FlowControl, operand: Operand) -> Instruction {
+        let mut insn = Instruction::new();
+        insn.offset = 10;
+        insn.opcode.flow_control = flow;
+        insn.operand = operand;
+        insn
+    }
+
+    #[test]
+    fn loops_require_a_strictly_backward_branch() {
+        for flow in [FlowControl::Branch, FlowControl::Cond_Branch] {
+            assert!(has_backward_branch(&instruction(
+                flow.clone(),
+                Operand::Int(9)
+            )));
+            assert!(!has_backward_branch(&instruction(
+                flow.clone(),
+                Operand::Int(10)
+            )));
+            assert!(!has_backward_branch(&instruction(flow, Operand::Int(11))));
+        }
+        assert!(!has_backward_branch(&instruction(
+            FlowControl::Next,
+            Operand::Int(0)
+        )));
+    }
+
+    #[test]
+    fn switch_checks_every_target_and_emits_one_loop_per_method() {
+        let switch = instruction(
+            FlowControl::Cond_Branch,
+            Operand::Arguments(vec![Operand::Int(12), Operand::Int(9)]),
+        );
+        let branch = instruction(FlowControl::Branch, Operand::Int(0));
+        let mut features = Vec::new();
+        extract_function_features(
+            0x06000001,
+            &[switch, branch],
+            &CallGraph::default(),
+            &mut features,
+        );
+        assert_eq!(
+            features,
+            vec![(
+                Address::DnToken(0x06000001),
+                Feature::Characteristic("loop".to_string())
+            )]
+        );
+        assert!(!has_backward_branch(&instruction(
+            FlowControl::Cond_Branch,
+            Operand::Arguments(vec![Operand::Int(10), Operand::Int(12)])
+        )));
+    }
 }

@@ -42,7 +42,7 @@ pub enum CapabilityError {
 /// inserts `features`, in order, then `global_features` at `Address::NoAddress`
 /// -- the `itertools.chain(extract_*_features(...), extract_global_features())`
 /// pattern shared by every scope loop except `find_file_capabilities` (which
-/// has its own truthiness-guarded variant below).
+/// has its own NO_ADDRESS guard below).
 fn seed(fs: &mut FeatureSet, features: &[(Address, Feature)], global_features: &[Feature]) {
     for (addr, f) in features {
         engine::insert(fs, f.clone(), *addr);
@@ -163,12 +163,10 @@ pub fn find_file_capabilities(
     Ok((matches, feature_count))
 }
 
-/// port of the `if va: ... else: ...` guard in `find_file_capabilities`: a
-/// file feature at a falsy address (in practice, absolute/relative/file/dn
-/// token address `0`) is recorded with an *empty* location set instead of
-/// `{addr}`. See `Address::is_truthy`'s doc comment.
+/// `capa/capabilities/common.py find_file_capabilities`: only NO_ADDRESS
+/// produces an empty location set. Numeric address zero is a real location.
 fn guarded_insert(fs: &mut FeatureSet, feature: Feature, addr: Address) {
-    if addr.is_truthy() {
+    if addr != Address::NoAddress {
         engine::insert(fs, feature, addr);
     } else {
         fs.entry(feature).or_default();
@@ -293,6 +291,22 @@ pub fn find_static_capabilities(
 mod tests {
     use super::*;
     use crate::rules::Rule;
+
+    #[test]
+    fn file_locations_keep_zero_but_omit_no_address() {
+        let feature = Feature::Format("pe".into());
+        let mut features = FeatureSet::new();
+        guarded_insert(&mut features, feature.clone(), Address::NoAddress);
+        assert!(features.get(&feature).unwrap().is_empty());
+        guarded_insert(&mut features, feature.clone(), Address::File(0));
+        guarded_insert(&mut features, feature.clone(), Address::Absolute(0));
+        assert_eq!(features.get(&feature).unwrap().len(), 2);
+        assert!(features.get(&feature).unwrap().contains(&Address::File(0)));
+        assert!(features
+            .get(&feature)
+            .unwrap()
+            .contains(&Address::Absolute(0)));
+    }
 
     fn rule(yaml: &str) -> Rule {
         Rule::from_yaml(yaml).unwrap_or_else(|e| panic!("test rule failed to parse: {e}"))

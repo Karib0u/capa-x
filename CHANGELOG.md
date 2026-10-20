@@ -20,6 +20,13 @@ tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
 
 ### Changed
 
+- Target capa 10.0.0 and capa-rules v10.0.0. Match its .NET loop detection
+  and metadata row handling, recursive rule optimization, file evidence
+  addresses, signed hexadecimal values and operand counts in rules, count
+  descriptions, and result-document metadata. Refresh
+  compatibility fixtures and migrate the fixture generator to upstream JSON
+  manifests. See `docs/BENCHMARKS.md` for the version-specific checks.
+
 - The slow acceptance and robustness gates
   (`capa-x/tests/cross_product_matrix.rs`, `aarch64_elf_fuzz.rs`,
   `dotnet_dnfile_fuzz.rs`) are `#[ignore]`d: ~383 s of a ~402 s suite, none of

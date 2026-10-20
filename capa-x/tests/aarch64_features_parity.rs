@@ -1,7 +1,6 @@
 //! Port of the pinned Python capa test suite's
-//! `test_binexport_features.py::FEATURE_PRESENCE_TESTS_BE2_ELF_AARCH64`
-//! expectation table (v9.4.0, see PINNED.md;
-//! `reference/capa/tests/test_binexport_features.py:38`) -- the native
+//! AArch64 assertions in `tests/fixtures/features/binexport.json`
+//! (v10.0.0, see PINNED.md), the native
 //! AArch64 ELF acceptance oracle.
 //!
 //! Unlike `dotnet_features_parity.rs`, this table drives against the *same*
@@ -320,8 +319,7 @@ const ROWS: &[Row] = &[
     Row { sample: "687e79.ghidra.be2", scope: "file", feature: || arch_("aarch64"), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "file", feature: || format_("elf"), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "file", feature: || format_("pe"), expected: Expected::Bool(false) },
-    Row { sample: "687e79.ghidra.be2", scope: "function=0x0", feature: || characteristic_("stack string"), expected: Expected::Xfail("xfail: not implemented yet") },
-    Row { sample: "687e79.ghidra.be2", scope: "function=0x0", feature: || characteristic_("stack string"), expected: Expected::Xfail("xfail: not implemented yet") },
+    Row { sample: "687e79.ghidra.be2", scope: "function=0x0", feature: || characteristic_("stack string"), expected: Expected::Xfail("xfail: stack string detection not implemented yet for binexport") },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x105080", feature: || characteristic_("calls from"), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x105128", feature: || num(224), expected: Expected::Bool(false) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x105128,bb=0x105128,insn=0x10514c", feature: || off(8), expected: Expected::Bool(true) },
@@ -331,16 +329,15 @@ const ROWS: &[Row] = &[
     Row { sample: "687e79.ghidra.be2", scope: "function=0x1056c0", feature: || characteristic_("loop"), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x1057f8", feature: || bytes_hex("2f00730079007300740065006d002f007800620069006e002f00620075007300790062006f007800"), expected: Expected::Bool(false) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x1057f8,bb=0x1057f8", feature: || num(18446744073709551615), expected: Expected::Bool(true) },
-    Row { sample: "687e79.ghidra.be2", scope: "function=0x1057f8,bb=0x1057f8", feature: || num(18446744073709551615), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x105C88", feature: || num(61440), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x105b38", feature: || characteristic_("recursive call"), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x105c88", feature: || api_("memset"), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x105c88", feature: || api_("Nope"), expected: Expected::Bool(false) },
-    Row { sample: "687e79.ghidra.be2", scope: "function=0x105c88", feature: || regex_("innerRename"), expected: Expected::Bool(true) },
+    Row { sample: "687e79.ghidra.be2", scope: "function=0x105c88", feature: || regex_("/innerRename/"), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x106530", feature: || characteristic_("recursive call"), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x1066e0,bb=0x1068c4", feature: || num(4294967295), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x106d58", feature: || string_("/data/misc/wifi/wpa_supplicant.conf"), expected: Expected::Bool(true) },
-    Row { sample: "687e79.ghidra.be2", scope: "function=0x106d58", feature: || regex_("/data/misc"), expected: Expected::Bool(true) },
+    Row { sample: "687e79.ghidra.be2", scope: "function=0x106d58", feature: || regex_("/\\/data\\/misc/"), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x106d58", feature: || substring_("/data/misc"), expected: Expected::Bool(true) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x1070e8", feature: || characteristic_("calls from"), expected: Expected::Bool(false) },
     Row { sample: "687e79.ghidra.be2", scope: "function=0x107588", feature: || mnemonic_("stp"), expected: Expected::Bool(true) },
@@ -371,7 +368,6 @@ const ROWS: &[Row] = &[
     Row { sample: "d1e650.ghidra.be2", scope: "function=0x117988", feature: || characteristic_("nzxor"), expected: Expected::Bool(true) },
     Row { sample: "d1e650.ghidra.be2", scope: "function=0x1183e0,bb=0x11849c,insn=0x1184b0", feature: || off(8), expected: Expected::Bool(true) },
     Row { sample: "d1e650.ghidra.be2", scope: "function=0x118500", feature: || characteristic_("indirect call"), expected: Expected::Bool(false) },
-    Row { sample: "d1e650.ghidra.be2", scope: "function=0x118620", feature: || characteristic_("indirect call"), expected: Expected::Bool(true) },
     Row { sample: "d1e650.ghidra.be2", scope: "function=0x118620", feature: || characteristic_("indirect call"), expected: Expected::Bool(true) },
     Row { sample: "d1e650.ghidra.be2", scope: "function=0x118F1C", feature: || characteristic_("tight loop"), expected: Expected::Bool(true) },
     Row { sample: "d1e650.ghidra.be2", scope: "function=0x124854,bb=0x1248AC,insn=0x1248B4", feature: || opoff(2, -72), expected: Expected::Bool(true) },

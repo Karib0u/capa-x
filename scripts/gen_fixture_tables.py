@@ -2,10 +2,8 @@
 """
 Regenerates the row tables in `capa-x/tests/dotnet_features_parity.rs`
 and `capa-x/tests/aarch64_features_parity.rs` from the pinned Python capa
-test suite's `FEATURE_PRESENCE_TESTS_DOTNET`/`FEATURE_COUNT_TESTS_DOTNET`
-(`reference/capa/tests/fixtures.py`) and
-`FEATURE_PRESENCE_TESTS_BE2_ELF_AARCH64`
-(`reference/capa/tests/test_binexport_features.py`).
+test suite's JSON manifests under `reference/capa/tests/fixtures/features/`.
+The upstream fixture loader parses and validates every selected assertion.
 
 Dev-time only: run this under the pinned `.venv` whenever PINNED.md's
 `mandiant/capa` pin bumps, paste its
@@ -14,9 +12,8 @@ blocks, and re-run `cargo fmt`/`cargo test`. The generated Rust is committed
 -- `cargo test` never invokes Python (AGENTS.md "No Python at runtime").
 
 `pytest` isn't a runtime dependency of the pinned capa package, so this
-stubs it out well enough for `fixtures.py`/`test_binexport_features.py` to
-import cleanly (both only use `@pytest.fixture`/`pytest.mark.parametrize`-
-style decorators at module scope, never anything this script calls).
+stubs the decorator surface used when the `fixtures` package imports.
+Fixture selection and assertion parsing still run in the upstream loader.
 
 usage:
   .venv/bin/python3 scripts/gen_fixture_tables.py dotnet
@@ -43,8 +40,7 @@ class _DummyMark:
 
 
 class _DummyPytest(types.ModuleType):
-    """Just enough of `pytest`'s decorator surface for `fixtures.py`/
-    `test_binexport_features.py` to import without the real package."""
+    """Just enough of pytest's decorators for the upstream fixture loader."""
 
     def __getattr__(self, name):
         if name == "mark":
@@ -127,44 +123,56 @@ def dump_dotnet() -> None:
     # dropped: this script records why every time it regenerates the table.
     unbacked = {"hello-world", "mixed-mode-64"}
 
-    print("// --- FEATURE_PRESENCE_TESTS_DOTNET " + "-" * 40)
+    import capa.engine
+
+    rows = fixtures.select_feature_fixtures(
+        fixtures.BackendFeaturePolicy("dnfile", include_tags={"dotnet"})
+    )
+    counts = []
     excluded = 0
-    for sample, scope, feature, expected in fixtures.FEATURE_PRESENCE_TESTS_DOTNET:
-        if sample in unbacked:
+    print("// --- FEATURE_PRESENCE_TESTS_DOTNET " + "-" * 40)
+    for row in rows:
+        if row.sample_key in unbacked:
             excluded += 1
             continue
-        ctor = feature_ctor(feature)
+        if row.marks:
+            raise ValueError(f"unhandled .NET fixture marks: {row}")
+        feature = row.statement
+        if isinstance(feature, capa.engine.Range):
+            if not row.expected or feature.min != feature.max:
+                raise ValueError(f"expected an exact positive count assertion: {row}")
+            counts.append(row)
+            continue
         print(
-            f"    Row {{ sample: {rust_str(sample)}, scope: {rust_str(scope)}, "
-            f"feature: || {ctor}, expected: {str(expected).lower()} }},"
+            f"    Row {{ sample: {rust_str(row.sample_key)}, scope: {rust_str(row.location)}, "
+            f"feature: || {feature_ctor(feature)}, expected: {str(row.expected).lower()} }},"
         )
     print(f"// excluded {excluded} row(s) referencing dnfile-testfiles samples (hello-world, mixed-mode-64)")
     print()
     print("// --- FEATURE_COUNT_TESTS_DOTNET " + "-" * 40)
-    for sample, scope, feature, expected in fixtures.FEATURE_COUNT_TESTS_DOTNET:
-        ctor = feature_ctor(feature)
+    for row in counts:
         print(
-            f"    CountRow {{ sample: {rust_str(sample)}, scope: {rust_str(scope)}, "
-            f"feature: || {ctor}, expected: {expected} }},"
+            f"    CountRow {{ sample: {rust_str(row.sample_key)}, scope: {rust_str(row.location)}, "
+            f"feature: || {feature_ctor(row.statement.child)}, expected: {row.statement.min} }},"
         )
 
 
 def dump_aarch64() -> None:
-    import test_binexport_features as tbf
+    import fixtures
 
+    rows = fixtures.select_feature_fixtures(
+        fixtures.BackendFeaturePolicy("binexport", include_tags={"aarch64"})
+    )
     print("// --- FEATURE_PRESENCE_TESTS_BE2_ELF_AARCH64 " + "-" * 30)
-    for row in tbf.FEATURE_PRESENCE_TESTS_BE2_ELF_AARCH64:
-        sample, scope, feature, expected = row[0], row[1], row[2], row[3]
-        ctor = feature_ctor(feature)
-        if isinstance(expected, bool):
-            exp_repr = f"Expected::Bool({str(expected).lower()})"
-        else:
-            # "xfail: <reason>" strings -- see test_binexport_features.py's
-            # own `if not isinstance(expected, bool): pytest.xfail(expected)`.
-            exp_repr = f"Expected::Xfail({rust_str(expected)})"
+    for row in rows:
+        exp_repr = f"Expected::Bool({str(row.expected).lower()})"
+        for mark in row.marks:
+            if mark.backend != "binexport" or mark.mark != "xfail":
+                raise ValueError(f"unhandled AArch64 fixture mark: {mark}")
+            exp_repr = f"Expected::Xfail({rust_str('xfail: ' + mark.reason)})"
         print(
-            f"    Row {{ sample: {rust_str(sample)}, scope: {rust_str(scope)}, "
-            f"feature: || {ctor}, expected: {exp_repr} }},"
+            f"    Row {{ sample: {rust_str(row.sample_key)}, scope: {rust_str(row.location)}, "
+            f"feature: || {feature_ctor(row.statement)}, expected: {exp_repr} }},"
         )
 
 

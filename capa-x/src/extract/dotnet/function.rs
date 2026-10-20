@@ -24,10 +24,9 @@
 //!
 //! Upstream treats every managed method as exactly one basic block
 //! (`extractor.py get_basic_blocks`: "each dotnet method is considered 1
-//! basic block") and never implements `extract_function_loop` (raises
-//! `NotImplementedError`). There is no CIL control-flow-graph split to port
-//! for .NET -- building one here would be scope neither upstream nor any
-//! .NET rule depends on. `insn.py get_callee`'s `MethodSpec` ->
+//! basic block"). capa 10.0.0 detects loops by checking backward branch
+//! targets, without splitting the method into a control-flow graph.
+//! `insn.py get_callee`'s `MethodSpec` ->
 //! `MethodDef`/`MemberRef` resolution (task 3's own brief calls this out) is
 //! deferred to task 4: it needs a `MethodSpecRow.Method` accessor the
 //! vendored crate doesn't expose yet (its `GenericMethod` row keeps that

@@ -14,8 +14,8 @@ affiliated with or endorsed by Google LLC or Mandiant, Inc.
   and native AArch64 PE/ELF.
 - Produces deterministic output at every `--jobs` value.
 - Fails with context on unsupported inputs and unknown rule syntax.
-- Reaches 98.55% rule-level agreement with pinned Python capa 9.4.0 on the
-  200-sample evaluation corpus.
+- Targets capa 10.0.0 and its unmodified rule release. Compatibility checks
+  and native extraction differences are recorded in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 Python capa is the behavioral reference. capa-x is a native backend, not a
 complete replacement for every capa input format. Accepted backend differences
@@ -25,19 +25,19 @@ are documented in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
 
 | Input | Status | Reference |
 |---|---|---|
-| PE x86/x64 | Supported | Python capa 9.4.0, Vivisect |
+| PE x86/x64 | Supported | Python capa 10.0.0, Vivisect |
 | PE AArch64 (`IMAGE_FILE_MACHINE_ARM64`) | Supported -- **capa-x extension** | No Python oracle; see below |
-| ELF x86/x64 | Supported | Python capa 9.4.0, Vivisect |
+| ELF x86/x64 | Supported | Python capa 10.0.0, Vivisect |
 | ELF AArch64 | Supported | No raw-AArch64 Python oracle; validated against Ghidra BinExport2 |
-| .NET / CLR managed PE | Supported | Python capa 9.4.0, `dnfile` |
-| Raw shellcode, 32/64-bit | Supported | Python capa 9.4.0, `sc32`/`sc64` |
-| capa freeze files | Supported | Python capa 9.4.0 |
+| .NET / CLR managed PE | Supported | Python capa 10.0.0, `dnfile` |
+| Raw shellcode, 32/64-bit | Supported | Python capa 10.0.0, `sc32`/`sc64` |
+| capa freeze files | Supported | Python capa 10.0.0 |
 | Mach-O x86_64/arm64/arm64e (thin or fat, `-f macho`) | Supported -- **capa-x extension** | No Python oracle; see below |
 | IDA, Ghidra, Binary Ninja, BinExport | Non-goal | Native inputs are the focus |
 
 Unsupported inputs are never silently accepted or partially analyzed.
 
-Pinned capa 9.4.0 does not accept Mach-O as raw input at all, so `-f macho`
+Pinned capa 10.0.0 does not accept Mach-O as raw input at all, so `-f macho`
 is a documented capa-x extension rather than a parity claim: it is never
 selected by `-f auto` (which mirrors upstream's own PE/ELF/freeze detection
 order exactly) and must be requested explicitly. capa's feature semantics
@@ -48,7 +48,7 @@ and `arm64e` Mach-O are all supported.
 Native AArch64 decoding, recovery, and feature extraction (`disarm64`-based,
 no Ghidra/IDA/Binary Ninja/BinExport at runtime) cover ELF, Mach-O, and PE
 alike -- the same decoder and recovery core, composed with each container
-format's existing loader. Pinned capa 9.4.0 has no raw AArch64 input at all
+format's existing loader. Pinned capa 10.0.0 has no raw AArch64 input at all
 (its own AArch64 support is BinExport2-only), so AArch64 PE and Mach-O carry
 the same "capa-x extension, no Python oracle" caveat x86_64 Mach-O does;
 AArch64 ELF is validated against the pinned Ghidra BinExport2 fixture corpus
@@ -71,9 +71,9 @@ distinction is how a port starts overclaiming.
 
 | Class | Members | Oracle |
 |---|---|---|
-| Upstream-parity raw input | PE, ELF, shellcode (x86/x64), .NET/CLR | Python capa 9.4.0 direct comparison, recorded in `docs/BENCHMARKS.md` |
+| Upstream-parity raw input | PE, ELF, shellcode (x86/x64), .NET/CLR | Python capa 10.0.0 direct comparison, recorded in `docs/BENCHMARKS.md` |
 | Cross-backend parity | AArch64 ELF | No raw-AArch64 Python oracle; pinned Ghidra BinExport2 feature- and rule-level comparison, methodology in [docs/BENCHMARKS.md](docs/BENCHMARKS.md) |
-| capa-x extension | Mach-O (x86_64, AArch64), AArch64 PE | No Python oracle at all -- pinned capa 9.4.0 has no raw Mach-O or AArch64 input; validated against a hand-built structural/feature fixture corpus (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)), never claimed as upstream parity |
+| capa-x extension | Mach-O (x86_64, AArch64), AArch64 PE | No Python oracle at all -- pinned capa 10.0.0 has no raw Mach-O or AArch64 input; validated against a hand-built structural/feature fixture corpus (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)), never claimed as upstream parity |
 | Accepted divergence / non-goal | Vivisect-bound recovery gaps, other ISAs, live dynamic extractors | [`KNOWN_DIVERGENCES.md`](KNOWN_DIVERGENCES.md) (13 root-caused classes) |
 
 ## Install
@@ -170,13 +170,14 @@ gets a cheaper linux-only build plus the same schema-validation check.
 
 ## Accuracy and limitations
 
-Differential run on the release tree against Python capa 9.4.0 and the
-pinned rules:
+Fresh differential measurement on 2026-10-20 against Python capa 10.0.0
+and capa-rules v10.0.0. Native comparisons here measure rule names; shared
+freeze inputs also pass exact match-address and JSON-evidence checks.
 
 | Metric | Result |
 |---|---:|
-| Rule-level agreement | **98.55%** |
-| Reference-matched rules | 6,263 |
+| Rule-name agreement | **98.56%** |
+| Reference-matched rules | 6,300 |
 | Divergent rules | 91: 61 missing, 30 extra |
 | Samples with identical rule sets | 161/200 (80.5%) |
 
@@ -185,8 +186,9 @@ Every measured difference is mapped to a documented root cause. Exact methods,
 cross-implementation coverage, performance tables, and reproduction commands
 are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
-On a controlled result-equivalent sample, medians were 0.959 seconds for
-capa-x and 3.007 seconds for Python capa 9.4.0 across five measured runs. On the 10-sample parallel corpus, total runtime was 77.374 seconds with
+On the v1.0.0 release, a controlled result-equivalent sample had medians of
+0.959 seconds for capa-x and 3.007 seconds for Python capa 9.4.0 across five
+measured runs. On the 10-sample parallel corpus, total runtime was 77.374 seconds with
 one job and 37.199 seconds with the default 10 jobs, with a median per-sample
 speedup of 2.03 times and a worst sample of 1.52 times. These are measurements
 on a MacBook Pro M1 Max with macOS 26.6 and 10 logical CPUs, not universal
@@ -196,15 +198,13 @@ A user migrating from Python capa will occasionally see a rule it matches that
 capa-x does not; every known case is catalogued in
 [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md), and most are emulator-bound.
 capa-x tracks upstream capa releases on a best-effort basis; it is currently
-pinned to 9.4.0, and each supported upstream version is re-verified with the
+pinned to 10.0.0, and each supported upstream version is re-verified with the
 full differential suite before the pin moves. This is maintained by one person,
 so review and security response times are best-effort.
 
-Unlike prior Rust ports, every result is differentially tested against pinned
-Python capa 9.4.0: the rule-level agreement above covers the 200-sample corpus,
-with every divergent rule individually root-caused in
-[KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md). If it cannot be measured, it is
-not claimed.
+The differential suite compares capa-x against the pinned Python release.
+The rule-name agreement above covers the 200-sample corpus;
+version-specific results appear in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 ## Reproduce the evidence
 

@@ -63,7 +63,7 @@ pub enum Format {
     Sc64,
     Freeze,
     Dotnet,
-    /// A capa-x extension -- pinned capa 9.4.0 has no raw
+    /// A capa-x extension -- pinned capa 10.0.0 has no raw
     /// Mach-O input, so this is never part of `Auto`'s cascade (which
     /// mirrors upstream's own detection order exactly); it is only ever
     /// selected explicitly. See `extract::image::ImageFormat::Macho`.

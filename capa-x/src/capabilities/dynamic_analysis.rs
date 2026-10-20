@@ -229,10 +229,10 @@ pub fn find_process_capabilities(
     ))
 }
 
-/// port of the `if va: ... else: ...` guard in `find_file_capabilities`; see
-/// `capabilities::static_`'s copy of this for the full explanation.
+/// `capa/capabilities/common.py find_file_capabilities`: omit NO_ADDRESS
+/// from locations while retaining numeric address zero.
 fn guarded_insert(fs: &mut FeatureSet, feature: Feature, addr: Address) {
-    if addr.is_truthy() {
+    if addr != Address::NoAddress {
         engine::insert(fs, feature, addr);
     } else {
         fs.entry(feature).or_default();
@@ -332,6 +332,20 @@ pub fn find_dynamic_capabilities(
 mod tests {
     use super::*;
     use crate::rules::Rule;
+
+    #[test]
+    fn file_locations_keep_zero_but_omit_no_address() {
+        let feature = Feature::Format("pe".into());
+        let mut features = FeatureSet::new();
+        guarded_insert(&mut features, feature.clone(), Address::NoAddress);
+        assert!(features.get(&feature).unwrap().is_empty());
+        guarded_insert(&mut features, feature.clone(), Address::File(0));
+        assert!(features.get(&feature).unwrap().contains(&Address::File(0)));
+        assert!(!features
+            .get(&feature)
+            .unwrap()
+            .contains(&Address::NoAddress));
+    }
 
     fn rule(yaml: &str) -> Rule {
         Rule::from_yaml(yaml).unwrap_or_else(|e| panic!("test rule failed to parse: {e}"))

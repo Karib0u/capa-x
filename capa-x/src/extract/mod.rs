@@ -70,7 +70,7 @@ pub fn looks_like_elf(buf: &[u8]) -> bool {
 
 /// Thin (64-bit) or fat Mach-O magic, in either byte order. Unlike
 /// `looks_like_pe`/`looks_like_elf` this is **not** part of `-f auto`
-/// detection: pinned capa 9.4.0 has no raw Mach-O input at all, so Mach-O is
+/// detection: pinned capa 10.0.0 has no raw Mach-O input at all, so Mach-O is
 /// only ever analysed via an explicit
 /// `-f macho`, never guessed at. Used by [`image::LoadedImage::parse`] (a
 /// general convenience, e.g. for tests) and by `-f macho`'s own dispatch.
