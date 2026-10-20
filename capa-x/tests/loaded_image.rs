@@ -64,6 +64,62 @@ fn elf_mapping_bindings_and_entry_decode() {
 }
 
 #[test]
+fn elf_compatibility_only_binds_reference_import_relocation_types() {
+    use capa_x::extract::recovery::{analyze_with_backend, RecoveryBackend};
+    use goblin::elf::reloc::{R_386_JMP_SLOT, R_X86_64_GLOB_DAT, R_X86_64_IRELATIVE};
+
+    let bytes = std::fs::read(
+        testfiles_dir()
+            .join("749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2.elf_"),
+    )
+    .expect("sample present");
+    let elf = goblin::elf::Elf::parse(&bytes).expect("valid ELF");
+    let native = LoadedImage::from_elf(&bytes).expect("native image");
+    let compat = analyze_with_backend(&bytes, RecoveryBackend::VivisectCompat)
+        .expect("compatibility analysis");
+    let mut supported = 0;
+    let mut unsupported = 0;
+    for relocation in elf
+        .dynrelas
+        .iter()
+        .chain(elf.dynrels.iter())
+        .chain(elf.pltrelocs.iter())
+    {
+        let symbol = elf.dynsyms.get(relocation.r_sym).expect("valid symbol");
+        let name = elf.dynstrtab.get_at(symbol.st_name).expect("valid name");
+        if name.is_empty() {
+            continue;
+        }
+        let address = relocation.r_offset + native.load_bias;
+        assert!(native.external_bindings.contains_key(&address));
+        let is_import = matches!(
+            relocation.r_type,
+            R_386_JMP_SLOT | R_X86_64_GLOB_DAT | R_X86_64_IRELATIVE
+        );
+        assert_eq!(
+            compat.image.external_bindings.contains_key(&address),
+            is_import
+        );
+        assert_eq!(
+            compat.image.import_locations.contains_key(&address),
+            is_import
+        );
+        if is_import {
+            supported += 1;
+        } else {
+            unsupported += 1;
+            assert!(compat.diagnostics.iter().any(|diagnostic| {
+                diagnostic
+                    .message
+                    .contains(&format!("at {address:#x} ({name})"))
+            }));
+        }
+    }
+    assert!(supported > 0);
+    assert!(unsupported > 0);
+}
+
+#[test]
 fn delay_imported_ordinals_are_named_from_the_ordinal_database() {
     // `ws2_32` ordinal 6 is `getsockname`. Vivisect's PE parser resolves a
     // delay-load ordinal through `PE/ordlookup` exactly as it does a bound

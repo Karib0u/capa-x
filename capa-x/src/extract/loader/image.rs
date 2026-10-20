@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 
 use goblin::elf::header::{EM_386, EM_AARCH64, EM_X86_64, ET_DYN};
 use goblin::elf::program_header::{PF_R, PF_W, PF_X, PT_LOAD};
+use goblin::elf::reloc::{R_386_JMP_SLOT, R_X86_64_GLOB_DAT, R_X86_64_IRELATIVE};
 use goblin::elf::Elf;
 use goblin::mach::constants::cputype::CPU_TYPE_X86_64;
 use goblin::mach::constants::{VM_PROT_EXECUTE, VM_PROT_READ, VM_PROT_WRITE};
@@ -681,7 +682,7 @@ impl LoadedImage {
             mapped_region(bytes, 0, header_file_size, header_map_size, ImageFormat::Pe)?;
         account_mapping(&mut mapped_total, header.len())?;
         sections.push(MappedSection {
-            name: "<headers>".to_string(),
+            name: "PE_Header".to_string(),
             address: pe.image_base,
             virtual_size: header_map_size,
             file_offset: 0,
@@ -707,13 +708,11 @@ impl LoadedImage {
             .collect();
 
         for (index, section) in pe.sections.iter().enumerate() {
-            let name_end = section
-                .name
-                .iter()
-                .position(|byte| *byte == 0)
-                .unwrap_or(section.name.len());
-            let name = String::from_utf8_lossy(section.name.get(..name_end).unwrap_or_default())
-                .into_owned();
+            // `vivisect/parsers/pe.py` strips only leading/trailing NULs.
+            // Embedded NULs are part of the workspace segment name.
+            let name = String::from_utf8_lossy(&section.name)
+                .trim_matches('\0')
+                .to_string();
             let address = pe
                 .image_base
                 .checked_add(u64::from(section.virtual_address))
@@ -929,6 +928,13 @@ impl LoadedImage {
     }
 
     pub fn from_elf(bytes: &[u8]) -> Result<Self, ImageError> {
+        Self::from_elf_with_import_policy(bytes, false)
+    }
+
+    pub(crate) fn from_elf_with_import_policy(
+        bytes: &[u8],
+        vivisect_compat: bool,
+    ) -> Result<Self, ImageError> {
         let elf = Elf::parse(bytes).map_err(|error| ImageError::Elf(error.to_string()))?;
         let architecture = match elf.header.e_machine {
             EM_386 => Architecture::X86,
@@ -1059,6 +1065,23 @@ impl LoadedImage {
                         context: "relocation binding",
                     },
                 )?;
+                // Vivisect 1.3.2 `parsers/elf.py:parseRelocs` creates imports
+                // only for these relocation types on both x86 architectures.
+                // Other named relocations remain symbols/relocations, not API
+                // bindings. Native and AArch64 analysis retain all bindings.
+                if vivisect_compat
+                    && matches!(architecture, Architecture::X86 | Architecture::X64)
+                    && !matches!(
+                        relocation.r_type,
+                        R_386_JMP_SLOT | R_X86_64_GLOB_DAT | R_X86_64_IRELATIVE
+                    )
+                {
+                    image.load_diagnostics.push(format!(
+                        "named ELF relocation type {} at {address:#x} ({name}) is not an import in the compatibility backend",
+                        relocation.r_type
+                    ));
+                    continue;
+                }
                 image.add_external_binding(address, vec![name.to_string()]);
                 // `vivisect/parsers/elf.py` passes `"*"` as the library name
                 // for every dynamic relocation import (elf.py:844 and friends),

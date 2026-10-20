@@ -44,6 +44,13 @@ Keep candidate selection separate from evaluation:
 - Run emucode before signature fallbacks and late recovery passes. New
   operand references from those later passes do not restart emucode.
   Dereferenced pointers may still be followed.
+- Run import-call fragments between emucode and function signatures.
+  Skip undefined PE relocation slots already typed as pointers by the
+  reference relocation pass. Complete direct callees before resuming each
+  fragment and preserve their function views at that point, matching
+  `envi/codeflow.py:addCodeFlow` and `generic/codeblocks.py:analyzeFunction`.
+  Use explicit tasks rather than host recursion. Later fragment code stays
+  decoded without being retroactively added to those views.
 - Recover concrete Windows API callback arguments using the `funcptr`
   positions in Vivisect 1.3.2's Windows API tables. Reuse the interpreter for
   x86 stack and Windows x64 register/stack values. Explicit callbacks can

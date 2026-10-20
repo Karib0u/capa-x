@@ -11,6 +11,12 @@ tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
 
 ### Fixed
 
+- Match the compatibility loader's ELF import relocation types and PE
+  workspace section names while preserving the separate file-only contract.
+  Put file-only PE/ELF format features at file scope.
+- Preserve function ownership when import-call discovery creates a callee
+  before resuming a loose code fragment. Respect typed relocation operands
+  and run this discovery before function signatures.
 - Recover Windows API callbacks and pointers referenced by x86 LEA operands.
   Support `xadd` in candidate evaluation so compatibility recovery can use
   reference discovery paths instead of broad prologue and raw call sweeps.

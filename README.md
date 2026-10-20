@@ -170,20 +170,20 @@ gets a cheaper linux-only build plus the same schema-validation check.
 
 ## Accuracy and limitations
 
-Measured on 2026-10-20 after callback and pointer recovery updates against
-Python capa 10.0.0 and capa-rules v10.0.0. Native comparisons here measure
+Measured on 2026-10-20 after loader and import-call ownership updates against
+Python capa 10.0.0 and capa-rules v10.0.0. Comparisons on binaries measure
 rule names. Shared freeze tests separately check match addresses and JSON
 evidence.
 
 | Metric | Result |
 |---|---:|
-| Rule-name agreement | **99.71%** |
+| Rule-name agreement | **99.94%** |
 | Reference-matched rules | 6,300 |
-| Divergent rules | 18: 2 missing, 16 extra |
-| Samples with identical rule sets | 190/200 (95.0%) |
+| Divergent rules | 4: 2 missing, 2 extra |
+| Samples with identical rule sets | 196/200 (98.0%) |
 
-The fresh 200-sample run has no regressions against main `1943f82`, which
-had 39 differences and 181 identical rule sets. Historical measurements and
+The fresh 200-sample run has no regressions against main `d660eec`, which
+had 18 differences and 190 identical rule sets. Historical measurements and
 the current comparison are recorded in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 Rule-level agreement leads because it measures individual capability rules.

@@ -7,19 +7,18 @@ historical causes so earlier measurements remain interpretable.
 
 ## Current measured remainder
 
-The 2026-10-20 full-corpus run after callback recovery and removal of
-compatibility sweeps has 18 rule-name differences across 10 of 200 samples,
-down from 39 differences across 19 samples on main `1943f82`.
-See `docs/BENCHMARKS.md` for the commands and validation. Historical sample
-lists below retain earlier attributions; this table is the current remainder.
+The 2026-10-20 full-corpus run after loader and import-call ownership fixes
+has 4 rule-name differences across 4 of 200 samples, down from 18 differences
+across 10 samples on main `d660eec`. No sample regresses. See
+`docs/BENCHMARKS.md` for commands and validation. Historical sample lists
+below retain earlier attributions; this table is the current remainder.
 
 | Class | Missing | Extra | Samples |
 |---|---:|---:|---|
-| KD-004: reference ELF import handling | 0 | 6 | `749cf36a` |
-| KD-008: reference instruction ownership | 0 | 8 | `1e9fc7f3`, `31600ad0`, `50d5ee1c`, `a563c50c`, `f53dfa29`, `f5903519` |
-| KD-009: PE section names | 0 | 2 | `2826b762` |
+| KD-008: switch-arm instruction ownership | 0 | 1 | `f5903519` |
 | KD-014: overlapping PEB block | 1 | 0 | `70fd3347` |
 | KD-015: conflicting XOR loop | 1 | 0 | `971e599e` |
+| KD-016: reference EVEX decoding | 0 | 1 | `f53dfa29` |
 
 ## Why a document like this is the right answer
 
@@ -30,7 +29,7 @@ two backends' capability output. Each is checked against hand-maintained
 expectation tables, and where a backend genuinely disagrees, upstream *encodes
 the disagreement*:
 
-- `reference/capa/tests/fixtures.py:1540` — a separate `FEATURE_COUNT_TESTS_GHIDRA`
+- `reference/capa/tests/fixtures.py:1540` : a separate `FEATURE_COUNT_TESTS_GHIDRA`
   table, carrying the comment that Ghidra "may render functions as labels, as
   well as provide differing amounts of call references". Three rows that
   contradict the vivisect table, kept side by side with it.
@@ -48,17 +47,17 @@ of this project's release contract.
    cause. An entry that cannot name one is a bug nobody has investigated yet,
    and it does not satisfy this requirement.
 2. **One entry per class, not per sample.** Samples are evidence; list them.
-3. **Cite the upstream mechanism** — the pinned Python/vivisect file and
+3. **Cite the upstream mechanism** : the pinned Python/vivisect file and
    function whose behaviour we are not reproducing. Port-from-source rules
    apply here too (`AGENTS.md`): read it, don't recall it.
 4. **`our-bug` is not a divergence.** If capa-x is simply wrong, fix it.
 5. **State the direction** (do we report more, or fewer, matches) and the
-   affected rules — a reader triaging a new diff needs to recognise the class.
+   affected rules : a reader triaging a new diff needs to recognise the class.
 
 ## Schema
 
 ```markdown
-### KD-00N — <short name of the class>
+### KD-00N : <short name of the class>
 
 - **Class:** recovery / function extent | feature extraction | matching | loader
 - **Direction:** capa-x reports fewer | more matches
@@ -71,7 +70,7 @@ of this project's release contract.
 
 ## Entries
 
-### KD-001 — FLIRT-recognized library functions are dropped, not flagged
+### KD-001 : FLIRT-recognized library functions are dropped, not flagged
 
 - **Class:** feature extraction / matching scope
 - **Direction:** capa-x reports fewer features at function scope
@@ -79,7 +78,7 @@ of this project's release contract.
 - **Samples:** the `features_parity.rs` rows reported at the end of
   `feature_presence_matches_upstream_viv_expectations` (a run prints the
   current list; it is small and sample-dependent)
-- **Root cause:** upstream separates extraction from matching — the raw
+- **Root cause:** upstream separates extraction from matching : the raw
   extractor still yields a library function's own body, and only the matching
   layer skips it (`reference/capa/capa/capabilities/static.py:179`,
   `if extractor.is_library_function(f.address)`). capa-x reaches the same
@@ -90,7 +89,7 @@ of this project's release contract.
   unaffected and exactly matches upstream: no FLIRT backend exists there, and
   `NullStaticFeatureExtractor.is_library_function` never overrides the `False`
   default (see `capa-x/src/capabilities/static_analysis.rs:175`).
-- **Upstream analogue:** `FEATURE_COUNT_TESTS_GHIDRA` — a backend whose
+- **Upstream analogue:** `FEATURE_COUNT_TESTS_GHIDRA` : a backend whose
   function model differs is given its own expectations rather than being made
   to match vivisect's.
 - **Status:** accepted. Equivalent for every result-level metric: real
@@ -157,8 +156,8 @@ of this project's release contract.
   rather than the data-pointer signature shortcut. Otherwise `0x413420` on
   `6f99a2c8...exe_` is walked too early and its callee claims the shared
   function `0x40d22a`, losing `read file on Windows`.
-- **Corrected attribution:** the six extras on `749cf36a...22c2.elf_` are
-  KD-004's unresolved reference imports. The two historical extras on
+- **Corrected attribution:** the six former extras on `749cf36a...22c2.elf_`
+  were KD-004's import-classification difference, now resolved. The two historical extras on
   `e17e6a79...elf_` were caused by an absolute jump-table scan reading past
   an unsigned selector bound into adjacent tables. They are not evidence
   that a candidate evaluator accepts invalid function starts.
@@ -167,36 +166,27 @@ of this project's release contract.
   parity remain separate concerns. Unsupported evaluation paths retain
   diagnostics as described in ADR 0007.
 
-### KD-004 — the reference cannot name imports behind `R_X86_64_PC32` relocations
+### KD-004: ELF import relocation classification
 
-- **Class:** loader (reference-side)
-- **Direction:** capa-x reports **more** matches — and is the correct side
+- **Class:** loader
+- **Direction:** historically more matches
 - **Affects:** `change memory permission on Linux`, `create or open file`,
   `hook routines via dlsym RTLD_NEXT`, `link function at runtime on Linux`,
   `map or unmap memory on Linux`, `write file on Linux`
-- **Samples:** `749cf36a…22c2.elf_` — all 6 of its diffs, at `0x2002629`,
-  `0x2002647`, `0x200274f`, `0x2002d87`, `0x2003ac0`, `0x2003cb0`, `0x2003e10`,
-  `0x2003fc0`, `0x2004070`, `0x2004235` (+ more of the same call sites)
-- **Root cause:** `vivisect/parsers/elf.py:857-861`. For a *named* relocation
-  whose type is not one of `R_386_JMP_SLOT` / `R_X86_64_GLOB_DAT` /
-  `R_X86_64_IRELATIVE` / `R_386_COPY` / `R_386_32`, the loader logs
-  `unknown reloc type` and falls through to `vw.makeName(rlva, dmglname)` —
-  it names the slot but never calls `vw.makeImport`. On this sample the
-  unhandled type is `2` (`R_X86_64_PC32`) and it covers exactly `fopen`,
-  `fwrite`, `fputc`, `vfprintf`, `mmap`, `munmap`, `mprotect` and `dlsym`,
-  which is precisely the symbol set the six rules above need. With no import,
-  capa's viv extractor yields **no `api:` feature at all** in the three
-  contested functions (verified directly against
-  `VivisectFeatureExtractor.extract_insn_features`), so the reference cannot
-  match. capa-x applies the relocations and matches. This is not
-  FLIRT-related: `viv_utils.flirt.is_library_function` is `False` at every one
-  of these addresses.
-- **Upstream analogue:** the `xfail:` rows in the BinExport/idalib tables —
-  a backend that resolves something the reference does not is given its own
-  expectation rather than being made to under-report to match.
-- **Status:** accepted, permanently. Fixing this would mean making
-  capa-x *worse*. Recorded so the six extras are never counted against a
-  precision gate.
+- **Sample:** `749cf36a...22c2.elf_`, formerly six differences.
+- **Root cause:** Vivisect 1.3.2 `parsers/elf.py:parseRelocs` creates imports
+  only for named `R_386_JMP_SLOT`, `R_X86_64_GLOB_DAT`, and
+  `R_X86_64_IRELATIVE` relocations on either x86 architecture. Other types
+  produce relocations or names. The sample uses `R_X86_64_PC32` for `fopen`,
+  `fwrite`, `fputc`, `vfprintf`, `mmap`, `munmap`, `mprotect`, and `dlsym`.
+  Binding these as imports supplied API features absent from the reference.
+- **Implementation:** compatibility recovery now applies the reference's
+  import classification, with a diagnostic for each excluded named binding.
+  Native recovery and the standalone loaded-image API retain broader symbol
+  resolution. AArch64 and file-only ELF import extraction are unchanged.
+- **Status:** resolved for the compatibility backend. This deliberately
+  prioritizes reference parity over recognizing additional valid APIs in
+  that backend; the native loader retains those detections.
 
 ### KD-005: heuristic function seeds outside the reference model
 
@@ -229,23 +219,23 @@ of this project's release contract.
   native sweeps from compatibility signatures, and real fixtures guard the
   relocation-created pipe function and the zero-slot ELF case.
 
-### KD-006 — indirect jump targets recovered by emulating the switch table
+### KD-006 : indirect jump targets recovered by emulating the switch table
 
 - **Class:** recovery / function extent
 - **Direction:** capa-x reports fewer matches
 - **Affects:** `compute adler32 checksum`, `hash data with CRC32`,
   `resolve function by parsing PE exports`, `log keystrokes via Input Method
   Manager`
-- **Samples:** `276f691a3df25481f59d79781799e35f.exe_` — all 3 of its diffs.
+- **Samples:** `276f691a3df25481f59d79781799e35f.exe_` : all 3 of its diffs.
   Functions `0x14002f8d0` and `0x140030300`, plus the unwalked tail of
   `0x14002d780`, of which capa-x recovers 63 of the reference's 1,559
   instructions. Also `f5903519…c58.exe_` (fn `0x140079a90`), added by a
   corpus-wide re-run: capa-x recovers 84 of the reference's 287 basic
   blocks there, and **none** of the 203 it lacks has a static predecessor in
-  the reference's own graph — they are switch arms reached only through the
+  the reference's own graph : they are switch arms reached only through the
   emulated table, the same mechanism as `276f691a`
 - **Root cause:** both sides decode the same basic block and stop at the same
-  instruction — the indirect `jmp` at `0x14002d83d`, which has no static
+  instruction : the indirect `jmp` at `0x14002d83d`, which has no static
   branch target. The reference gets past it only through
   `vivisect/analysis/generic/switchcase.py:analyzeJmp`, registered as a
   *dynamic branch handler* on the workspace emulator's monitor
@@ -260,7 +250,7 @@ of this project's release contract.
   ends at the `jmp` and the 1,496 instructions of switch arms -- and the two
   functions called from them -- are never reached. `symswitchcase` is a named
   non-goal for the emulator-free backend.
-- **Upstream analogue:** the `xfail:` rows in the idalib/BinExport tables — a
+- **Upstream analogue:** the `xfail:` rows in the idalib/BinExport tables : a
   backend without the reference's jump-table resolution is given its own
   expectation rather than being expected to match it.
 - **Status:** resolved for the documented missing capabilities by bounded
@@ -306,86 +296,66 @@ of this project's release contract.
   emulation, dynamically resolved API identities, and arbitrary computed
   dereferences remain outside the bounded implementation. See ADR 0007.
 
-### KD-008 — code the reference decodes but never wraps in a function
+### KD-008: code decoded after a function's ownership is assigned
 
-- **Class:** matching scope (reference-side), reached through recovery
-- **Direction:** capa-x reports **more** matches
-- **Affects:** `check for unmoving mouse cursor`, `connect to URL`,
-  `contain loop` (×2 samples), `create
-  directory`, `delete directory`, `delete registry key`, `decode data using
-  Base64 via VBMI lookup table`, `enumerate files on Windows`, `enumerate files
-  recursively` (10 extras)
-- **Samples:** two shapes of the same cause. The address capa-x matched at
-  is itself unowned — `9324d1a8…exe_` (`0x407c43`), `c2d46d25…exe_`
-  (`0x14004a300` +4 more); or the *function start* is shared and capa-x
-  keeps walking into unowned code — `1e9fc7f3…exe_` (fn `0x4028d2`, +19
-  insns from `0x402940`), `31600ad0…exe_` (fn `0x401155`, +9 from `0x4011c7`),
-  `50d5ee1c…exe_` (fns `0x402c2f`, `0x402d0e`; +18 and +64),
-  `a563c50c…exe_` (fn `0x401490`, +95 from `0x4015cc`),
-  `f53dfa29…exe_` (fn `0x1400083a0`, +57 from `0x14000842e`)
-- **Root cause:** capa's viv extractor enumerates work by
-  `vw.getFunctions()` (`capa/features/extractors/viv/extractor.py`'s
-  `get_functions`), so a location the workspace holds *without* an owning
-  function is decoded, named and cross-referenced upstream but never offered
-  to the matcher at any scope. Vivisect creates such locations routinely:
-  `vivisect/analysis/i386/importcalls.py` calls `makeCode` on the code around
-  an import call without `makeFunction`, and codeflow's own `_cb_opcode`
-  defines opcode locations before the codeblocks pass assigns them. Checked
-  directly on `31600ad0`, `1e9fc7f3` and `a563c50c`: every instruction in the
-  contested range has `vw.getLocation(va) is not None` and
-  `vw.getFunction(va) is None`. capa-x has no equivalent notion — every
-  instruction it decodes belongs to some function — so the same bytes are in
-  scope for it and out of scope upstream. Measured by
-  `scripts/triage/attribute_shared_extras.py` (`no reference function` and
-  `walks past the reference`).
-- **Upstream analogue:** `FEATURE_COUNT_TESTS_GHIDRA`'s note that Ghidra "may
-  render functions as labels" — the same disagreement about what counts as a
-  function, in the other direction.
-- **Status:** accepted. Closing it means reproducing the reference's
-  *location* model, not its codeflow: the bytes are recovered correctly on both
-  sides, and the only difference is whether they sit inside a `makeFunction`
-  boundary. That is a workspace-model project, not a codeflow fix. The correct
-  first step is a Vivisect **workspace**.
+- **Class:** recovery / matching scope
+- **Direction:** historically more matches
+- **Resolved rules:** `create directory`, `delete directory`,
+  `delete registry key`, `enumerate files on Windows`, and
+  `enumerate files recursively` across four samples, six differences total.
+- **Resolved samples:** `1e9fc7f3...exe_` (function `0x4028d2`, continuation
+  `0x402940`), `31600ad0...exe_` (`0x401155`, `0x4011c7`),
+  `50d5ee1c...exe_` (`0x402c2f` and `0x402d0e`), and `a563c50c...exe_`
+  (`0x401490`, `0x4015cc`). Earlier extras on `9324d1a8` and `c2d46d25`
+  disappeared with the compatibility seed policy in KD-005.
+- **Root cause:** `i386/importcalls.py:analyze` calls `makeCode` on loose
+  import-call fragments. `envi/codeflow.py:addCodeFlow` descends into a
+  direct callee before resuming the fragment. `base.py:_cb_function` runs
+  `generic/codeblocks.py:analyzeFunction` immediately. When the callee meets
+  already decoded fragment instructions, its view stops at the fragment's
+  current end. The continuation decoded afterward remains unowned.
+  Live tracing confirms that the three continuation addresses above have no
+  location when `analyzeFunction` runs and become opcode locations later in
+  the same import-call pass. This is an analysis-order difference, not a
+  need to discard valid instructions globally.
+- **Implementation:** compatibility import-call discovery runs after emucode
+  and before function signatures. An explicit task stack completes callee
+  views before resuming the loose fragment, retaining those views while
+  later instructions and callees are still discovered. Native recovery
+  keeps complete final graph views. Undefined PE relocation operands are
+  typed pointer locations and cannot seed the import-call scan, matching
+  `generic/relocations.py` and `VivWorkspace.findPointers`. This protects
+  the signature-created function `0x40d22a` on `6f99a2c8`.
+- **Remaining rule/sample:** `check for unmoving mouse cursor` on `f5903519`.
+  The static switch resolver reaches `GetCursorPos` at `0x14007b1ad` and
+  `0x14007b25e` under `0x140079a90`. Both sites are unowned in the reference
+  but lie inside PE runtime-function interval `[0x140079a90, 0x14007bdd0)`.
+  General dynamic-switch ownership timing is not reproduced by the
+  import-call fix. These valid switch arms remain in scope.
+- **Corrected attribution:** the Base64 extra on `f53dfa29` is an EVEX
+  decoder limitation in the reference, now KD-016.
+- **Status:** import-call ownership differences resolved; one documented
+  switch-arm ownership difference remains. Synthetic tests cover recursive
+  discovery, a separately reachable return, continuation discovery, native
+  behavior, and relocation exclusion. Real samples guard the boundaries.
 
-**Additional evidence after static switch recovery (2026-10-20).**
-On `f5903519`, the newly reached `GetCursorPos` calls at `0x14007b1ad`
-and `0x14007b25e` satisfy `check for unmoving mouse cursor` in function
-`0x140079a90`. `scripts/triage/attribute_shared_extras.py` attributes this
-to code without reference function ownership: both call addresses are
-unowned, and the reference extracts no cursor-position API feature from
-that function. Both calls lie inside the same PE runtime-function interval,
-`[0x140079a90, 0x14007bdd0)`, independently confirming that this is not
-merging separate functions. Keep the match rather than discarding valid
-switch arms to reproduce the reference's ownership gap.
+### KD-009: PE section names in full and file-only analysis
 
-### KD-009 — PE section names: the workspace's segment model, not pefile's
-
-- **Class:** loader
-- **Direction:** capa-x reports **more** matches
+- **Class:** loader / file features
+- **Direction:** historically more matches
 - **Affects:** `packed with Themida`, `(internal) packer file limitation`
-- **Samples:** `2826b762…ba2.exe_` — both of its diffs, at sections `0x401000`
-  and `0x46d000`
-- **Root cause:** upstream's two backends disagree, and capa-x can only
-  match one. `vivisect/parsers/pe.py:296` builds a segment name with
-  `sec.Name.strip("\x00")`, which strips NULs from the *ends* only and keeps
-  embedded ones, and `capa/features/extractors/viv/file.py:101` yields those
-  segment names verbatim; `capa/features/extractors/pefile.py:103` instead
-  takes `section.Name.partition(b"\x00")[0]`. On this sample the first section's
-  raw 8-byte name is `"   \x00    "`, so the viv backend yields
-  `section("   \x00    ")` and the pefile backend `section("   ")`. The rule
-  needs `section("   ")` **and** `section("        ")`; the second matches on
-  both sides, the first only on the pefile model. capa-x follows pefile,
-  which is what the file-features gate compares it against
-  (`scripts/difftest.py --mode file-features`), so it matches and the `--mode
-  full` reference does not. The same split explains why the reference's segment
-  list also carries a `PE_Header` segment capa-x has no section for
-  (`pe.py`'s `vw.addSegment(baseaddr, len(header), "PE_Header", fname)`).
-- **Upstream analogue:** this *is* the upstream analogue — two capa backends
-  with different expectations for the same file feature, which is exactly what
-  `FEATURE_COUNT_TESTS_GHIDRA` and the `xfail:` tables exist to record.
-- **Status:** accepted. Switching to the viv model would break the
-  file-features gate in the same measurement it fixed this one; the two cannot both be
-  satisfied by a single extractor, and no gate ranks them.
+- **Sample:** `2826b762...ba2.exe_`, formerly two differences.
+- **Root cause:** `vivisect/parsers/pe.py` uses `sec.Name.strip("\x00")`,
+  retaining embedded NULs. `capa/features/extractors/viv/file.py` yields
+  these segment names, including `PE_Header`. The pefile extractor instead
+  truncates section names at the first NUL. The sample's `"   \x00    "`
+  section therefore satisfies the Themida rule only under pefile semantics.
+- **Implementation:** full x86/x64 PE analysis obtains section features from
+  the loaded workspace segments. File-only analysis continues to use the
+  independent pefile extractor. The same input can satisfy both upstream
+  contracts because these are separate API paths.
+- **Status:** resolved. A regression test checks embedded NULs, all-space
+  names, and `PE_Header` through both public analysis modes.
 
 ### KD-010: function extents split or merged inside shared code
 
@@ -459,32 +429,32 @@ switch arms to reproduce the reference's ownership gap.
   `2f7f5fb5`. The fourth historically listed capability, `PEB access`, remains
   different after the caller is fully recovered; its corrected attribution
   is KD-014.
-- **Accepted extra matches:** restored flow in `749cf36a` exposes three more
-  valid API detections already covered by KD-004. The reference cannot name
-  those relocation imports; these are deliberate baseline changes rather
-  than invented function-scope evidence.
+- **Historical extra matches:** restored flow in `749cf36a` initially exposed
+  three more valid API detections under KD-004. Compatibility loading now
+  follows the reference's import classification, while native loading
+  retains the broader relocation bindings.
 - **Regression coverage:** conflicting instruction streams, genuine
   undecodable leaves, import-thunk propagation, plain versus indexed memory
   jumps, and all three affected caller chains.
 
-### KD-013 — AArch64 switch/jump-table dispatch is not resolved
+### KD-013 : AArch64 switch/jump-table dispatch is not resolved
 
 - **Class:** recovery / function extent
 - **Direction:** capa-x reports fewer matches
 - **Affects:** `terminate process`
 - **Samples:** `687e79cde5b0ced75ac229465835054931f9ec438816f2827a8be5f3bd474929.elf_`
-  — 1 of 1 diff on this sample, and the only J9 divergence across the 3-sample
+  : 1 of 1 diff on this sample, and the only J9 divergence across the 3-sample
   pinned AArch64 BinExport2 corpus
 - **Root cause:** the function's dispatch is the standard AAPCS64
   `adrp`/`add`/`ldrsw`/`add`/`br` sequence (a PC-relative table load into an
   indirect branch). Ghidra resolves the arm count and every arm's target from
-  a bounds check it recovers ahead of the `br` — a static analysis, not
+  a bounds check it recovers ahead of the `br` : a static analysis, not
   emulation, but one this port does not yet perform; capa-x's recovery
   stops at the `br` with no static `direct_target`, the same shape as
   KD-006's x86 switch case but reached by ISA-native structural analysis on
   the reference side instead of vivisect's emulated `analyzeJmp`. The call to
   the process-termination API lives in one of the unrecovered arms.
-- **Upstream analogue:** the `xfail:` rows in the BinExport/idalib tables — a
+- **Upstream analogue:** the `xfail:` rows in the BinExport/idalib tables : a
   backend without the reference's jump-table resolution is given its own
   expectation rather than being expected to match it, the same posture KD-006
   documents for vivisect's switch-case emulation.
@@ -542,3 +512,21 @@ switch arms to reproduce the reference's ownership gap.
 - **Status:** retained as a reference instruction-boundary difference,
   alongside KD-014. Removing raw call sweeps also removes this sample's
   unrelated extra `PEB access`; it does not manufacture the missing XOR loop.
+
+### KD-016: EVEX instructions unsupported by the reference decoder
+
+- **Class:** feature extraction / reference decoder
+- **Direction:** capa-x reports one additional match
+- **Affects:** `decode data using Base64 via VBMI lookup table`
+- **Sample:** `f53dfa294d6979145fbb34303cf73bb6.exe_`, function `0x1400083a0`.
+- **Root cause:** the pinned Vivisect amd64 decoder interprets EVEX prefix
+  `0x62` as legacy `bound`, producing conflicting instruction boundaries and
+  missing vector mnemonics. A fresh trace decodes `0x1400083d9` as `bound`
+  and later vector bytes as branches and `outsd`. This is not the same
+  instruction stream decoded by iced-x86.
+- **Upstream evidence:** the pinned rule itself explicitly comments that
+  its SSE/AVX example is unsupported by Vivisect and comments out this exact
+  sample/address in `rules/nursery/decode-data-using-base64-via-vbmi-lookup-table.yml`.
+- **Status:** retained decoder difference. Previously included in KD-008
+  because instruction-address comparison reported unowned reference bytes.
+  Reproducing the extra's absence would require losing valid EVEX decoding.
