@@ -137,10 +137,44 @@ fn pe_loader_exposes_zero_fill_and_dead_data() {
         .find(|section| section.name == ".rdata")
         .expect("sample has rdata section");
     assert!(dead.is_dead_data(rdata.address));
-    // Upstream maps this section (`viv_utils` sets `loadresources = True`);
-    // capa-x skips it as a measured divergence -- see KD-011 and the note
-    // at the skip in `image.rs`.
-    assert!(dead.sections.iter().all(|section| section.name != ".rsrc"));
+    let resources = dead
+        .sections
+        .iter()
+        .find(|section| section.name == ".rsrc")
+        .expect("viv_utils maps resource sections");
+    assert!(!resources.permissions.execute);
+    assert!(dead.bytes_at(resources.address, 1).is_some());
+}
+
+#[test]
+fn resource_directory_does_not_hide_executable_packer_code() {
+    let image = load("0cd2b334aede270b14868db28211cde3.exe_");
+    let code = image
+        .section_containing(0x531cb3)
+        .expect("resource-hosted code is mapped");
+    assert!(code.permissions.execute);
+    assert_eq!(image.decode_at(0x531cb3).unwrap().bytes, [0x60]);
+}
+
+#[test]
+fn an_explicit_empty_lookup_table_does_not_fall_back_to_the_iat() {
+    let mut bytes =
+        std::fs::read(testfiles_dir().join("3fdfb2d522e7deecaaaf2f87420f7e75.exe_")).unwrap();
+    let image = LoadedImage::parse(&bytes).unwrap();
+    assert!(!image.external_bindings.contains_key(&0x411322));
+    assert!(image
+        .load_diagnostics
+        .iter()
+        .any(|message| message.contains("ignoring fallback IAT bindings")));
+
+    // OriginalFirstThunk = 0 explicitly selects the IAT, unlike the sample's
+    // nonzero RVA 0x11, which names an empty lookup table in the DOS header.
+    let directory = image.va_to_file_offset(0x4112f2).unwrap() as usize;
+    bytes[directory..directory + 4].copy_from_slice(&0u32.to_le_bytes());
+    let fallback = LoadedImage::parse(&bytes).unwrap();
+    assert!(fallback.external_bindings[&0x411322]
+        .iter()
+        .any(|name| name == "GetProcAddress"));
 }
 
 #[test]

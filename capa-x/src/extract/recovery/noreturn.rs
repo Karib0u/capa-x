@@ -24,7 +24,7 @@ use std::collections::BTreeSet;
 
 use super::decoder;
 use super::decoder::Flow;
-use super::engine::{memory_target, Analysis, Function};
+use super::engine::{memory_target, Analysis, Function, SeedKind};
 use super::image::{ImageFormat, LoadedImage};
 
 /// Literal no-return import names registered by the pinned PE loader
@@ -166,6 +166,18 @@ fn import_thunk_location(analysis: &Analysis, function: &Function) -> Option<u64
 /// upstream has, and not propagating from it is what lets capa-x fall
 /// through a call upstream treats as terminal and absorb unrelated code.
 fn function_never_returns(analysis: &Analysis, function: &Function) -> bool {
+    // A target inside an existing instruction has conflicting decodings.
+    // Vivisect keeps the original location's size/flags in codeblocks.py;
+    // our alternate stream can instead stop on invalid or privileged bytes.
+    // That recovery gap is not evidence that callers cannot return (KD-012).
+    // x86 instructions are at most 15 bytes; AArch64 starts do not overlap.
+    if analysis
+        .instructions
+        .range(function.addr.saturating_sub(14)..function.addr)
+        .any(|(_, insn)| insn.next_address > function.addr)
+    {
+        return false;
+    }
     // noret.py bails on import thunks before looking at the graph at all;
     // their no-return status comes from `checkNoRetApi` instead.
     if import_thunk_location(analysis, function).is_some() {
@@ -183,6 +195,17 @@ fn function_never_returns(analysis: &Analysis, function: &Function) -> bool {
         // fallthrough was suppressed is exactly the non-returning case.
         if analysis.noreturn_calls.contains(&last.address) {
             continue;
+        }
+        // Extent containment can cut a fallthrough at the next independent
+        // unwind entry. That boundary supplies no proof about returning.
+        if matches!(last.flow, Flow::Next | Flow::Call | Flow::IndirectCall)
+            && last.next_address != function.addr
+            && analysis
+                .seeds
+                .get(&last.next_address)
+                .is_some_and(|kinds| kinds.contains(&SeedKind::Unwind))
+        {
+            return false;
         }
         match last.flow {
             // `linfo & envi.IF_RET`

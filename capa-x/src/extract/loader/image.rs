@@ -534,10 +534,6 @@ impl LoadedImage {
         let entry_rva = u64::from(pe.entry);
         let code_start = optional_header.standard_fields.base_of_code;
         let code_end = code_start.saturating_add(optional_header.standard_fields.size_of_code);
-        let resource_rva = optional_header
-            .data_directories
-            .get_resource_table()
-            .map_or(0, |directory| directory.virtual_address);
         let dead_directory_rvas: Vec<u32> = optional_header
             .data_directories
             .data_directories
@@ -563,22 +559,10 @@ impl LoadedImage {
                     context: "section address",
                 })?;
             let characteristics = section.characteristics;
-            // `vivisect/parsers/pe.py:267-268` skips a readable section whose
-            // RVA is the resource directory's when `loadresources` is false.
-            // The pinned reference never sees that default -- capa reaches the
-            // loader through `viv_utils.getWorkspace`, which sets
-            // `loadresources = True` (`viv_utils/__init__.py:101`) -- so
-            // upstream *does* map the section. capa-x deliberately does not;
-            // see KD-011. Mapping it was implemented and measured
-            // and made results strictly worse: on `0cd2b334`, whose packer
-            // points the resource directory at a second executable section,
-            // the newly reachable range sent recovery past 200k instructions
-            // in a single direct-flow walk and turned a sample that
-            // under-reported by 2 rules into one that fails to analyse at all.
-            let is_resource = section.virtual_address == resource_rva;
-            if characteristics & IMAGE_SCN_MEM_READ != 0 && is_resource {
-                continue;
-            }
+            // capa loads through viv_utils.getWorkspace, which sets
+            // viv.parsers.pe.loadresources = True. Resource-directory
+            // sections are mapped too; their normal permissions decide
+            // whether code flow can enter them.
 
             let section_rva = u64::from(section.virtual_address);
             let declared_virtual_size = u64::from(section.virtual_size);
@@ -694,7 +678,50 @@ impl LoadedImage {
             mapped_bytes,
         };
 
+        let mut terminated_import_ranges = Vec::new();
+        for data in pe.import_data.iter().flat_map(|data| &data.import_data) {
+            let directory = &data.import_directory_entry;
+            if directory.import_lookup_table_rva == 0 {
+                continue;
+            }
+            // PE.parseImportTable uses OriginalFirstThunk whenever nonzero,
+            // including RVAs in the headers. Goblin can fall back to the IAT
+            // when its section-only RVA lookup misses that table. Do not
+            // manufacture API bindings beyond the declared table's terminator.
+            let lookup = image
+                .image_base
+                .checked_add(u64::from(directory.import_lookup_table_rva))
+                .ok_or(ImageError::AddressOverflow {
+                    format: ImageFormat::Pe,
+                    context: "import lookup table",
+                })?;
+            let width = image.architecture.pointer_width();
+            let count = data.import_lookup_table.as_ref().map_or(0, Vec::len);
+            for index in 0..count {
+                let slot = lookup.saturating_add(index.saturating_mul(width) as u64);
+                if image.bytes_at(slot, width).is_some_and(|bytes| {
+                    bytes.len() == width && bytes.iter().all(|byte| *byte == 0)
+                }) {
+                    let iat = u64::from(directory.import_address_table_rva);
+                    terminated_import_ranges.push(
+                        iat.saturating_add(index.saturating_mul(width) as u64)
+                            ..iat.saturating_add(count.saturating_mul(width) as u64),
+                    );
+                    image.load_diagnostics.push(format!(
+                        "import lookup table for {} terminates at {slot:#x}; ignoring fallback IAT bindings",
+                        data.name
+                    ));
+                    break;
+                }
+            }
+        }
         for import in &pe.imports {
+            if terminated_import_ranges
+                .iter()
+                .any(|range| range.contains(&(import.offset as u64)))
+            {
+                continue;
+            }
             let address = pe
                 .image_base
                 .checked_add(u64::try_from(import.offset).map_err(|_| {

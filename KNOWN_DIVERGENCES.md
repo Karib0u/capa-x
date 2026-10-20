@@ -380,129 +380,85 @@ switch arms to reproduce the reference's ownership gap.
   file-features gate in the same measurement it fixed this one; the two cannot both be
   satisfied by a single extractor, and no gate ranks them.
 
-### KD-010 — function extents split or merged inside shared code
+### KD-010: function extents split or merged inside shared code
 
 - **Class:** recovery / function extent
-- **Direction:** capa-x reports **more** matches
-- **Affects:** `execute shellcode via indirect call`, `link function at runtime
-  on Windows` (2 extras; the two on `e17e6a79` with the same shape are KD-003
-  and the three on `749cf36a` are KD-004, both of which name their own cause)
-- **Samples:** `29a76e41…exe_` — capa-x's `0x1400e1300` owns 329
-  instructions the reference splits across `0x1400e1360`, `0x1400e14d0` and
-  `0x1400e1870`; `3fdfb2d5…exe_` — capa-x starts a function at `0x4146a9`,
-  which the reference holds inside `0x41467e`
-- **Root cause:** both sides decode the same bytes and disagree only about
-  where one function ends and the next begins, which changes what a
-  function-scope rule can accumulate: a merged extent lets an `N or more`
-  clause count features upstream keeps in separate units, and a split start
-  gives a rule a smaller unit that upstream never evaluates on its own. The
-  boundaries come from different machinery — upstream's from `makeFunction`
-  calls issued by analysis modules over a workspace, capa-x's from its seed
-  set plus codeflow — so neither is derivable from the other without the
-  workspace model KD-008 also asks for. Measured by
-  `scripts/triage/attribute_shared_extras.py` (`merged extent`,
-  `reference mid-function`).
-- **Upstream analogue:** `FEATURE_COUNT_TESTS_GHIDRA` — a backend whose
-  function boundaries differ gets its own expectations.
-- **Status:** accepted. Tracked as exact-address work, which is where
-  boundary parity belongs; it is not a release gate.
+- **Status:** the documented examples are resolved. This does not claim exact
+  function-boundary parity for arbitrary shared code.
+- **Merged extent:** `29a76e413ffe0f78b62926b8455082d6.exe_` previously
+  accumulated code from adjacent functions under `0x1400e1300`, producing
+  `execute shellcode via indirect call`. Function views now stop fallthrough
+  at another independent PE unwind entry. Explicit branches still reach
+  shared tails, and chained unwind fragments remain excluded from the seed
+  set. Ending at this boundary does not itself prove a function never returns.
+  This intentionally follows linker evidence instead of reproducing the
+  reference workspace's overlapping, partially shared extents.
+- **Corrected attribution:** on current main, `3fdfb2d5...exe_` already has
+  `0x4146a9` inside `0x41467e`, exactly as the pinned reference does. Its
+  remaining `link function at runtime on Windows` extra was an import-loader
+  discrepancy, not a split function. The nonzero `OriginalFirstThunk` RVA
+  `0x11` names an empty table in the DOS header. Goblin's section-based lookup
+  falls back to the IAT, while `PE.parseImportTable` honors the declared
+  table and finds no imports. Code API bindings now respect its terminator,
+  report the fallback mismatch as a loader diagnostic, and retain the valid
+  IAT fallback when `OriginalFirstThunk` is zero. File import features retain
+  their separate parser contract.
+- **Regression coverage:** synthetic independent unwind starts and explicit
+  shared tails; the real merged-extent sample; the header lookup table and
+  its explicit-zero fallback variant in `loaded_image.rs`.
 
-### KD-011 — `.rsrc`-hosted code is not analysed
+### KD-011: resource-hosted code recovery
 
-- **Class:** loader
-- **Direction:** capa-x reports fewer matches
-- **Affects:** `contain loop`, `packed with generic packer`
-- **Samples:** `0cd2b334…cde3.exe_` — both of its diffs. The packer gives the
-  file two `.y0da` sections and points the resource directory at the second
-  (RVA `0xe6000`), which also holds the code the entry stub jumps to at
-  `0x531cb3`
-- **Root cause:** `vivisect/parsers/pe.py:267-268` skips a readable section
-  whose RVA equals the resource directory's, but only when
-  `viv.parsers.pe.loadresources` is false — and the pinned reference never sees
-  that default, because capa reaches the loader through
-  `viv_utils.getWorkspace`, which sets `loadresources = True`
-  (`viv_utils/__init__.py:101`). Upstream therefore maps the section and
-  recovers the code in it; capa-x skips it and its flow stops at the
-  `jmp 0x531cb3` in the entry stub.
-- **Upstream analogue:** none — capa-x is behind the reference here, and
-  this entry records a *measured trade* rather than a model difference.
-- **Status:** accepted as a deliberate trade, with the measurement.
-  Mapping the section has now been implemented and measured **twice**, and the
-  blocker moved between the two attempts. The `viv_utils` override of `nx`
-  (`viv_utils/__init__.py:102`) was ported alongside the first attempt and
-  **kept**, since it is result-neutral on the corpus and verifiably right — the
-  pinned workspace maps `Practical Malware Analysis Lab 03-02.dll_`'s `.data`
-  as `MM_READ|MM_WRITE`, with no `MM_EXEC`.
+- **Class:** loader / recovery
+- **Status:** resolved for `0cd2b334aede270b14868db28211cde3.exe_`.
+- **Behavior:** resource-directory sections are mapped, matching
+  `viv_utils.getWorkspace`'s `loadresources = True`. Mapping preserves ordinary
+  section permissions; it does not make non-executable resources executable.
+- **Extent fix:** an instruction-budget stop used to discard the walk's
+  already discovered call targets. Without those callees, subsequent
+  no-return passes could not cut off the caller and it absorbed a large
+  unpacked region. Budgeted walks now retain their callees and emit a
+  diagnostic. Once the callees are analyzed, this sample's entry function
+  contains the same 22 instructions as the reference, including the jump
+  into resource-hosted code at `0x531cb3`, and excludes the unrelated range
+  starting at `0x402fbe`.
+- **Outcome:** `contain loop` and `packed with generic packer` are recovered
+  without adding `contain pusha popa sequence`.
+- **Regression coverage:** executable and non-executable resource mapping,
+  call-target retention at the walk budget, and the real sample's entry
+  extent and recovered callees.
 
-**First attempt.** Mapping the section sent recovery past its
-200,000-instruction per-walk limit and turned a sample that under-reports by 2
-rules into one that fails to analyse at all (`error: recovering PE code:
-recovery limit exceeded`). Reverted, with the note that the blocker was the
-limit rather than the loader.
-
-**The limit is fixed, and it was not the real blocker.**
-`recover_functions` no longer fails an image on a budget: a walk past
-`MAX_INSNS_PER_FUNCTION` is abandoned with a diagnostic, the way
-`vivisect/analysis/i386/importcalls.py`'s wave always has been. That change is
-result-neutral on the corpus (92 diffs, 160/200 identical, reproduced exactly),
-and it removes the hard error this entry was reopened against.
-
-**Second attempt, with the limit fixed.** The sample now analyses, and the
-result is still not takeable — for a different and better-understood reason:
-
-| | missing | extra | diffs |
-|---|---:|---:|---:|
-| section skipped (shipped) | 2 | 0 | 2 |
-| section mapped | 1 | 1 | 2 |
-
-Corpus-wide the diff count is unchanged at 92 and no other sample moves; the
-composition goes 62/30 → 61/31. `contain loop` is recovered, and
-`contain pusha popa sequence` is **invented**. The rule needs
-`count(mnemonic(pusha)): 2 or more` *within one function*, and capa-x's walk
-from the entry runs through the `jmp 0x531cb3` and merges the entry stub's
-`pusha` at `0x401000` with the resource-hosted one at `0x531cb3` — 200,000
-instructions and two sections apart — into a single function extent. Upstream
-does not: `scripts/triage/attribute_shared_extras.py` reports
-`walks past the reference`, with 199,978 instructions in capa-x's function
-belonging to no reference function at all, starting at `0x402fbe`.
-
-So the loader is faithful and the *extent* is wrong, which makes this KD-010's
-mechanism reached through a loader change rather than a loader divergence of
-its own. Trading a missing rule for an invented one is the wrong direction
-under the emulator-free backend contract, so the skip stays. **Reopen with
-function-extent containment, not with the loader and no
-longer with the limit:** the section is correct to map once capa-x stops
-absorbing everything reachable from the entry into one function.
-
-### KD-012 — no-return propagation costs two rules it does not buy back
+### KD-012: recovery gaps incorrectly propagate no-return status
 
 - **Class:** recovery / function extent
-- **Direction:** capa-x reports fewer matches
-- **Affects:** `get OS version`, `PEB access`, `calculate modulo 256 via x86
-  assembly`, `generate random numbers using a Mersenne Twister` (4 rules)
-- **Samples:** `70fd3347…exe_` — fn `0x405ce4`, called from `0x4065b8`, which
-  capa-x has, and fn `0x407e2c`, which capa-x marks no-return and walks
-  22 of the reference's 31 instructions of; `749cf36a…elf_` — fn `0x200a4b0`,
-  reached from `0x2002326` through six intermediate calls; `2f7f5fb5…elf_` —
-  fn `0x406e90`, which capa-x marks no-return after 4 of 27 instructions
-- **Root cause:** the *priced-in cost* of porting
-  `vivisect/analysis/generic/noret.py` faithfully. Upstream sets `hasret` only
-  for a leaf block ending in `IF_RET` or an unresolved `IF_BRANCH`; every other
-  terminator — including a block that stops because the next bytes do not
-  decode — leaves it false and marks the function no-return, which deletes the
-  fallthrough at every call to it. capa-x used to treat a decode-cut leaf as
-  returning, on the theory that propagating from its own recovery gap would
-  truncate callers. Measured on the full corpus, the faithful rule is better by
-  a clear margin (extras 34 → 30, missing 62 → 63, samples identical 159 →
-  160), but it is not free: where capa-x's decode gap is *not* upstream's,
-  the function is marked no-return and every call to it loses its fallthrough,
-  and these four rules are what that costs.
-- **Upstream analogue:** none needed — the rule now matches upstream exactly.
-  What diverges is the input to it, which is KD-008's location model.
-- **Status:** accepted as a measured trade; the full-corpus numbers are
-  recorded in `docs/BENCHMARKS.md`. Revisit only together with the decode
-  gaps themselves, never by re-introducing the deviation -- that was measured
-  and is worse.
+- **Status:** resolved for the documented caller-truncation cases. Ordinary
+  undecodable leaves still follow the pinned `noret.py` rule; the broad
+  relaxation previously measured and rejected has not been restored.
+- **Conflicting decodings:** `70fd3347...exe_` calls `0x4031e8`, inside an
+  existing instruction, and `749cf36a...elf_` has unresolved relocation calls
+  targeting their own operands. The alternate streams stop on privileged or
+  invalid bytes, whereas Vivisect retains the original instruction location's
+  size and flags. Such conflicting starts no longer establish no-return
+  status or remove caller continuations.
+- **Pointer-jump extent:** `2f7f5fb5...elf_`'s `0x401138` is a plain pointer
+  jump. It was treated as a jump table and inherited no-return status from
+  code reached through adjacent pointers. Plain memory jumps now dereference
+  one pointer and, like `codeblocks.py`'s `BR_DEREF` handling, do not include
+  the pointed-to code in their function view. Indexed table arms still belong
+  to their dispatching function.
+- **Outcome:** `get OS version`, `calculate modulo 256 via x86 assembly`,
+  and `generate random numbers using a Mersenne Twister` are restored.
+  The pointer-jump fix also restores `parse credit card information` on
+  `2f7f5fb5`. The fourth historically listed capability, `PEB access`, remains
+  different after the caller is fully recovered; its corrected attribution
+  is KD-014.
+- **Accepted extra matches:** restored flow in `749cf36a` exposes three more
+  valid API detections already covered by KD-004. The reference cannot name
+  those relocation imports; these are deliberate baseline changes rather
+  than invented function-scope evidence.
+- **Regression coverage:** conflicting instruction streams, genuine
+  undecodable leaves, import-thunk propagation, plain versus indexed memory
+  jumps, and all three affected caller chains.
 
 ### KD-013 — AArch64 switch/jump-table dispatch is not resolved
 
@@ -535,3 +491,27 @@ absorbing everything reachable from the entry into one function.
   `terminate process`, changing 1 missing / 0 extra to 0 missing / 0 extra
   against 29 reference-matched rules. The formerly exempt feature rows at
   `function=0x105128,bb=0x105450` now pass without exceptions.
+
+### KD-014: PEB match from an overlapping reference block
+
+- **Class:** recovery / reference instruction ownership
+- **Direction:** capa-x reports fewer matches
+- **Affects:** `PEB access`
+- **Sample:** `70fd3347786ed7a4a43910e6778ef296.exe_`
+- **Root cause:** the reference function `0x407d58` owns an overlapping block
+  beginning at `0x407e41`, inside the immediate operand of the real
+  `push 0x407e75` at `0x407e3d`. Decoding from that interior byte produces
+  `add byte [edi + edi * 8 + 0x30], ah`, supplying the rule's `offset(0x30)`.
+  The block also contains FS accesses at `0x407e45` and `0x407e64`, so the
+  basic-block rule combines the unrelated offset with those accesses.
+  The correctly aligned stream instead has `fs: push [eax]` at `0x407e42`;
+  its FS accesses have offset zero and do not read the PEB.
+- **Evidence:** reproduced with the pinned capa 10 CLI, the pinned rules,
+  and `reference/capa/sigs`. `VivisectFeatureExtractor` exposes the overlapping
+  block under `0x407d58` while the workspace location at `0x407e41` still
+  belongs to the five-byte push at `0x407e3d`. The full 31-instruction
+  `0x407e2c` caller is now recovered and is not marked no-return.
+- **Status:** accepted reference false positive. Previously attributed to
+  KD-012; recovering the caller proves that no-return propagation is not its
+  cause. Reproducing the match would invent a PEB access from conflicting
+  instruction boundaries.
