@@ -141,9 +141,9 @@ jobs:
         include:
           - os: ubuntu-latest
             cibw-archs: x86_64
-          - os: ubuntu-latest
+          # Build and test ARM64 wheels natively, without QEMU.
+          - os: ubuntu-24.04-arm
             cibw-archs: aarch64
-            qemu: true
           - os: macos-latest
             cibw-archs: x86_64
           - os: macos-latest
@@ -161,12 +161,6 @@ jobs:
 
       - name: Fetch test submodules
         run: git submodule update --init --depth 1 rules tests/testfiles
-
-      - name: Set up QEMU (linux/aarch64 cross-build)
-        if: matrix.qemu
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
 
       - uses: dtolnay/rust-toolchain@stable
 
