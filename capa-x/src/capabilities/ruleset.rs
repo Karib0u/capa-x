@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::address::Address;
 use crate::engine::{self, EngineError, FeatureSet, MatchResults};
-use crate::features::Feature;
+use crate::features::{Feature, NumberValue, StringFeature};
 use crate::rules::{Node, Rule, RuleError, RuleMeta, Scope, Scopes, Statement};
 
 /// `capa/rules/__init__.py::RuleSet.rules_by_scope`'s scope tuple order
@@ -27,6 +27,7 @@ pub struct MatchingRuleSet {
     /// dependency-first topological order, per scope, restricted to rules
     /// needed for that scope: `RuleSet._get_rules_for_scope`.
     rules_by_scope: HashMap<Scope, Vec<String>>,
+    indexes: HashMap<Scope, RuleFeatureIndex>,
     /// namespace prefix -> rule names: `RuleSet.rules_by_namespace`. Public
     /// since `capabilities::dynamic`'s span-of-calls matcher needs it to
     /// compute `rule.dependencies(namespaces)` for its suppression logic.
@@ -54,10 +55,20 @@ impl MatchingRuleSet {
             );
         }
 
+        let indexes = rules_by_scope
+            .iter()
+            .map(|(&scope, names)| {
+                let index = RuleFeatureIndex::new(
+                    names.iter().filter_map(|name| by_name.get(name).copied()),
+                );
+                (scope, index)
+            })
+            .collect();
         let rules = expanded.into_iter().map(|r| (r.name.clone(), r)).collect();
         Ok(MatchingRuleSet {
             rules,
             rules_by_scope,
+            indexes,
             by_namespace_prefix,
         })
     }
@@ -76,17 +87,10 @@ impl MatchingRuleSet {
             .filter_map(|name| self.rules.get(name))
     }
 
-    /// port of `capa.engine.match(rules_by_scope[scope], features, addr)`.
-    ///
-    /// Upstream's `RuleSet.match` calls a feature-indexed `_match` that's
-    /// provably equivalent to (and asserted against, via its `paranoid`
-    /// flag) the plain `capa.engine.match` over the same topologically
-    /// ordered rule list -- it exists purely to skip evaluating rules that
-    /// can't possibly match, for speed. This port takes correctness over
-    /// speed and uses the simple, always-correct form directly: evaluate every rule for this scope in dependency
-    /// order, and feed each match back into `features` (via
-    /// `index_rule_matches`) before considering the next rule, so later
-    /// rules can depend on earlier ones via `match:`.
+    /// Feature-indexed equivalent of `capa.engine.match`. Candidates retain
+    /// dependency-first order, and new rule/namespace matches activate later
+    /// candidates before the next evaluation. Evidence still comes from the
+    /// unchanged full evaluator.
     pub fn match_scope(
         &self,
         scope: Scope,
@@ -96,9 +100,20 @@ impl MatchingRuleSet {
         let mut features = features.clone();
         let mut results: MatchResults = HashMap::new();
 
-        for rule in self.rules_for_scope(scope) {
-            let quick = engine::evaluate(&rule.body, &features, true)?;
-            if !quick.success {
+        let Some(index) = self.indexes.get(&scope) else {
+            return Ok((features, results));
+        };
+        let mut candidates = index.candidates(&features);
+        while let Some(position) = candidates.pop_first() {
+            let Some(rule) = self
+                .rules_by_scope
+                .get(&scope)
+                .and_then(|names| names.get(position))
+                .and_then(|name| self.rules.get(name))
+            else {
+                continue;
+            };
+            if !engine::evaluate_boolean(&rule.body, &features)? {
                 continue;
             }
             // re-evaluate without short-circuiting to collect the full
@@ -107,7 +122,13 @@ impl MatchingRuleSet {
             debug_assert!(full.success);
 
             let locations: BTreeSet<Address> = [addr].into_iter().collect();
+            let previous_len = features.len();
             engine::index_rule_matches(&mut features, rule, &locations);
+            for feature in features.keys().skip(previous_len) {
+                if let Some(dependents) = index.exact.get(feature) {
+                    candidates.extend(dependents.iter().copied().filter(|&i| i > position));
+                }
+            }
             results
                 .entry(rule.name.clone())
                 .or_default()
@@ -115,6 +136,139 @@ impl MatchingRuleSet {
         }
 
         Ok((features, results))
+    }
+}
+
+/// Conservative positive-feature index, following
+/// `capa/rules/__init__.py::RuleSet._index_rules_by_feature`.
+/// Each rule is registered under a set of alternatives, at least one of
+/// which must be present for the rule to match. Scanning leaves use coarse
+/// type buckets; the evaluator checks their actual regex/prefix/OS semantics.
+#[derive(Default)]
+struct RuleFeatureIndex {
+    exact: HashMap<Feature, Vec<usize>>,
+    strings: Vec<usize>,
+    bytes: Vec<usize>,
+    os: Vec<usize>,
+    always: Vec<usize>,
+}
+
+impl RuleFeatureIndex {
+    fn new<'a>(rules: impl Iterator<Item = &'a Rule>) -> Self {
+        let mut index = Self::default();
+        for (position, rule) in rules.enumerate() {
+            let Some((_, alternatives)) = required_features(&rule.body) else {
+                index.always.push(position);
+                continue;
+            };
+            for feature in alternatives {
+                let bucket = match feature {
+                    Feature::String(StringFeature::Substring(_) | StringFeature::Regex(_)) => {
+                        &mut index.strings
+                    }
+                    Feature::Bytes(_) => &mut index.bytes,
+                    Feature::Os(_) => &mut index.os,
+                    _ => index.exact.entry(feature).or_default(),
+                };
+                if bucket.last() != Some(&position) {
+                    bucket.push(position);
+                }
+            }
+        }
+        index
+    }
+
+    fn candidates(&self, features: &FeatureSet) -> BTreeSet<usize> {
+        let mut candidates: BTreeSet<_> = self.always.iter().copied().collect();
+        let (mut strings, mut bytes, mut os) = (false, false, false);
+        for feature in features.keys() {
+            if let Some(positions) = self.exact.get(feature) {
+                candidates.extend(positions);
+            }
+            match feature {
+                Feature::String(_) => strings = true,
+                Feature::Bytes(_) => bytes = true,
+                Feature::Os(_) => os = true,
+                _ => {}
+            }
+        }
+        for (present, positions) in [
+            (strings, &self.strings),
+            (bytes, &self.bytes),
+            (os, &self.os),
+        ] {
+            if present {
+                candidates.extend(positions);
+            }
+        }
+        candidates
+    }
+}
+
+// CompiledRegex hashes and compares only its immutable source, not its cache.
+#[allow(clippy::mutable_key_type)]
+fn required_features(node: &Node) -> Option<(u8, HashSet<Feature>)> {
+    match &node.stmt {
+        // These can succeed without any positive feature. Keep a fallback
+        // rather than imposing upstream's indexability assertions on rules.
+        Statement::Not(_)
+        | Statement::Some { count: 0, .. }
+        | Statement::Range { min: 0, .. }
+        | Statement::Subscope { .. } => None,
+        Statement::Leaf(feature) | Statement::Range { feature, .. } => Some((
+            index_score(feature),
+            [feature.clone()].into_iter().collect(),
+        )),
+        Statement::And(children) => children
+            .iter()
+            .filter_map(required_features)
+            .max_by_key(|(score, features)| (*score, std::cmp::Reverse(features.len()))),
+        Statement::Or(children) | Statement::Some { children, .. } => {
+            let mut alternatives = HashSet::new();
+            let mut score = u8::MAX;
+            for child in children {
+                let (child_score, features) = required_features(child)?;
+                score = score.min(child_score);
+                alternatives.extend(features);
+            }
+            Some((score, alternatives))
+        }
+    }
+}
+
+/// Selectivity scores from pinned `capa/rules/__init__.py::_score_feature`.
+/// They only choose an AND anchor; they never decide a match. Match references
+/// use upstream's default score rather than recursively scoring dependencies.
+fn index_score(feature: &Feature) -> u8 {
+    match feature {
+        Feature::MatchedRule(_) | Feature::String(StringFeature::Plain(_)) => 9,
+        Feature::Api(_) => 8,
+        Feature::Export(_) => 7,
+        Feature::Number(value) | Feature::OperandNumber(_, value) => match value {
+            NumberValue::Int(v)
+                if (-0x8000..=0x8000).contains(v)
+                    || (0xffff_ff00..=0xffff_ffff).contains(v)
+                    || (0xffff_ffff_ffff_ff00..=0xffff_ffff_ffff_ffff).contains(v) =>
+            {
+                3
+            }
+            _ => 7,
+        },
+        Feature::Class(_)
+        | Feature::Namespace(_)
+        | Feature::Property { .. }
+        | Feature::Import(_)
+        | Feature::Section(_)
+        | Feature::FunctionName(_) => 5,
+        Feature::Characteristic(_) | Feature::Offset(_) | Feature::OperandOffset(_, _) => 4,
+        Feature::Mnemonic(_) => 2,
+        Feature::BasicBlock => 1,
+        Feature::Os(_)
+        | Feature::Arch(_)
+        | Feature::Format(_)
+        | Feature::Bytes(_)
+        | Feature::String(StringFeature::Substring(_) | StringFeature::Regex(_))
+        | Feature::Com(_, _) => 0,
     }
 }
 
@@ -482,6 +636,191 @@ mod tests {
 
     fn rule(yaml: &str) -> Rule {
         Rule::from_yaml(yaml).unwrap_or_else(|e| panic!("test rule failed to parse: {e}"))
+    }
+
+    fn node(stmt: Statement) -> Node {
+        Node {
+            stmt,
+            description: Some("index parity".into()),
+        }
+    }
+
+    fn named_rule(name: &str, body: Node) -> Rule {
+        let mut r = rule(&format!(
+            "rule:\n  meta:\n    name: {name}\n    authors: [t]\n    scopes:\n      static: function\n      dynamic: unsupported\n  features:\n    - api: seed\n"
+        ));
+        r.body = body;
+        r
+    }
+
+    // Keep a separate, exhaustive oracle using the original evidence evaluator.
+    fn assert_linear_parity(set: &MatchingRuleSet, input: &FeatureSet) {
+        let addr = Address::Absolute(0x1000);
+        let mut expected_features = input.clone();
+        let mut expected = std::collections::BTreeMap::new();
+        for rule in set.rules_for_scope(Scope::Function) {
+            if engine::evaluate(&rule.body, &expected_features, true)
+                .unwrap()
+                .success
+            {
+                let full = engine::evaluate(&rule.body, &expected_features, false).unwrap();
+                engine::index_rule_matches(&mut expected_features, rule, &[addr].into());
+                expected.insert(rule.name.clone(), vec![(addr, full)]);
+            }
+        }
+        let (features, results) = set.match_scope(Scope::Function, input, addr).unwrap();
+        assert_eq!(format!("{features:?}"), format!("{expected_features:?}"));
+        let results: std::collections::BTreeMap<_, _> = results.into_iter().collect();
+        assert_eq!(format!("{results:?}"), format!("{expected:?}"));
+    }
+
+    #[test]
+    fn indexed_matching_preserves_nested_logic_counts_and_scanning_evidence() {
+        let regex_rule = rule(
+            "rule:\n  meta:\n    name: regex\n    authors: [t]\n    scopes:\n      static: function\n      dynamic: unsupported\n  features:\n    - string: /hello.*/\n"
+        );
+        let Statement::Leaf(regex) = regex_rule.body.stmt else {
+            panic!("regex leaf")
+        };
+        let leaves = vec![
+            Feature::Api("seed".into()),
+            Feature::String(StringFeature::Plain("hello".into())),
+            Feature::String(StringFeature::Substring("ell".into())),
+            regex.clone(),
+            Feature::Bytes(vec![1, 2]),
+            Feature::Os("windows".into()),
+            Feature::Os("any".into()),
+            Feature::Number(NumberValue::Int(6)),
+        ];
+        let mut nodes = Vec::new();
+        for feature in &leaves {
+            let leaf = node(Statement::Leaf(feature.clone()));
+            nodes.push(leaf.clone());
+            nodes.push(node(Statement::Not(Box::new(leaf.clone()))));
+            nodes.push(node(Statement::Not(Box::new(node(Statement::Not(
+                Box::new(leaf.clone()),
+            ))))));
+            for min in 0..=2 {
+                nodes.push(node(Statement::Range {
+                    feature: feature.clone(),
+                    min,
+                    max: Some(2),
+                }));
+            }
+            for other in &leaves {
+                let children = vec![leaf.clone(), node(Statement::Leaf(other.clone()))];
+                nodes.push(node(Statement::And(children.clone())));
+                nodes.push(node(Statement::Or(children.clone())));
+                for count in 0..=3 {
+                    nodes.push(node(Statement::Some {
+                        count,
+                        children: children.clone(),
+                    }));
+                }
+                let optional = node(Statement::Some {
+                    count: 0,
+                    children: vec![leaf.clone()],
+                });
+                nodes.push(node(Statement::Or(vec![
+                    optional,
+                    node(Statement::Not(Box::new(children[1].clone()))),
+                ])));
+            }
+        }
+        nodes.extend([
+            node(Statement::And(vec![])),
+            node(Statement::Or(vec![])),
+            node(Statement::Some {
+                count: 0,
+                children: vec![],
+            }),
+            node(Statement::Some {
+                count: 1,
+                children: vec![],
+            }),
+        ]);
+        let set = MatchingRuleSet::new(
+            nodes
+                .into_iter()
+                .enumerate()
+                .map(|(i, body)| named_rule(&format!("rule-{i}"), body))
+                .collect(),
+        )
+        .unwrap();
+        let extracted = [
+            Feature::Api("seed".into()),
+            Feature::String(StringFeature::Plain("hello".into())),
+            Feature::String(StringFeature::Substring("hello world".into())),
+            regex,
+            Feature::Bytes(vec![1, 2, 3]),
+            Feature::Os("any".into()),
+            Feature::Os("linux".into()),
+            Feature::Number(NumberValue::Float(6.0)),
+        ];
+        for mask in 0..(1 << extracted.len()) {
+            let mut input = FeatureSet::new();
+            for (i, feature) in extracted.iter().enumerate() {
+                if mask & (1 << i) != 0 {
+                    input.insert(
+                        feature.clone(),
+                        [Address::Absolute(1), Address::Absolute(2)].into(),
+                    );
+                }
+            }
+            assert_linear_parity(&set, &input);
+        }
+        // Presence and a positive count differ when a key has no locations.
+        let input = leaves
+            .into_iter()
+            .map(|feature| (feature, BTreeSet::new()))
+            .collect();
+        assert_linear_parity(&set, &input);
+    }
+
+    #[test]
+    fn indexed_matches_activate_transitive_and_namespace_dependents() {
+        let mut seed = named_rule("z-seed", node(Statement::Leaf(Feature::Api("seed".into()))));
+        seed.namespace = Some("network/http".into());
+        let namespace = named_rule(
+            "b-namespace",
+            node(Statement::Leaf(Feature::MatchedRule("network".into()))),
+        );
+        let dependent = named_rule(
+            "a-dependent",
+            node(Statement::Leaf(Feature::MatchedRule("b-namespace".into()))),
+        );
+        let negative = named_rule(
+            "negative",
+            node(Statement::Not(Box::new(node(Statement::Leaf(
+                Feature::MatchedRule("z-seed".into()),
+            ))))),
+        );
+        let absent = named_rule(
+            "absent",
+            node(Statement::Leaf(Feature::Api("absent".into()))),
+        );
+        let set = MatchingRuleSet::new(vec![dependent, namespace, negative, seed, absent]).unwrap();
+        let input: FeatureSet =
+            [(Feature::Api("seed".into()), [Address::Absolute(1)].into())].into();
+        assert_linear_parity(&set, &input);
+        assert_linear_parity(&set, &FeatureSet::new());
+        // Pre-existing match keys must work even though insertion adds no key.
+        let mut existing = input.clone();
+        existing.insert(Feature::MatchedRule("network".into()), BTreeSet::new());
+        existing.insert(Feature::MatchedRule("z-seed".into()), BTreeSet::new());
+        assert_linear_parity(&set, &existing);
+        let candidates = set
+            .indexes
+            .get(&Scope::Function)
+            .unwrap()
+            .candidates(&input);
+        assert!(candidates.len() < set.rules_for_scope(Scope::Function).count());
+        let (_, results) = set
+            .match_scope(Scope::Function, &input, Address::Absolute(1))
+            .unwrap();
+        assert!(results.contains_key("a-dependent"));
+        assert!(!results.contains_key("absent"));
+        assert!(!results.contains_key("negative"));
     }
 
     #[test]

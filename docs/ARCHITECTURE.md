@@ -78,6 +78,13 @@ bytes, a built `MatchingRuleSet`, and `AnalysisOptions`, then returns a
 surfaces that need the freeze data before matching. Reading files and rules,
 argument parsing, and presentation flags stay at the edges.
 
+Bundled FLIRT signatures are parsed once per process and shared immutably
+across analyses. The first caller's job count controls initialization;
+subsequent calls reuse the same databases. This avoids repeated parsing for
+library and Python callers, at the cost of retaining the databases until
+process exit. Custom signature paths are loaded afresh on each call so edits,
+removed files, and parse errors remain visible.
+
 ## Backend integration points
 
 Each backend has the same broad responsibilities: validate its container,
