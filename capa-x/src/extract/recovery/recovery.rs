@@ -1946,7 +1946,8 @@ fn discover_direct_flow(
                         direct_flow.successors.insert(address, Vec::new());
                         break;
                     }
-                    let targets = jump_table_targets(&analysis.image, &insn);
+                    let targets = super::switch::targets(analysis, &insn)
+                        .unwrap_or_else(|| jump_table_targets(&analysis.image, &insn));
                     if targets.is_empty() {
                         analysis.diagnostics.push(RecoveryDiagnostic {
                             address,

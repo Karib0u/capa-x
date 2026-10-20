@@ -18,8 +18,8 @@
 //! `Architecture::AArch64` image via `aarch64_features.rs`/
 //! `aarch64_basicblock_features.rs` (the BinExport2/Ghidra ARM backend's own
 //! port, not `insn_features.rs`/`basicblock_features.rs`, which stay
-//! x86-only). All but one row below now pass; the exception is
-//! `KNOWN_RECOVERY_GAPS`, documented at its own definition below.
+//! x86-only). Bounded switch recovery also reaches the formerly missing
+//! block at 0x105450; every boolean fixture row is enforced without exceptions.
 //!
 //! Regenerate the table below (never by hand -- see its header) with
 //! `scripts/gen_fixture_tables.py aarch64`, run under the pinned `.venv`
@@ -397,41 +397,11 @@ fn table_rows_reference_pinned_samples_and_construct() {
     }
 }
 
-/// Root-caused, *our own* recovery gaps -- as opposed to `Expected::Xfail`,
-/// whose reason string is preserved verbatim from upstream's own test suite.
-/// This list is maintained by hand (unlike `ROWS`, which is regenerated) and
-/// must stay tiny: every entry here is a row this crate's own recovery, not
-/// upstream, fails to satisfy, recorded with why so it can't silently rot
-/// into a bigger gap.
-///
-/// `687e79.../function=0x105128,bb=0x105450`: block `0x105450` is a switch
-/// dispatch target reached only through the `adrp/add/ldrsw/add/br` jump
-/// table at the end of block `0x10517c` -- confirmed via
-/// `analysis.functions[0x105128]`: the block ending in `br` has no
-/// successors, and `0x105450` is unreached bytes between the prior block's
-/// `ret` (`0x105440`) and the next recovered block (`0x105470`). Resolving
-/// it needs the table's *entry count*, which AArch64 doesn't encode at the
-/// branch site -- unlike x86, whose `jump_table_targets` walks a table of
-/// absolute pointers until a non-executable entry stops it, this table
-/// holds `ldrsw`-loaded relative offsets and Ghidra determines the case
-/// count from a bounds-check (`cmp`/`b.hi`) earlier in the block. That is
-/// new recovery work (bounds-check pattern recognition, not just an
-/// addressing-mode gap this module's own materialization already covers),
-/// so it stays open rather than being bolted on here. Tracked as a J9
-/// divergence class ("recovery: unresolved AArch64 switch/jump-table
-/// dispatch"), not silently skipped.
-const KNOWN_RECOVERY_GAPS: &[(&str, &str)] =
-    &[("687e79.ghidra.be2", "function=0x105128,bb=0x105450")];
-
-/// This test
-/// actually passing. `KNOWN_RECOVERY_GAPS` above is the one row this
-/// crate's own (not upstream's) recovery doesn't yet reach.
 #[test]
 fn feature_presence_matches_upstream_be2_aarch64_expectations() {
     let mut cache: BTreeMap<&str, StaticFeatures> = BTreeMap::new();
     let mut failures: Vec<String> = Vec::new();
     let mut xfail_now_passing: Vec<String> = Vec::new();
-    let mut gaps_now_passing: Vec<String> = Vec::new();
 
     for row in ROWS {
         let features = cache
@@ -439,23 +409,9 @@ fn feature_presence_matches_upstream_be2_aarch64_expectations() {
             .or_insert_with(|| build_features(&sample_path(row.sample)));
         let fs = scope_features(features, row.scope);
         let actual = feature_present(&fs, &(row.feature)());
-        let is_known_gap = KNOWN_RECOVERY_GAPS
-            .iter()
-            .any(|&(sample, scope)| sample == row.sample && scope == row.scope);
-
         match &row.expected {
             Expected::Bool(expected) => {
-                if actual != *expected && is_known_gap {
-                    if actual {
-                        gaps_now_passing.push(format!(
-                            "{}/{}: {} -- known-gap row now passes, remove it from KNOWN_RECOVERY_GAPS",
-                            row.sample,
-                            row.scope,
-                            (row.feature)()
-                        ));
-                    }
-                    // else: the documented gap, exactly as expected.
-                } else if actual != *expected {
+                if actual != *expected {
                     failures.push(format!(
                         "{}/{}: expected {expected}, got {actual} for {}",
                         row.sample,
@@ -488,11 +444,5 @@ fn feature_presence_matches_upstream_be2_aarch64_expectations() {
         "{} previously-xfail row(s) now pass -- xfail must never silently stay xfail:\n{}",
         xfail_now_passing.len(),
         xfail_now_passing.join("\n")
-    );
-    assert!(
-        gaps_now_passing.is_empty(),
-        "{} previously-gapped row(s) now pass -- update KNOWN_RECOVERY_GAPS:\n{}",
-        gaps_now_passing.len(),
-        gaps_now_passing.join("\n")
     );
 }

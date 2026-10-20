@@ -11,6 +11,10 @@ tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
 
 ### Fixed
 
+- Recover guarded AArch64 relative-offset switch tables and x64
+  base-relative switch tables, including byte selector remapping. Validate
+  bounds, register relationships, and every target before adding CFG edges.
+  Unsupported dispatches retain an unresolved-branch diagnostic.
 - `scripts/difftest.py` defaulted `--capa-cli` to `target/debug/capa`, which
   is not the binary's name. A run that omitted the flag could not find it, and
   on a tree that still held a stale artifact under the old name it would

@@ -7,6 +7,7 @@ pub mod golang;
 pub mod libc_start_main;
 pub mod msvcfunc;
 pub mod noreturn;
+mod switch;
 
 pub(crate) use super::{
     aarch64_basicblock_features, aarch64_features, basicblock_features, decoder, function_features,

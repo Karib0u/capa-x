@@ -74,7 +74,7 @@ distinction is how a port starts overclaiming.
 | Upstream-parity raw input | PE, ELF, shellcode (x86/x64), .NET/CLR | Python capa 10.0.0 direct comparison, recorded in `docs/BENCHMARKS.md` |
 | Cross-backend parity | AArch64 ELF | No raw-AArch64 Python oracle; pinned Ghidra BinExport2 feature- and rule-level comparison, methodology in [docs/BENCHMARKS.md](docs/BENCHMARKS.md) |
 | capa-x extension | Mach-O (x86_64, AArch64), AArch64 PE | No Python oracle at all -- pinned capa 10.0.0 has no raw Mach-O or AArch64 input; validated against a hand-built structural/feature fixture corpus (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)), never claimed as upstream parity |
-| Accepted divergence / non-goal | Vivisect-bound recovery gaps, other ISAs, live dynamic extractors | [`KNOWN_DIVERGENCES.md`](KNOWN_DIVERGENCES.md) (13 root-caused classes) |
+| Accepted divergence / non-goal | Vivisect-bound recovery gaps, other ISAs, live dynamic extractors | [`KNOWN_DIVERGENCES.md`](KNOWN_DIVERGENCES.md) (13 documented classes, including 2 resolved switch cases) |
 
 ## Install
 
@@ -170,9 +170,10 @@ gets a cheaper linux-only build plus the same schema-validation check.
 
 ## Accuracy and limitations
 
-Fresh differential measurement on 2026-10-20 against Python capa 10.0.0
-and capa-rules v10.0.0. Native comparisons here measure rule names; shared
-freeze inputs also pass exact match-address and JSON-evidence checks.
+Pre-switch-recovery measurement from commit `626f74e` on 2026-10-20 against
+Python capa 10.0.0 and capa-rules v10.0.0. Native comparisons here measure
+rule names; shared freeze inputs also pass exact match-address and
+JSON-evidence checks.
 
 | Metric | Result |
 |---|---:|
@@ -180,6 +181,11 @@ freeze inputs also pass exact match-address and JSON-evidence checks.
 | Reference-matched rules | 6,300 |
 | Divergent rules | 91: 61 missing, 30 extra |
 | Samples with identical rule sets | 161/200 (80.5%) |
+
+The table records the capa 10 compatibility baseline before the switch fix.
+The switch recovery measurements against capa 9.4.0 are recorded separately
+in [docs/BENCHMARKS.md](docs/BENCHMARKS.md#static-switch-recovery-verification-capa-940).
+A full capa 10 corpus measurement after combining these changes is pending.
 
 Rule-level agreement leads because it measures individual capability rules.
 Every measured difference is mapped to a documented root cause. Exact methods,

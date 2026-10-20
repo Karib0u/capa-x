@@ -6,7 +6,8 @@ ruleset, corpus, and host. They are not universal rankings.
 
 ## capa 10.0.0 compatibility
 
-Measured on 2026-10-20 against the capa and capa-rules v10.0.0 commits in
+Measured on commit `626f74e`, before static switch recovery, on 2026-10-20
+against the capa and capa-rules v10.0.0 commits in
 [`PINNED.md`](../PINNED.md), with the existing pinned sample corpus.
 Reference results were generated afresh for this version, in a separate
 `.cache/capa10/` directory. The historical release measurements below still
@@ -24,8 +25,10 @@ refer to capa 9.4.0.
 | Reproducible v10 freezes and v10 result-document schema | 10/10 fixtures; jobs 1 and 4 identical |
 
 The native `full` mode compares rule names; the freeze modes also check
-match addresses and JSON evidence. All 91 native divergences match the
-existing recorded baseline, which is unchanged.
+match addresses and JSON evidence. All 91 native divergences matched the
+recorded baseline at that commit. Static switch recovery subsequently updates
+two baseline rows as documented below; a full corpus measurement of the
+combined capa 10 branch is pending.
 
 The JSON comparison ignores invocation metadata, synthetic rule suffixes,
 and ordering in location sets and spliced match/subscope evidence. Ordinary
@@ -62,6 +65,61 @@ python3 scripts/difftest.py --profile aarch64-binexport --mode full \
   --cache-dir .cache/capa10/aarch64 --jobs 3
 python3 scripts/difftest.py --mode full --samples scripts/corpus-outer.txt \
   --capa-cli target/release/capa-x --cache-dir .cache/capa10/outer --jobs 6
+```
+
+## Static switch recovery verification (capa 9.4.0)
+
+Measured on 2026-10-20 on a MacBook Pro M1 Max (10 CPUs), macOS 27.0.1
+build 26A434, against capa and capa-rules 9.4.0, before integration with
+capa 10. The before binary was built from `8309d6c`; the after binary
+corresponds to `2c4b1b6`, which adds the bounded static switch resolver.
+These results do not measure the combined capa 10 branch.
+Both runs used `--no-rust-cache`. Python reference results use the harness's
+normal pinned-reference cache.
+
+| Corpus | Before | After |
+|---|---|---|
+| Outer, 200 samples / 6,263 reference-matched rules | 61 missing, 30 extra; 161 identical | 57 missing, 31 extra; 162 identical |
+| AArch64 BinExport2, 3 samples / 29 reference-matched rules | 1 missing, 0 extra; 2 identical | 0 missing, 0 extra; 3 identical |
+
+The outer run has no baseline regressions and no analysis failures.
+Only two outer samples change: `276f691a` loses its three missing rules,
+and `f5903519` gains `log keystrokes via Input Method Manager` plus
+`check for unmoving mouse cursor`. The latter is an additional valid rule
+match against code the reference leaves without function ownership, not a
+merged-function artifact: both cursor calls are inside the same PE unwind
+interval. See KD-008 for the addresses and attribution. These are the
+deliberate changes recorded in `scripts/corpus-outer.expected.json`.
+The smoke corpus remains at 9 missing / 7 extra and 16/23 identical samples,
+with no baseline regressions.
+
+Reproduction commands (substitute the saved before binary for the CLI path
+to repeat the before side):
+
+```bash
+python3 scripts/difftest.py --mode full --samples scripts/corpus-outer.txt \
+  --capa-cli target/release/capa-x --no-rust-cache --jobs 6
+python3 scripts/difftest.py --profile aarch64-binexport --mode full \
+  --capa-cli target/release/capa-x --no-rust-cache --jobs 3
+python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt \
+  --capa-cli target/release/capa-x --no-rust-cache --jobs 6
+```
+
+All ten switch regression tests, the x86 and AArch64 feature-parity suites,
+and `cargo test --workspace` pass. The AArch64 fixture exceptions are
+removed. The release-profile robustness test passes all 900 mutated ELF
+samples with `--include-ignored`. Clippy passes with Rust 1.98.1 and
+`--workspace --all-targets -- -D warnings`; builds and tests use Rust 1.96.0.
+Determinism checks cover `scripts/corpus-jobs.txt` plus the three switch
+samples: 24 runs at job counts 1, 2, and 4 are byte-identical to the
+single-worker results.
+
+```bash
+cargo test -p capa-x --lib extract::recovery::switch
+cargo test -p capa-x --test features_parity --test aarch64_features_parity
+cargo test --workspace
+cargo test --release -p capa-x --test aarch64_elf_fuzz -- --include-ignored
+cargo +1.98.1 clippy --workspace --all-targets -- -D warnings
 ```
 
 ## Historical v1.0.0 accuracy (capa 9.4.0)
