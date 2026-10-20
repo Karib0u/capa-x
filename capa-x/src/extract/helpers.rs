@@ -77,85 +77,51 @@ pub fn all_zeros(bytes: &[u8]) -> bool {
     bytes.iter().all(|&b| b == 0)
 }
 
-fn xor_static(data: &[u8], key: u8) -> [u8; 2] {
-    [data[0] ^ key, data[1] ^ key]
-}
-
-fn find(buf: &[u8], needle: &[u8; 2], start: usize) -> Option<usize> {
-    if start >= buf.len() {
-        return None;
-    }
-    buf[start..]
-        .windows(2)
-        .position(|w| w == needle)
-        .map(|p| p + start)
-    // no data trailing behind start is scanned; matches Python's
-    // `bytes.find(sub, start)`.
-}
-
 /// `PE/carve.py`'s `MAX_OFFSET_PE_AFTER_MZ`: an `e_lfanew` further than this
 /// from the `MZ` disqualifies the candidate, however well the `PE` magic
 /// happens to match at the far end.
 const MAX_OFFSET_PE_AFTER_MZ: usize = 0x200;
 
-/// port of `carve_pe`: generate (offset, key) tuples of embedded PEs,
-/// brute-forcing every single-byte XOR key against the `MZ`/`PE` magic
-/// bytes. Ported as a LIFO stack (Python's `todo.pop()` off the end of a
-/// list) rather than a queue, since the processing order determines the
-/// order `Characteristic("embedded pe")` features are yielded in (and
-/// downstream `FeatureSet` insertion order), not just which offsets are
-/// found.
+/// Port of `carve_pe`. Derive the only possible single-byte XOR key from
+/// each candidate's first byte, avoiding 256 separate scans of the file.
+/// Results retain the reference's LIFO order: descending key, then ascending
+/// offset within a key (`capa/features/extractors/helpers.py::carve_pe`).
 pub fn carve_pe(buf: &[u8], offset: usize) -> Vec<(usize, u8)> {
-    let pblen = buf.len();
-
-    let mut todo: Vec<(usize, [u8; 2], [u8; 2], u8)> = Vec::new();
-    for key in 0..=255u8 {
-        let mzx = xor_static(b"MZ", key);
-        let pex = xor_static(b"PE", key);
-        if let Some(off) = find(buf, &mzx, offset) {
-            todo.push((off, mzx, pex, key));
-        }
-    }
-
+    let Some(tail) = buf.get(offset..) else {
+        return Vec::new();
+    };
     let mut out = Vec::new();
-    while let Some((off, mzx, pex, key)) = todo.pop() {
+    for (relative, pair) in tail.windows(2).enumerate() {
+        let [first, second] = pair else {
+            continue;
+        };
+        let key = first ^ b'M';
+        if second ^ key != b'Z' {
+            continue;
+        }
+        // `relative` is within the slice starting at `offset`.
+        let off = offset + relative;
         let Some(e_lfanew) = off.checked_add(0x3c) else {
             continue;
         };
-        let Some(e_lfanew_end) = e_lfanew.checked_add(4) else {
+        let Some(raw) = buf.get(e_lfanew..).and_then(|tail| tail.get(..4)) else {
             continue;
         };
-        if pblen < e_lfanew_end {
+        let [a, b, c, d] = raw else {
             continue;
-        }
-        let raw = &buf[e_lfanew..e_lfanew_end];
-        let xored = [raw[0] ^ key, raw[1] ^ key, raw[2] ^ key, raw[3] ^ key];
-        let newoff = u32::from_le_bytes(xored) as usize;
-
-        if let Some(nextres) = off.checked_add(1).and_then(|next| find(buf, &mzx, next)) {
-            todo.push((nextres, mzx, pex, key));
-        }
-
-        // "PE header should occur soon after MZ" -- without this, any `MZ`
-        // whose `e_lfanew` happens to land on a matching `PE` anywhere in the
-        // file is carved as an embedded executable.
+        };
+        let newoff = u32::from_le_bytes([a ^ key, b ^ key, c ^ key, d ^ key]) as usize;
         if newoff > MAX_OFFSET_PE_AFTER_MZ {
             continue;
         }
-
         let Some(peoff) = off.checked_add(newoff) else {
             continue;
         };
-        let Some(peend) = peoff.checked_add(2) else {
-            continue;
-        };
-        if pblen < peend {
-            continue;
-        }
-        if buf[peoff..peend] == pex {
+        if buf.get(peoff..).and_then(|tail| tail.get(..2)) == Some(&[b'P' ^ key, b'E' ^ key]) {
             out.push((off, key));
         }
     }
+    out.sort_unstable_by_key(|&(off, key)| (std::cmp::Reverse(key), off));
     out
 }
 
@@ -254,6 +220,56 @@ mod tests {
     #[test]
     fn carve_pe_empty_on_no_match() {
         assert!(carve_pe(b"no embedded pe here", 1).is_empty());
+    }
+
+    #[test]
+    fn carve_pe_preserves_xor_key_and_offset_order() {
+        let mut buf = Vec::new();
+        let mut expected = Vec::new();
+        for key in 0..=255u8 {
+            for _ in 0..2 {
+                let offset = buf.len();
+                let mut header = vec![0; 0x42];
+                header[..2].copy_from_slice(b"MZ");
+                header[0x3c..0x40].copy_from_slice(&0x40u32.to_le_bytes());
+                header[0x40..].copy_from_slice(b"PE");
+                buf.extend(header.into_iter().map(|byte| byte ^ key));
+                expected.push((offset, key));
+            }
+        }
+        expected.sort_unstable_by_key(|&(off, key)| (std::cmp::Reverse(key), off));
+        assert_eq!(carve_pe(&buf, 0), expected);
+        for start in [1, 0x42, buf.len() - 1, buf.len(), usize::MAX] {
+            let expected: Vec<_> = expected
+                .iter()
+                .copied()
+                .filter(|&(off, _)| off >= start)
+                .collect();
+            assert_eq!(carve_pe(&buf, start), expected);
+        }
+    }
+
+    #[test]
+    fn carve_pe_checks_header_bounds_and_continues_after_invalid_candidates() {
+        for key in [0, 1, 0x80, 0xff] {
+            let mut buf = vec![key; 0x300];
+            // Invalid header followed by a valid one for the same XOR key.
+            for (off, pe_offset) in [(0, 0x201u32), (0x80, 0x200)] {
+                buf[off..off + 2].copy_from_slice(&[b'M' ^ key, b'Z' ^ key]);
+                for (dst, byte) in buf[off + 0x3c..off + 0x40]
+                    .iter_mut()
+                    .zip(pe_offset.to_le_bytes())
+                {
+                    *dst = byte ^ key;
+                }
+                let pe = off + pe_offset as usize;
+                buf[pe..pe + 2].copy_from_slice(&[b'P' ^ key, b'E' ^ key]);
+            }
+            assert_eq!(carve_pe(&buf, 0), vec![(0x80, key)]);
+            for end in [0, 1, 2, 0x3f, 0x40, 0x281] {
+                assert!(carve_pe(&buf[..end], 0).is_empty());
+            }
+        }
     }
 
     #[test]

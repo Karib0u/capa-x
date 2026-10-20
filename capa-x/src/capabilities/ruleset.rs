@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use crate::address::Address;
@@ -97,7 +98,29 @@ impl MatchingRuleSet {
         features: &FeatureSet,
         addr: Address,
     ) -> Result<(FeatureSet, MatchResults), EngineError> {
-        let mut features = features.clone();
+        let (features, results) = self.match_scope_borrowed(scope, features, addr)?;
+        Ok((features.into_owned(), results))
+    }
+
+    /// Scope drivers only need matches. Borrow their input until a successful
+    /// rule must publish features for dependent rules in this same scope.
+    pub(crate) fn match_scope_results(
+        &self,
+        scope: Scope,
+        features: &FeatureSet,
+        addr: Address,
+    ) -> Result<MatchResults, EngineError> {
+        self.match_scope_borrowed(scope, features, addr)
+            .map(|(_, results)| results)
+    }
+
+    fn match_scope_borrowed<'a>(
+        &self,
+        scope: Scope,
+        features: &'a FeatureSet,
+        addr: Address,
+    ) -> Result<(Cow<'a, FeatureSet>, MatchResults), EngineError> {
+        let mut features = Cow::Borrowed(features);
         let mut results: MatchResults = HashMap::new();
 
         let Some(index) = self.indexes.get(&scope) else {
@@ -123,7 +146,7 @@ impl MatchingRuleSet {
 
             let locations: BTreeSet<Address> = [addr].into_iter().collect();
             let previous_len = features.len();
-            engine::index_rule_matches(&mut features, rule, &locations);
+            engine::index_rule_matches(features.to_mut(), rule, &locations);
             for feature in features.keys().skip(previous_len) {
                 if let Some(dependents) = index.exact.get(feature) {
                     candidates.extend(dependents.iter().copied().filter(|&i| i > position));
@@ -664,6 +687,33 @@ mod tests {
         assert_eq!(format!("{features:?}"), format!("{expected_features:?}"));
         let results: std::collections::BTreeMap<_, _> = results.into_iter().collect();
         assert_eq!(format!("{results:?}"), format!("{expected:?}"));
+        let results: std::collections::BTreeMap<_, _> = set
+            .match_scope_results(Scope::Function, input, addr)
+            .unwrap()
+            .into_iter()
+            .collect();
+        assert_eq!(format!("{results:?}"), format!("{expected:?}"));
+    }
+
+    #[test]
+    fn unsuccessful_scope_keeps_features_borrowed() {
+        let set = MatchingRuleSet::new(vec![named_rule(
+            "absent",
+            Node {
+                stmt: Statement::Leaf(Feature::Api("missing".into())),
+                description: None,
+            },
+        )])
+        .unwrap();
+        let input = FeatureSet::from_iter([(
+            Feature::Api("present".into()),
+            BTreeSet::from([Address::Absolute(1)]),
+        )]);
+        let (features, matches) = set
+            .match_scope_borrowed(Scope::Function, &input, Address::Absolute(1))
+            .unwrap();
+        assert!(matches.is_empty());
+        assert!(matches!(features, Cow::Borrowed(_)));
     }
 
     #[test]
