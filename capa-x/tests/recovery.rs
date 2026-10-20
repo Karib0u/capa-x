@@ -60,6 +60,36 @@ fn recovery_populates_code_data_and_call_indexes() {
 }
 
 #[test]
+fn pointer_discovery_recovers_entries_without_signatures_and_preserves_shared_functions() {
+    let bytes = std::fs::read(
+        root()
+            .join("tests/testfiles")
+            .join("b5f0524e69b3a3cf636c7ac366ca57bf5e3a8fdc8a9f01caf196c611a7918a87.elf_"),
+    )
+    .unwrap();
+    let analysis = analyze(&bytes).unwrap();
+    // Pinned generic.pointers.analyze creates these prologue-less roots.
+    // They expose the previously missing file and socket capabilities.
+    for address in [0x80724b0, 0x807d2a0] {
+        assert!(analysis.functions.contains_key(&address));
+        assert!(analysis.seeds[&address].contains(&SeedKind::PointerTarget));
+    }
+
+    let bytes = std::fs::read(
+        root()
+            .join("tests/testfiles")
+            .join("6f99a2c8944cb02ff28c6f9ced59b161.exe_"),
+    )
+    .unwrap();
+    let analysis = analyze(&bytes).unwrap();
+    // The relocation to 0x413420 is an instruction operand, not a data
+    // pointer. Promoting it before emucode accepts it would let its callee
+    // claim this shared function before the signature pass reaches it.
+    assert!(analysis.functions.contains_key(&0x40d22a));
+    assert!(!analysis.seeds[&0x413420].contains(&SeedKind::PointerTarget));
+}
+
+#[test]
 fn recovery_gaps_do_not_cut_off_the_documented_callers() {
     for (name, function, recovered_instruction) in [
         ("70fd3347786ed7a4a43910e6778ef296.exe_", 0x407e2c, 0x407e74),

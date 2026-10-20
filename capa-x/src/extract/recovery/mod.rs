@@ -2,11 +2,13 @@
 mod engine;
 pub use engine::*;
 
+mod emucode;
 pub mod flirt;
 pub mod golang;
 pub mod libc_start_main;
 pub mod msvcfunc;
 pub mod noreturn;
+mod pointers;
 mod switch;
 
 pub(crate) use super::{

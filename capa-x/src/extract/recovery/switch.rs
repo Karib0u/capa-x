@@ -29,8 +29,9 @@ pub(super) fn targets(analysis: &Analysis, branch: &DecodedInstruction) -> Optio
     let (guard, body) = rest.split_first()?;
     let mut targets = match analysis.image.architecture {
         Architecture::AArch64 => arm_targets(analysis, compare, guard, body)?,
-        Architecture::X64 => x64_targets(analysis, compare, guard, body)?,
-        Architecture::X86 => return None,
+        Architecture::X64 => absolute_targets(analysis, compare, guard, body)
+            .or_else(|| x64_targets(analysis, compare, guard, body))?,
+        Architecture::X86 => absolute_targets(analysis, compare, guard, body)?,
     };
     // An arm must not re-enter the guarded computation with an unchecked
     // selector. AArch64 targets also have to be instruction-aligned.
@@ -51,6 +52,64 @@ pub(super) fn targets(analysis: &Analysis, branch: &DecodedInstruction) -> Optio
     targets.sort_unstable();
     targets.dedup();
     Some(targets)
+}
+
+fn absolute_targets(
+    analysis: &Analysis,
+    compare: &DecodedInstruction,
+    guard: &DecodedInstruction,
+    body: &[&DecodedInstruction],
+) -> Option<Vec<u64>> {
+    let (branch, setup) = body.split_last()?;
+    let op = branch.x86_instruction();
+    let cmp = compare.x86_instruction();
+    let width = analysis.image.architecture.pointer_width();
+    let index = reg_operand(cmp, 0)?;
+    if cmp.mnemonic() != Mnemonic::Cmp
+        || op.mnemonic() != Mnemonic::Jmp
+        || op.op0_kind() != OpKind::Memory
+        || op.memory_base() != Register::None
+        || op.memory_size().size() != width
+        || matches!(op.memory_segment(), Register::FS | Register::GS)
+        || op.memory_index().full_register() != index.full_register()
+        || op.memory_index_scale() as usize != width
+        || !matches!(index.size(), 4 | 8)
+    {
+        return None;
+    }
+    let count = case_count(
+        immediate(cmp)?,
+        match guard.x86_instruction().mnemonic() {
+            Mnemonic::Ja => true,
+            Mnemonic::Jae => false,
+            _ => return None,
+        },
+    )?;
+    // Unlike the legacy sequential pointer scan, this must stop at the
+    // selector's bound even when another table follows immediately.
+    // A 32-bit guard on a 64-bit index needs an explicit zero extension.
+    // Compilers emit `mov ecx, ecx` for this absolute-table shape.
+    let zero_extended = match setup {
+        [] => false,
+        [mov] => {
+            let mov = mov.x86_instruction();
+            if mov.mnemonic() != Mnemonic::Mov
+                || reg_operand(mov, 0)? != index
+                || reg_operand(mov, 1)? != index
+            {
+                return None;
+            }
+            index.size() == 4
+        }
+        _ => return None,
+    };
+    if op.memory_index().size() == 8 && index.size() == 4 && !zero_extended {
+        return None;
+    }
+    let base = branch.memory_target?;
+    (0..count)
+        .map(|index| super::read_pointer(&analysis.image, base.checked_add(index * width as u64)?))
+        .collect()
 }
 
 fn previous(analysis: &Analysis, address: u64) -> Option<&DecodedInstruction> {

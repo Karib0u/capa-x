@@ -50,6 +50,167 @@ const VIV_ELF_DYN_BASE: u64 = 0x0200_0000;
 // table rather than task 3's recovery-only acceptance.
 const GHIDRA_AARCH64_ELF_DYN_BASE: u64 = 0x0010_0000;
 
+/// `PE/carve.py` and `vivisect/parsers/pe.py:parseFile` mark embedded
+/// plaintext or single-byte-XOR PE files as dead data for pointer analysis.
+/// This does not prevent explicit code flow into those mappings.
+fn mark_embedded_pe_data(bytes: &[u8], pe: &PE<'_>, image: &mut LoadedImage) {
+    // Local scan/candidate limits, not upstream constants.
+    const MAX_CARVED_HEADERS: usize = 1024;
+    let scan = bytes
+        .get(..bytes.len().min(MAX_MAPPED_IMAGE_BYTES))
+        .unwrap_or_default();
+    let mut candidates = 0;
+    for (offset, pair) in scan.windows(2).enumerate().skip(1) {
+        let Some((&first, rest)) = pair.split_first() else {
+            continue;
+        };
+        let key = first ^ b'M';
+        if rest.first().copied().map(|byte| byte ^ key) != Some(b'Z') {
+            continue;
+        }
+        let Some(candidate) = bytes.get(offset..) else {
+            continue;
+        };
+        let Some(nt) = xor_number(candidate, 0x3c, 4, key).map(|value| value as usize) else {
+            continue;
+        };
+        // `PE/carve.py:MAX_OFFSET_PE_AFTER_MZ`.
+        if nt > 0x200 || xor_number(candidate, nt, 2, key) != Some(0x4550) {
+            continue;
+        }
+        candidates += 1;
+        if candidates > MAX_CARVED_HEADERS {
+            image
+                .load_diagnostics
+                .push("embedded PE scan exceeded 1024 candidate headers".into());
+            break;
+        }
+        let Some(size) = carved_pe_size(candidate, nt, key) else {
+            image.load_diagnostics.push(format!(
+                "invalid embedded PE header at file offset {offset:#x}"
+            ));
+            continue;
+        };
+        // `PE.offsetToRva` returns zero for an overlay. Preserve that loader
+        // behavior, including its image-base dead-data range for such files.
+        let alignment = pe.header.optional_header.as_ref().map_or(1, |header| {
+            u64::from(header.windows_fields.section_alignment).max(1)
+        });
+        let max_rva = pe
+            .sections
+            .iter()
+            .map(|section| {
+                let end = u64::from(section.virtual_address) + u64::from(section.virtual_size);
+                (end / alignment + 1) * alignment
+            })
+            .max()
+            .unwrap_or(0);
+        let rva = pe
+            .sections
+            .iter()
+            .find_map(|section| {
+                let raw = u64::from(section.pointer_to_raw_data);
+                let span = if raw + u64::from(section.size_of_raw_data) > max_rva {
+                    section.virtual_size
+                } else {
+                    section.virtual_size.max(section.size_of_raw_data)
+                };
+                let relative = (offset as u64).checked_sub(raw)?;
+                (relative < u64::from(span)).then(|| relative + u64::from(section.virtual_address))
+            })
+            .unwrap_or(0);
+        if let Some(start) = image.image_base.checked_add(rva) {
+            if let Some(end) = start.checked_add(size.min(candidate.len() as u64)) {
+                image.dead_data.push((start, end));
+            }
+        }
+    }
+    if bytes.len() > scan.len() {
+        image.load_diagnostics.push(format!(
+            "embedded PE scan stopped at {MAX_MAPPED_IMAGE_BYTES} bytes"
+        ));
+    }
+}
+
+fn xor_number(bytes: &[u8], offset: usize, size: usize, key: u8) -> Option<u64> {
+    let raw = bytes.get(offset..offset.checked_add(size)?)?;
+    Some(raw.iter().enumerate().fold(0, |value, (index, byte)| {
+        value | (u64::from(byte ^ key) << (8 * index))
+    }))
+}
+
+#[allow(clippy::chunks_exact_to_as_chunks)] // Keep the Rust 1.87 MSRV.
+fn carved_pe_size(bytes: &[u8], nt: usize, key: u8) -> Option<u64> {
+    // PE structure offsets used by `PE.PE.parseSections`. That parser locates
+    // sections using NumberOfRvaAndSizes rather than SizeOfOptionalHeader.
+    let sections = usize::try_from(xor_number(bytes, nt.checked_add(6)?, 2, key)?).ok()?;
+    let optional = nt.checked_add(24)?;
+    let standard = match xor_number(bytes, optional, 2, key)? {
+        0x10b => 96usize,
+        0x20b => 112usize,
+        _ => return None,
+    };
+    let directories = usize::try_from(xor_number(
+        bytes,
+        optional.checked_add(standard - 4)?,
+        4,
+        key,
+    )?)
+    .ok()?;
+    let table = optional
+        .checked_add(standard)?
+        .checked_add(directories.checked_mul(8)?)?;
+    let raw = bytes.get(table..table.checked_add(sections.checked_mul(40)?)?)?;
+    let mut size = 0;
+    for section in raw.chunks_exact(40) {
+        let offset = xor_number(section, 20, 4, key)?;
+        let len = xor_number(section, 16, 4, key)?;
+        size = size.max(offset.checked_add(len)?);
+    }
+    (sections != 0).then_some(size)
+}
+
+fn collect_pe_relocation_locations(pe: &PE<'_>, image: &mut LoadedImage) {
+    let Some(relocations) = &pe.relocation_data else {
+        return;
+    };
+    for block in relocations.blocks() {
+        let block = match block {
+            Ok(block) => block,
+            Err(error) => {
+                image
+                    .load_diagnostics
+                    .push(format!("stopped parsing malformed PE relocations: {error}"));
+                break;
+            }
+        };
+        for word in block.words() {
+            let word = match word {
+                Ok(word) => word,
+                Err(error) => {
+                    image.load_diagnostics.push(format!(
+                        "stopped parsing malformed PE relocation block at RVA {:#x}: {error}",
+                        block.rva
+                    ));
+                    break;
+                }
+            };
+            if word.reloc_type() == 0 {
+                continue;
+            }
+            if let Some(location) = image
+                .image_base
+                .checked_add(u64::from(block.rva))
+                .and_then(|address| address.checked_add(u64::from(word.offset())))
+            {
+                image.relocation_locations.push(location);
+            }
+        }
+    }
+    image.relocation_locations.sort_unstable();
+    image.relocation_locations.dedup();
+}
+
 /// Resolve the ordinal-only imports that the pinned Vivisect backend names
 /// from its *own* vendored ordinal database (`PE/ordlookup/`, the `PE`
 /// package vivisect ships), not from pefile's. The two disagree: pefile
@@ -404,6 +565,8 @@ pub struct LoadedImage {
     /// Recoverable malformed optional-directory conditions encountered while
     /// loading. Code recovery exposes these without rejecting the sample.
     pub load_diagnostics: Vec<String>,
+    /// PE relocation slots, retained as pointer locations during recovery.
+    pub(crate) relocation_locations: Vec<u64>,
     /// Vivisect's PE loader marks directory sections and sections without
     /// code, execute, or write characteristics as dead data. The end address
     /// is inclusive because `VivWorkspace.isDeadData()` uses `<= end`.
@@ -672,11 +835,14 @@ impl LoadedImage {
             external_bindings: BTreeMap::new(),
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            relocation_locations: Vec::new(),
             dead_data,
             uninitialized,
             primary_code,
             mapped_bytes,
         };
+        mark_embedded_pe_data(bytes, &pe, &mut image);
+        collect_pe_relocation_locations(&pe, &mut image);
 
         let mut terminated_import_ranges = Vec::new();
         for data in pe.import_data.iter().flat_map(|data| &data.import_data) {
@@ -868,6 +1034,7 @@ impl LoadedImage {
             external_bindings: BTreeMap::new(),
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            relocation_locations: Vec::new(),
             dead_data: Vec::new(),
             uninitialized: Vec::new(),
             primary_code,
@@ -932,6 +1099,7 @@ impl LoadedImage {
             external_bindings: BTreeMap::new(),
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            relocation_locations: Vec::new(),
             dead_data: Vec::new(),
             uninitialized: Vec::new(),
             primary_code: vec![(
@@ -1093,6 +1261,7 @@ impl LoadedImage {
             external_bindings: BTreeMap::new(),
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            relocation_locations: Vec::new(),
             dead_data: Vec::new(),
             uninitialized: Vec::new(),
             primary_code,
@@ -2150,6 +2319,7 @@ impl LoadedImage {
             external_bindings,
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            relocation_locations: Vec::new(),
             dead_data: Vec::new(),
             uninitialized: Vec::new(),
             primary_code,
@@ -2227,6 +2397,24 @@ fn account_mapping(total: &mut usize, size: usize) -> Result<(), ImageError> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn carved_pe_headers_handle_xor_and_truncated_section_tables() {
+        let mut bytes = vec![0; 0x200];
+        bytes[..2].copy_from_slice(b"MZ");
+        bytes[0x3c..0x40].copy_from_slice(&0x80u32.to_le_bytes());
+        bytes[0x80..0x84].copy_from_slice(b"PE\0\0");
+        bytes[0x86..0x88].copy_from_slice(&1u16.to_le_bytes());
+        bytes[0x98..0x9a].copy_from_slice(&0x10bu16.to_le_bytes());
+        // No directories: the section table begins at 0x98 + 96.
+        bytes[0x108..0x10c].copy_from_slice(&0x600u32.to_le_bytes());
+        bytes[0x10c..0x110].copy_from_slice(&0x200u32.to_le_bytes());
+        for key in [0, 0x5a, 0xff] {
+            let encoded: Vec<_> = bytes.iter().map(|byte| byte ^ key).collect();
+            assert_eq!(carved_pe_size(&encoded, 0x80, key), Some(0x800));
+            assert_eq!(carved_pe_size(&encoded[..0x110], 0x80, key), None);
+        }
+    }
+
     fn synthetic_image(bytes: Vec<u8>, permissions: Permissions) -> LoadedImage {
         LoadedImage {
             format: ImageFormat::Pe,
@@ -2245,6 +2433,7 @@ mod tests {
             external_bindings: BTreeMap::new(),
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            relocation_locations: Vec::new(),
             dead_data: Vec::new(),
             uninitialized: Vec::new(),
             primary_code: vec![(0x1000, 0x1000u64.saturating_add(bytes.len() as u64))],

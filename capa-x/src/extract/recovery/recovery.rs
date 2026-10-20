@@ -42,6 +42,10 @@ pub enum SeedKind {
     InitArray,
     FiniArray,
     Relocation,
+    /// Undefined pointer target accepted by candidate evaluation.
+    PointerTarget,
+    /// Named or instruction-referenced address accepted by candidate evaluation.
+    Emulated,
     LibcMain,
     GoRuntimeMain,
     FunctionSignature,
@@ -207,6 +211,18 @@ fn analyze_seeded_image(
     elf_function_symbols: FunctionSymbolMap,
     diagnostics: Vec<RecoveryDiagnostic>,
 ) -> Result<Analysis, RecoveryError> {
+    if backend == RecoveryBackend::Native {
+        seeds.retain(|address, kinds| {
+            kinds.remove(&SeedKind::Emulated);
+            if image.format == ImageFormat::Pe
+                && matches!(image.architecture, Architecture::X86 | Architecture::X64)
+                && !plausible_relocation_function(&image, *address)
+            {
+                kinds.remove(&SeedKind::Relocation);
+            }
+            !kinds.is_empty()
+        });
+    }
     let mut fallback = BTreeMap::new();
     add_backend_fallback_seeds(&image, backend, &mut fallback);
     for (&address, kinds) in &fallback {
@@ -256,7 +272,7 @@ fn analyze_seeded_image(
             analysis.data_xrefs.clear();
             analysis.noreturn_calls.clear();
         }
-        recover_functions(&mut analysis, &fallback, &noreturn)?;
+        recover_functions(&mut analysis, &fallback, &noreturn, backend)?;
         let next = noreturn::propagate(&analysis, &noreturn_seed);
         if next == noreturn || pass.saturating_add(1) == noreturn::MAX_PASSES {
             break;
@@ -280,13 +296,20 @@ fn recover_functions(
     analysis: &mut Analysis,
     fallback: &SeedMap,
     noreturn: &BTreeSet<u64>,
+    backend: RecoveryBackend,
 ) -> Result<(), RecoveryError> {
+    let evaluate_candidates = backend == RecoveryBackend::VivisectCompat
+        && matches!(
+            analysis.image.architecture,
+            Architecture::X86 | Architecture::X64
+        );
+    let mut pointers = super::pointers::Discovery::new(analysis, evaluate_candidates);
     let mut initial: Vec<u64> = analysis.seeds.keys().copied().collect();
     initial.sort_by_key(|address| {
         let priority = analysis
             .seeds
             .get(address)
-            .map(seed_priority)
+            .map(|kinds| seed_priority(kinds, evaluate_candidates))
             .unwrap_or(usize::MAX);
         (priority, *address)
     });
@@ -295,10 +318,42 @@ fn recover_functions(
     let mut isolated_starts = BTreeSet::new();
     let mut direct_flow = DirectFlowGraph::default();
     let mut late_waves_done = false;
+    let mut early_candidates_done = !evaluate_candidates;
     let mut function_budget_reported = false;
     loop {
+        // `generic.relocations/pointers` and `generic.emucode` precede
+        // `i386.importcalls` and `generic.funcentries`. In particular, a
+        // relocation to `call [TlsAlloc]; ret` must become a function before
+        // importcalls can claim it as loose code.
+        if !early_candidates_done
+            && pending.front().is_none_or(|address| {
+                analysis.seeds.get(address).is_some_and(|kinds| {
+                    kinds.iter().all(|kind| {
+                        matches!(
+                            kind,
+                            SeedKind::FunctionSignature
+                                | SeedKind::Prologue
+                                | SeedKind::SweepCallTarget
+                        )
+                    })
+                })
+            })
+        {
+            if let Some(address) = pointers.next(analysis, noreturn) {
+                pending.push_front(address);
+            } else {
+                early_candidates_done = true;
+                pointers.finish_emucode();
+            }
+        }
         let Some(start) = pending.pop_front() else {
             if late_waves_done {
+                if evaluate_candidates {
+                    if let Some(address) = pointers.next(analysis, noreturn) {
+                        pending.push_back(address);
+                        continue;
+                    }
+                }
                 break;
             }
             // Vivisect's `i386.importcalls` only fires on space no earlier
@@ -362,12 +417,10 @@ fn recover_functions(
             start,
             analysis.instructions.contains_key(&start),
         ) {
-            // Relocation candidates are a native recovery heuristic, not a
-            // pinned Vivisect function source. Until backend selection moves
-            // them out of compatibility mode, keep an overlapping candidate
-            // isolated at its entry instruction. This preserves the previous
-            // containment rule and prevents a speculative seed from claiming
-            // an entire shared graph after ownership becomes a second stage.
+            // Native relocation candidates retain the existing containment
+            // rule: an overlapping speculative seed must not claim an
+            // entire shared graph. Compatibility pointers have already been
+            // evaluated against defined instruction locations.
             isolated_starts.insert(start);
         }
         function_starts.insert(start);
@@ -396,7 +449,12 @@ fn recover_functions(
             let was_heuristic_only = !is_new
                 && analysis.seeds.get(&target).is_some_and(|kinds| {
                     kinds.iter().all(|kind| {
-                        matches!(kind, SeedKind::FunctionSignature | SeedKind::Prologue)
+                        matches!(
+                            kind,
+                            SeedKind::FunctionSignature
+                                | SeedKind::Prologue
+                                | SeedKind::SweepCallTarget
+                        )
                     })
                 });
             analysis
@@ -693,7 +751,7 @@ fn run_aarch64_plt_wave(analysis: &mut Analysis) {
     }
 }
 
-fn seed_priority(kinds: &BTreeSet<SeedKind>) -> usize {
+fn seed_priority(kinds: &BTreeSet<SeedKind>, evaluate_candidates: bool) -> usize {
     // The prologue scan is the weakest, most false-positive-prone seed: a
     // `push ebp; mov ebp, esp` byte pattern often falls *inside* a real
     // function (a shared tail, a loop head). Processing it last -- after all
@@ -702,8 +760,16 @@ fn seed_priority(kinds: &BTreeSet<SeedKind>) -> usize {
     // spurious starts, mirroring vivisect's flow-first discovery.
     if kinds.iter().any(|kind| is_authoritative_seed(*kind)) {
         0
-    } else if kinds.contains(&SeedKind::CallTarget) || kinds.contains(&SeedKind::SweepCallTarget) {
+    } else if kinds.contains(&SeedKind::CallTarget) {
         1
+    } else if kinds.contains(&SeedKind::SweepCallTarget) {
+        // Preserve native recovery's existing recall without letting the raw
+        // byte heuristic invent reference operands for the emucode pass.
+        if evaluate_candidates {
+            4
+        } else {
+            1
+        }
     } else if !kinds.contains(&SeedKind::Prologue) && !kinds.contains(&SeedKind::FunctionSignature)
     {
         2
@@ -1063,50 +1129,11 @@ fn collect_pe_seeds(
             }
         }
     }
-    // This legacy relocation candidate path remains in compatibility mode for
-    // now. Removing it loses previously exact corpus samples, so Phase 3's
-    // no-regression policy requires a faithful Vivisect pointer-analysis
-    // replacement before it can move to Native.
-    if let Some(relocations) = &pe.relocation_data {
-        for block in relocations.blocks() {
-            let block = match block {
-                Ok(block) => block,
-                Err(error) => {
-                    diagnostics.push(RecoveryDiagnostic {
-                        address: image.image_base,
-                        message: format!("stopped parsing malformed PE relocations: {error}"),
-                    });
-                    break;
-                }
-            };
-            for word in block.words() {
-                let word = match word {
-                    Ok(word) => word,
-                    Err(error) => {
-                        diagnostics.push(RecoveryDiagnostic {
-                            address: image.image_base.saturating_add(u64::from(block.rva)),
-                            message: format!(
-                                "stopped parsing malformed PE relocation block: {error}"
-                            ),
-                        });
-                        break;
-                    }
-                };
-                if word.reloc_type() == 0 {
-                    continue;
-                }
-                if let Some(location) = image
-                    .image_base
-                    .checked_add(u64::from(block.rva))
-                    .and_then(|value| value.checked_add(u64::from(word.offset())))
-                {
-                    if let Some(target) = read_pointer(image, location) {
-                        if plausible_relocation_function(image, target) {
-                            add_seed(image, seeds, target, SeedKind::Relocation);
-                        }
-                    }
-                }
-            }
+    // Targets remain candidates until pointer classification has the current
+    // location map. The loader also retains the source slots as typed data.
+    for &location in &image.relocation_locations {
+        if let Some(target) = read_pointer(image, location) {
+            add_seed(image, seeds, target, SeedKind::Relocation);
         }
     }
     Ok(())
@@ -1251,6 +1278,21 @@ fn collect_elf_seeds(
         seeds,
         function_symbols,
     );
+    // `generic.emucode.analyze` also tries named undefined addresses. A
+    // non-function symbol is a candidate, never an authoritative function.
+    if matches!(image.architecture, Architecture::X86 | Architecture::X64) {
+        for symbol in elf.syms.iter().chain(elf.dynsyms.iter()) {
+            if symbol.st_shndx != 0
+                && symbol.st_value != 0
+                && symbol.st_name != 0
+                && !matches!(st_type(symbol.st_info), STT_FUNC | STT_GNU_IFUNC)
+            {
+                if let Some(address) = symbol.st_value.checked_add(image.load_bias) {
+                    add_seed(image, seeds, address, SeedKind::Emulated);
+                }
+            }
+        }
+    }
     for relocation in elf
         .dynrelas
         .iter()
@@ -1594,10 +1636,6 @@ fn add_backend_fallback_seeds(image: &LoadedImage, backend: RecoveryBackend, see
         add_prologue_seeds(image, seeds);
         add_swept_call_seeds(image, seeds);
     } else {
-        // Preserve the legacy raw-call sweep's density decision without
-        // promoting its broad prologue candidates into compatibility-mode
-        // functions. Previously exact sparse PEs depend on this fallback,
-        // while enabling it for dense compiler output creates false loops.
         let mut legacy_density = SeedMap::new();
         add_prologue_seeds(image, &mut legacy_density);
         if legacy_density.len() <= 128 {
@@ -2162,6 +2200,16 @@ pub(crate) fn jump_table_targets(image: &LoadedImage, insn: &DecodedInstruction)
     let Some(base) = insn.memory_target else {
         return Vec::new();
     };
+    // `i386Opcode.getBranches` only labels scale-four SIB operands as
+    // BR_TABLE. Other indexed operands have no static address without an
+    // emulator. In particular, scanning an unbounded x64 scale-eight table
+    // absorbs adjacent tables and prevents later pointer discovery.
+    if image.architecture != Architecture::AArch64
+        && insn.x86_instruction().memory_index() != iced_x86::Register::None
+        && insn.x86_instruction().memory_index_scale() != 4
+    {
+        return Vec::new();
+    }
     let width = image.architecture.pointer_width();
     // envi/archs/i386/__init__.py distinguishes BR_DEREF from BR_TABLE:
     // a plain memory jump dereferences one pointer, while an indexed jump
@@ -2234,6 +2282,208 @@ fn push_xref(index: &mut BTreeMap<u64, Vec<u64>>, target: u64, source: u64) {
 mod tests {
     use super::*;
     use crate::extract::image::{ImageFormat, MappedSection, Permissions, SHELLCODE_BASE};
+
+    #[test]
+    fn emucode_recovers_instruction_references_without_a_prologue() {
+        let target = SHELLCODE_BASE + 32;
+        let mut bytes = vec![0xb8]; // mov eax, candidate; ret
+        bytes.extend_from_slice(&(target as u32).to_le_bytes());
+        bytes.push(0xc3);
+        bytes.resize(32, 0xcc);
+        bytes.extend_from_slice(&[0x31, 0xc0, 0x40, 0xc3]);
+        let image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+        let analysis = analyze_seeded_image(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(analysis.functions.contains_key(&target));
+        assert!(analysis.seeds[&target].contains(&SeedKind::Emulated));
+    }
+
+    #[test]
+    fn pointer_candidates_do_not_split_existing_instructions() {
+        let mut bytes = vec![0xb8, 0x31, 0xc0, 0xc3, 0, 0xc3]; // ret bytes inside an immediate
+        bytes.resize(32, 0xcc);
+        let image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+        let analysis = analyze_seeded_image(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([
+                (SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint])),
+                (SHELLCODE_BASE + 1, BTreeSet::from([SeedKind::Relocation])),
+            ]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(!analysis.functions.contains_key(&(SHELLCODE_BASE + 1)));
+    }
+
+    #[test]
+    fn only_rip_relative_lea_provides_a_static_candidate_reference() {
+        let target = SHELLCODE_BASE + 32;
+        for architecture in [Architecture::X86, Architecture::X64] {
+            let mut bytes = if architecture == Architecture::X64 {
+                vec![0x48, 0x8d, 0x05, 25, 0, 0, 0]
+            } else {
+                let mut bytes = vec![0x8d, 0x05];
+                bytes.extend_from_slice(&(target as u32).to_le_bytes());
+                bytes
+            };
+            bytes.push(0xc3);
+            bytes.resize(32, 0xcc);
+            bytes.extend_from_slice(&[0x31, 0xc0, 0xc3]);
+            let image = LoadedImage::from_shellcode(&bytes, architecture);
+            let analysis = analyze_seeded_image(
+                image,
+                RecoveryBackend::VivisectCompat,
+                SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+                BTreeMap::new(),
+                Vec::new(),
+            )
+            .unwrap();
+            assert_eq!(
+                analysis.functions.contains_key(&target),
+                architecture == Architecture::X64
+            );
+        }
+    }
+
+    #[test]
+    fn relocated_instruction_operands_do_not_bypass_candidate_evaluation() {
+        let target = SHELLCODE_BASE + 32;
+        for source_is_code in [true, false] {
+            let mut bytes = vec![0xb8];
+            bytes.extend_from_slice(&(target as u32).to_le_bytes());
+            bytes.push(0xc3);
+            bytes.resize(16, 0xcc);
+            bytes.extend_from_slice(&(target as u32).to_le_bytes());
+            bytes.resize(32, 0xcc);
+            bytes.extend_from_slice(&[0x55, 0x8b, 0xec, 0x0f, 0x0b]);
+            let mut image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+            image.format = ImageFormat::Pe;
+            image.relocation_locations = vec![SHELLCODE_BASE + if source_is_code { 1 } else { 16 }];
+            let analysis = analyze_seeded_image(
+                image,
+                RecoveryBackend::VivisectCompat,
+                SeedMap::from([
+                    (SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint])),
+                    (target, BTreeSet::from([SeedKind::Relocation])),
+                ]),
+                BTreeMap::new(),
+                Vec::new(),
+            )
+            .unwrap();
+            // A data pointer may use isProbablyCode's signature shortcut.
+            // A relocated immediate is a REF_PTR for emucode, which must
+            // reject this trace before the later function-signature pass.
+            assert_eq!(
+                analysis.seeds[&target].contains(&SeedKind::PointerTarget),
+                !source_is_code
+            );
+            assert!(!analysis.seeds[&target].contains(&SeedKind::Emulated));
+        }
+    }
+
+    #[test]
+    fn pe_does_not_scan_arbitrary_data_as_function_pointers() {
+        for format in [ImageFormat::Pe, ImageFormat::Elf] {
+            let target = SHELLCODE_BASE + 32;
+            let mut bytes = vec![0xc3];
+            bytes.resize(16, 0xcc);
+            bytes.extend_from_slice(&(target as u32).to_le_bytes());
+            bytes.resize(32, 0xcc);
+            bytes.extend_from_slice(&[0x31, 0xc0, 0x40, 0xc3]);
+            let mut image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+            image.format = format;
+            let analysis = analyze_seeded_image(
+                image,
+                RecoveryBackend::VivisectCompat,
+                SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+                BTreeMap::new(),
+                Vec::new(),
+            )
+            .unwrap();
+            assert_eq!(
+                analysis.functions.contains_key(&target),
+                format == ImageFormat::Elf
+            );
+        }
+    }
+
+    #[test]
+    fn late_signatures_do_not_restart_the_emucode_pass() {
+        let target = SHELLCODE_BASE + 64;
+        let mut bytes = vec![0xc3];
+        bytes.resize(16, 0xcc);
+        bytes.extend_from_slice(&[0x55, 0x8b, 0xec, 0xb8]);
+        bytes.extend_from_slice(&(target as u32).to_le_bytes());
+        bytes.extend_from_slice(&[0xc9, 0xc3]);
+        bytes.resize(64, 0xcc);
+        bytes.extend_from_slice(&[0x31, 0xc0, 0x40, 0xc3]);
+        let mut image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+        image.format = ImageFormat::Pe;
+        let analysis = analyze_seeded_image(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(analysis.functions.contains_key(&(SHELLCODE_BASE + 16)));
+        assert!(!analysis.functions.contains_key(&target));
+    }
+
+    #[test]
+    fn dereferenced_data_is_not_promoted_by_a_relocation() {
+        let target = SHELLCODE_BASE + 16;
+        let mut bytes = vec![0xa1]; // mov eax, [data]; ret
+        bytes.extend_from_slice(&(target as u32).to_le_bytes());
+        bytes.push(0xc3);
+        bytes.resize(16, 0xcc);
+        bytes.extend_from_slice(&[0x31, 0xc0, 0x40, 0xc3]);
+        let image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+        let analysis = analyze_seeded_image(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([
+                (SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint])),
+                (target, BTreeSet::from([SeedKind::Relocation])),
+            ]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(!analysis.functions.contains_key(&target));
+    }
+
+    #[test]
+    fn later_noreturn_signatures_cannot_validate_an_earlier_candidate() {
+        let target = SHELLCODE_BASE + 16;
+        let mut bytes = vec![0xb8];
+        bytes.extend_from_slice(&(target as u32).to_le_bytes());
+        bytes.push(0xc3);
+        bytes.resize(16, 0xcc);
+        bytes.extend_from_slice(&[0xeb, 0x0e]); // jmp late signature
+        bytes.resize(32, 0xcc);
+        bytes.extend_from_slice(&[0x55, 0x8b, 0xec, 0x0f, 0x0b]);
+        let image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+        let analysis = analyze_seeded_image(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(analysis.functions.contains_key(&(SHELLCODE_BASE + 32)));
+        assert!(!analysis.functions.contains_key(&target));
+    }
 
     /// A walk past `MAX_INSNS_PER_FUNCTION` abandons that walk and records
     /// why; it does not fail the image. Upstream Vivisect has no per-walk

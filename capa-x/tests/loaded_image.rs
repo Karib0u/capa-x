@@ -147,6 +147,17 @@ fn pe_loader_exposes_zero_fill_and_dead_data() {
 }
 
 #[test]
+fn embedded_pe_overlay_is_dead_data_for_candidate_discovery() {
+    let image = load("0596c4ea5aa8def47f22c85d75aaca95.exe_");
+    // PE.carve finds the nested image at file offset 0x17000. Upstream's
+    // offsetToRva maps this overlay to RVA zero, then marks its 0x12400
+    // byte extent as data. Explicit code flow remains permitted.
+    assert!(image.is_dead_data(0x1072db9));
+    assert!(image.is_dead_data(0x1072dd3));
+    assert!(image.decode_at(0x1072db9).is_ok());
+}
+
+#[test]
 fn resource_directory_does_not_hide_executable_packer_code() {
     let image = load("0cd2b334aede270b14868db28211cde3.exe_");
     let code = image

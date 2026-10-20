@@ -30,21 +30,12 @@
       "details": []
     },
     "112f9f0e8d349858a80dd8c14190e620.exe_": {
-      "diffs": 3,
-      "details": [
-        "  rule missing in capa-x: 'get keyboard layout'",
-        "  rule missing in capa-x: 'log keystrokes via application hook'",
-        "  rule missing in capa-x: 'set application hook'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "294b8db1f2702b60fb2e42fdc50c2cee6a5046112da9a5703a548a4fa50477bc.elf_": {
-      "diffs": 4,
-      "details": [
-        "  rule missing in capa-x: 'create process on Linux'",
-        "  rule missing in capa-x: 'enumerate files on Linux'",
-        "  rule missing in capa-x: 'set current directory'",
-        "  rule missing in capa-x: 'write file on Linux'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "2bf18d0403677378adad9001b1243211.elf_": {
       "diffs": 0,
@@ -97,10 +88,8 @@
       "details": []
     },
     "c2d46d256b8f9490c9599eea11ecef19fde7d4fdd2dea93604cee3cea8e172ac.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'contain loop'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "c335a9d41185a32ad918c5389ee54235.exe_": {
       "diffs": 1,
