@@ -70,12 +70,8 @@
       "details": []
     },
     "112f9f0e8d349858a80dd8c14190e620.exe_": {
-      "diffs": 3,
-      "details": [
-        "  rule missing in capa-x: 'get keyboard layout'",
-        "  rule missing in capa-x: 'log keystrokes via application hook'",
-        "  rule missing in capa-x: 'set application hook'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "138c71e94961fe9e31cec5dfba62a639.exe_": {
       "diffs": 0,
@@ -129,13 +125,8 @@
       "details": []
     },
     "294b8db1f2702b60fb2e42fdc50c2cee6a5046112da9a5703a548a4fa50477bc.elf_": {
-      "diffs": 4,
-      "details": [
-        "  rule missing in capa-x: 'create process on Linux'",
-        "  rule missing in capa-x: 'enumerate files on Linux'",
-        "  rule missing in capa-x: 'set current directory'",
-        "  rule missing in capa-x: 'write file on Linux'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "29a76e413ffe0f78b62926b8455082d6.exe_": {
       "diffs": 0,
@@ -158,10 +149,8 @@
       "details": []
     },
     "2f7f5fb5de175e770d7eae87666f9831.elf_": {
-      "diffs": 1,
-      "details": [
-        "  rule missing in capa-x: 'decrypt data using AES via x86 extensions'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "31600ad0d1a7ea615690df111ae36c73.exe_": {
       "diffs": 1,
@@ -197,10 +186,8 @@
       "details": []
     },
     "35f9cfe5110471a82e330d904c97466a.dll_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'delay execution'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "368239d36d221d8877a07ab6799e643a.elf_": {
       "diffs": 0,
@@ -263,12 +250,9 @@
       "details": []
     },
     "49a34cfbeed733c24392c9217ef46bb6.exe_": {
-      "diffs": 4,
+      "diffs": 1,
       "details": [
-        "  rule missing in capa-x: 'contain obfuscated stackstrings'",
-        "  rule missing in capa-x: 'encrypt data using RC4 PRGA'",
-        "  rule missing in capa-x: 'hash data with MD5'",
-        "  rule missing in capa-x: 'parse credit card information'"
+        "  rule missing in capa-x: 'encrypt data using RC4 PRGA'"
       ]
     },
     "4bdd67ff852c221112337fecd0681eac.exe_": {
@@ -287,12 +271,8 @@
       ]
     },
     "512a5575ff395389fc952d7925e72be1ca4ba86a5d4f2da50f1cbbde0b208c92.elf_": {
-      "diffs": 3,
-      "details": [
-        "  rule missing in capa-x: 'calculate modulo 256 via x86 assembly'",
-        "  rule missing in capa-x: 'encrypt data using RC4 PRGA'",
-        "  rule missing in capa-x: 'use io_uring IO interface on Linux'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "51828683dc26bfabd3994494099ae97d.elf_": {
       "diffs": 0,
@@ -387,12 +367,9 @@
       "details": []
     },
     "70fd3347786ed7a4a43910e6778ef296.exe_": {
-      "diffs": 6,
+      "diffs": 3,
       "details": [
         "  rule missing in capa-x: 'PEB access'",
-        "  rule missing in capa-x: 'delete directory'",
-        "  rule missing in capa-x: 'modify access privileges'",
-        "  rule missing in capa-x: 'shutdown system'",
         "  rule extra in capa-x: 'allocate memory'",
         "  rule extra in capa-x: 'allocate or change RW memory'"
       ]
@@ -518,23 +495,16 @@
       ]
     },
     "98c37c3c23bbfb362dac7754c6ba48e75cf24d73bc963a4cdfca557b9e016909.exe_": {
-      "diffs": 2,
-      "details": [
-        "  rule missing in capa-x: 'get file size'",
-        "  rule missing in capa-x: 'write file on Windows'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "9a00ebe67d833edb70ed6dd0f4652592.dll_": {
       "diffs": 0,
       "details": []
     },
     "9b7ccaa2ae6a5b96e3110ebcbc4311f6.dll_": {
-      "diffs": 3,
-      "details": [
-        "  rule missing in capa-x: 'create or open registry key'",
-        "  rule missing in capa-x: 'encrypt or decrypt via WinCrypt'",
-        "  rule missing in capa-x: 'get service handle'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "9bca6b99e7981208af4c7925b96fb9cf.exe_": {
       "diffs": 0,
@@ -597,12 +567,8 @@
       "details": []
     },
     "Practical Malware Analysis Lab 14-02.exe_": {
-      "diffs": 3,
-      "details": [
-        "  rule missing in capa-x: 'read file on Windows'",
-        "  rule missing in capa-x: 'read pipe'",
-        "  rule missing in capa-x: 'write file on Windows'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "Practical Malware Analysis Lab 16-02.exe_": {
       "diffs": 0,
@@ -637,30 +603,23 @@
       "details": []
     },
     "a30101595f6f28ab2f4b0b2cd177c3c4d2ab34a355ab7761a3795d0887c24ada.exe_": {
-      "diffs": 3,
-      "details": [
-        "  rule missing in capa-x: 'allocate thread local storage'",
-        "  rule missing in capa-x: 'encode data using XOR'",
-        "  rule missing in capa-x: 'hash data using djb2'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "a45e377dbb98a6b44fd4034bc3fff9b0.exe_": {
       "diffs": 0,
       "details": []
     },
     "a563c50c5fa0fd541248acaf72cc4e7d.exe_": {
-      "diffs": 3,
+      "diffs": 2,
       "details": [
-        "  rule missing in capa-x: 'allocate thread local storage'",
         "  rule extra in capa-x: 'enumerate files on Windows'",
         "  rule extra in capa-x: 'enumerate files recursively'"
       ]
     },
     "a6594d9550d56ddeaac8b3140821e698eefb7163ba29f0119c2ef19beb6040b0.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'encrypt data using Salsa20 or ChaCha'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "a6e9d94e286984b9e44c58df5eeb20cf5c08b9acff4af341ddecdfbe3ea9249d.elf_": {
       "diffs": 1,
@@ -689,10 +648,8 @@
       "details": []
     },
     "ad4229879180e267f431ac6666b6a0a2.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule missing in capa-x: 'compute adler32 checksum'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "af13e7583ed1b27c4ae219e344a37e2b.exe_": {
       "diffs": 0,
@@ -711,12 +668,8 @@
       "details": []
     },
     "b5f0524e69b3a3cf636c7ac366ca57bf5e3a8fdc8a9f01caf196c611a7918a87.elf_": {
-      "diffs": 3,
-      "details": [
-        "  rule missing in capa-x: 'get file attributes'",
-        "  rule missing in capa-x: 'move file'",
-        "  rule missing in capa-x: 'set socket configuration'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "b761e060c7114448d6a5fe276d4ca882c4bd702c12c4d73f6ad79b8dfac33448.exe_": {
       "diffs": 0,
@@ -747,10 +700,8 @@
       "details": []
     },
     "bf88e1bd4a3bde10b419a622278f1ff7.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule missing in capa-x: 'allocate thread local storage'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "bfb9b5391a13d0afd787e87ab90f14f5.dll_": {
       "diffs": 0,
@@ -773,10 +724,8 @@
       "details": []
     },
     "c2d46d256b8f9490c9599eea11ecef19fde7d4fdd2dea93604cee3cea8e172ac.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'contain loop'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "c335a9d41185a32ad918c5389ee54235.exe_": {
       "diffs": 1,
@@ -785,13 +734,8 @@
       ]
     },
     "c3699d0c7bd1276184249a487c1f0d7f.exe_": {
-      "diffs": 4,
-      "details": [
-        "  rule missing in capa-x: 'get session user name'",
-        "  rule missing in capa-x: 'hide graphical window'",
-        "  rule missing in capa-x: 'read pipe'",
-        "  rule missing in capa-x: 'receive data on socket'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "c66172b12971a329f8d5ff01665f204b.exe_": {
       "diffs": 0,
@@ -842,11 +786,8 @@
       "details": []
     },
     "e17e6a79ed614f5468d0eed758629697.elf_": {
-      "diffs": 2,
-      "details": [
-        "  rule extra in capa-x: 'authenticate HMAC'",
-        "  rule extra in capa-x: 'parse credit card information'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "e353d3fbfb5c3738a77a622adff9a416.exe_": {
       "diffs": 0,
@@ -897,9 +838,8 @@
       ]
     },
     "f59035192098e44b86c4648a0de4078edbe80352260276f4755d15d354f5fc58.exe_": {
-      "diffs": 2,
+      "diffs": 1,
       "details": [
-        "  rule missing in capa-x: 'hash data using SHA256'",
         "  rule extra in capa-x: 'check for unmoving mouse cursor'"
       ]
     },

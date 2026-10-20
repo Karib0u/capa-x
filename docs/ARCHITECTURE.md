@@ -94,7 +94,11 @@ to the shared freeze and matching layers.
 - **PE and ELF x86/x64:** format loaders emit file features; the shared
   recovery code finds functions and basic blocks; the x86 decoder and feature
   modules emit instruction and operand features. FLIRT enrichment is an
-  optional PE step before matching.
+  optional PE step before matching. Compatibility recovery evaluates
+  undefined pointer and operand-reference targets with a bounded abstract
+  interpreter over iced-x86, before late signature scans. It tracks private
+  state without executing samples; unsupported paths retain diagnostics.
+  See [ADR 0007](decisions/0007-candidate-evaluation.md).
 - **Raw shellcode:** the shellcode loader supplies an explicitly selected
   architecture, then uses the shared recovery and x86 feature pipeline without
   a container loader.

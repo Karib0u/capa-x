@@ -66,6 +66,53 @@ fn resolved(code: &[u8], arch: Architecture, branch: u64) -> Option<Vec<u64>> {
 }
 
 #[test]
+fn absolute_pointer_tables_do_not_absorb_adjacent_tables() {
+    for arch in [Architecture::X86, Architecture::X64] {
+        let width = arch.pointer_width();
+        let mut code = vec![
+            0x83,
+            0xf9,
+            1, // cmp ecx,1
+            0x77,
+            0x3b, // ja default (0x40)
+            0x89,
+            0xc9, // mov ecx,ecx
+            0xff,
+            0x24,
+            if width == 8 { 0xcd } else { 0x8d },
+        ];
+        code.extend_from_slice(&((SHELLCODE_BASE + 0x80) as u32).to_le_bytes());
+        code.resize(0x80, 0xcc);
+        for offset in [0x40, 0x44, 0x48, 0x4c] {
+            code[offset] = 0xc3;
+        }
+        for offset in [0x44u64, 0x48, 0x4c] {
+            code.extend_from_slice(&(SHELLCODE_BASE + offset).to_le_bytes()[..width]);
+        }
+        let branch = SHELLCODE_BASE + 7;
+        assert_eq!(
+            resolved(&code, arch, branch),
+            Some(vec![SHELLCODE_BASE + 0x44, SHELLCODE_BASE + 0x48])
+        );
+        let analysis = analyze_shellcode(&code, arch).unwrap();
+        assert!(!analysis.functions[&SHELLCODE_BASE]
+            .blocks
+            .iter()
+            .any(|block| block.addr == SHELLCODE_BASE + 0x4c));
+        code[5..7].copy_from_slice(&[0x90, 0x90]);
+        assert_eq!(resolved(&code, arch, branch), None);
+        if arch == Architecture::X64 {
+            let analysis = analyze_shellcode(&code, arch).unwrap();
+            assert!(crate::extract::recovery::jump_table_targets(
+                &analysis.image,
+                &analysis.instructions[&branch],
+            )
+            .is_empty());
+        }
+    }
+}
+
+#[test]
 fn arm_signed_offsets_recover_sorted_unique_cfg_edges() {
     let analysis = analyze_shellcode(&arm_code(), Architecture::AArch64).unwrap();
     let function = analysis.functions.get(&SHELLCODE_BASE).unwrap();

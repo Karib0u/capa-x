@@ -11,6 +11,12 @@ tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
 
 ### Fixed
 
+- Classify undefined pointer targets and discover referenced functions with
+  bounded x86/x64 candidate evaluation. Respect instruction interiors,
+  relocation source types, embedded PE data, and recovery pass ordering.
+  Unsupported evaluation paths emit contextual diagnostics.
+- Bound recognized absolute pointer jump tables by their unsigned selector
+  guard so adjacent tables do not become one function's successors.
 - Preserve caller continuations when conflicting instruction streams cannot
   establish no-return status. Keep plain pointer jumps separate from indexed
   jump tables and contain fallthrough at independent PE unwind entries.
@@ -156,6 +162,7 @@ the 200-sample evaluation corpus.
   functions, so scoped threads over an atomic cursor give the same load
   balancing as a work-stealing scheduler; reasoning and reopen criteria in
   [ADR 0002](docs/decisions/0002-parallelism.md).
-- No Vivisect emulator port. Most remaining missing rules are emulator-bound;
-  the decision and its reopen criteria are recorded in
-  [`KNOWN_DIVERGENCES.md`](KNOWN_DIVERGENCES.md).
+- Use bounded candidate evaluation for pointer classification and
+  unreferenced function discovery. A full Vivisect workspace emulator,
+  including API callback monitors, remains outside this implementation.
+  See [ADR 0007](docs/decisions/0007-candidate-evaluation.md).

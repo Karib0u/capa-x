@@ -81,80 +81,74 @@ of this project's release contract.
   capa rules do not target a library thunk's own address, and matched-rule sets
   are unaffected. Revisit only if a rule ever needs library-function scope.
 
-### KD-002 — function starts discovered by emulating unreferenced addresses
+### KD-002: function starts discovered by emulating unreferenced addresses
 
 - **Class:** recovery / function extent
-- **Direction:** capa-x reports fewer matches
-- **Affects:** `encrypt data using RC4 PRGA`, `resolve function by parsing PE
-  exports`, `enumerate PE sections`, `PEB access`, `shutdown system`,
-  `open clipboard`, `set application hook`, `get keyboard layout` (+9 rules
-  across the samples below)
-- **Samples:** `a70052c45e907820187c7e6bcdc7ecca.exe_` (all 7 of its diffs),
-  `70fd3347786ed7a4a43910e6778ef296.exe_` (3 of 4 missing),
-  `112f9f0e8d349858a80dd8c14190e620.exe_` (4 of 6),
-  `294b8db1…477bc.elf_` (2 of 4)
-- **Root cause:** `vivisect/analysis/generic/emucode.py` takes every named or
-  pointer-referenced address with no location yet, *emulates* from it
-  (`emu.runFunction(va, maxhit=1)`), and makes a function when the trace looks
-  like code — `watcher.looksgood()`: it reached a `ret`, raised no anomaly, and
-  no single mnemonic is ≥67% of the trace. Nothing about that verdict is
-  derivable from the byte pattern; it is the emulator's judgement of a run.
-  Attributing every reference function to the analysis module that created it
-  (snapshotting `vw.getFunctions()` between `amodlist` entries) puts 113 of
-  `a70052c4`'s 123 unrecovered roots and 93 of `70fd3347`'s 98 in this module.
-- **Upstream analogue:** `FEATURE_COUNT_TESTS_GHIDRA`'s comment that Ghidra
-  "may render functions as labels" — a backend whose function set is built by a
-  different method gets its own expectations.
-- **Status:** accepted. `emucode.py`-discovered code is not reachable
-  without porting an emulator, which is a separate project with its own
-  justification.
+- **Direction:** historically fewer matches
+- **Upstream mechanism:** `vivisect/analysis/generic/emucode.py:analyze`
+  gathers named and `REF_PTR` targets with no defined location, evaluates
+  them with `watcher` and `runFunction(maxhit=1)`, and repeats after accepted
+  functions expose new references. A return or known no-return exit and the
+  watcher's mnemonic-distribution check establish code.
+- **Implementation:** `capa-x/src/extract/recovery/emucode.rs` tracks known
+  registers, stack/private memory, effective addresses, and both branch
+  paths using the existing decoder. `pointers.rs` gathers candidates and
+  excludes existing instructions, typed data, and loader dead-data ranges.
+  Emucode runs before signature fallback and does not restart for references
+  created only by later passes. The native backend retains its prior policy.
+- **Evidence:** the three remaining missing rules on `112f9f0e...exe_` and
+  all four on `294b8db1...477bc.elf_` are recovered. Together with pointer
+  discovery, this also recovers three missing rules on `70fd3347...exe_`;
+  its `PEB access` discrepancy remains KD-014.
+- **Corrected attribution:** `a70052c4...exe_` still has seven missing rules.
+  Live `makeFunction` tracing shows that `0x405c40`, `0x405e80`,
+  `0x4051a0`, `0x406980`, and `0x406aa0` originate in
+  `AnalysisMonitor.apicall`, before `generic.emucode.analyze`. Later emucode
+  roots consume references from those functions. Counting functions created
+  during a module previously hid this dependency. These remaining misses
+  belong to KD-007, not an absent emucode pass.
+- **Status:** the missing candidate-discovery mechanism is implemented.
+  Support is bounded, not a claim of complete workspace-emulator parity:
+  unsupported operations, unresolved computed branches, and resource limits
+  produce contextual diagnostics. See
+  [ADR 0007](docs/decisions/0007-candidate-evaluation.md).
 
-### KD-003 — pointer targets classified as code by emulation
+### KD-003: pointer targets classified as code by emulation
 
 - **Class:** recovery / function extent
-- **Direction:** both — capa-x reports fewer matches where upstream accepts
-  a target, and more where upstream rejects one
-- **Affects:** `decrypt data using AES via x86 extensions`,
-  `parse credit card information`, `manually build AES constants`,
-  `hook routines via dlsym RTLD_NEXT`, `link function at runtime on Linux`,
-  `map or unmap memory on Linux`, `change memory permission on Linux` (+5 rules)
-- **Samples:** `2f7f5fb5de175e770d7eae87666f9831.elf_` (1192 of its 1825
-  unrecovered roots), `749cf36a…22c2.elf_` (11 rust-only functions, all 6 of
-  its diffs), `294b8db1…477bc.elf_` (25 roots)
-- **Root cause:** `generic/pointers.py` and `generic/pointertables.py` reach
-  `makeFunction` only through `VivWorkspace.analyzePointer`
-  (`vivisect/__init__.py:1997-2013`), whose decision is
-  `isProbablyCode` — an entry-signature check *followed by the same emulation
-  `emucode.watcher` performs* (`vivisect/__init__.py:1136-1161`). capa-x's
-  stand-in is `plausible_relocation_function`'s decoded-mnemonic whitelist
-  (`capa-x/src/extract/recovery/recovery.rs`), which is neither a superset nor a
-  subset of that verdict, so the class diverges in both directions.
-  `analyzePointer` also opens with `if self.getLocation(va) is not None:
-  return None`; on `749cf36a` the reference reaches all 11 contested addresses
-  as ordinary instructions inside functions `0x2003350`/`0x20043b0`, where
-  capa-x's flow leaves gaps (316 instructions against 369 over the identical
-  address range) and its relocation seeds then re-enter those gaps as separate
-  functions.
-- **Upstream analogue:** same as KD-002.
-- **Status:** accepted, and re-confirmed by later measurement. The "closing
-  the intra-function flow gaps removes the more-matches direction" hope this
-  entry carried was **measured and refuted**: the gap-driven extras are
-  not flow gaps but capa-x's own heuristic seeds (now KD-005),
-  and `e17e6a79`'s pair is reachable only through data pointers this entry's
-  own mechanism classifies.
-- **More evidence.** The same mechanism also owns 10 of the 21 reference
-  functions behind a measured set of missing rules, in the
-  *fewer-matches* direction: `b5f0524e…a87.elf_` — all 3 of its diffs
-  (`get file attributes`, `move file`, `set socket configuration`), functions
-  `0x80724b0`, `0x807d2a0` via `generic/pointers.py:analyze` and `0x80a3d80`,
-  `0x80a5860`, `0x80a2ad0`, `0x80a3120`, `0x808dd30` via
-  `generic/pointertables.py:handleArray` — and `49a34cfb…bb6.exe_`
-  (`contain obfuscated stackstrings`, `hash data with MD5`, one location of
-  `parse credit card information`), functions `0x61c740`, `0x619500`,
-  `0x52e3f0`, reached from `vivisect/base.py:_cb_opcode` →
-  `guessDataPointer` → `followPointer`. `isFunctionSignature` is `False` at all
-  of them, so the entry-signature half of `isProbablyCode` — the half v1 ported,
-  measured and reverted — would not recover any of them either.
+- **Direction:** historically both fewer and more matches
+- **Upstream mechanism:** `generic/pointers.py`, `generic/pointertables.py`,
+  and operand dereferences reach `VivWorkspace.analyzePointer`. It rejects
+  already defined locations, checks strings first, then calls
+  `isProbablyCode`, which accepts a registered function signature or the
+  same candidate evaluator used by emucode.
+- **Implementation:** compatibility recovery replaces the first-mnemonic
+  relocation whitelist with this signature/evaluation sequence. PE retains
+  relocation source slots so instruction operands cannot masquerade as data
+  pointers. ELF scans undefined pointer sources, including unaligned ones.
+  PE does not run the ELF generic pointer scan. Instruction interiors,
+  defined data, strings, and dead-data regions cannot become new starts.
+- **Evidence:** `decrypt data using AES via x86 extensions` on
+  `2f7f5fb5...elf_` and all three missing rules on `b5f0524e...a87.elf_`
+  are recovered. The latter includes pointer-only roots `0x80724b0` and
+  `0x807d2a0`. On `49a34cfb...exe_`, `contain obfuscated stackstrings`,
+  `hash data with MD5`, and `parse credit card information` are restored;
+  the remaining RC4 miss is KD-007.
+  All three former differences on `512a5575...c92.elf_` are also removed,
+  without requiring the full call monitor.
+- **Boundary regression coverage:** a relocated immediate must use emucode
+  rather than the data-pointer signature shortcut. Otherwise `0x413420` on
+  `6f99a2c8...exe_` is walked too early and its callee claims the shared
+  function `0x40d22a`, losing `read file on Windows`.
+- **Corrected attribution:** the six extras on `749cf36a...22c2.elf_` are
+  KD-004's unresolved reference imports. The two historical extras on
+  `e17e6a79...elf_` were caused by an absolute jump-table scan reading past
+  an unsigned selector bound into adjacent tables. They are not evidence
+  that a candidate evaluator accepts invalid function starts.
+- **Status:** the documented pointer-classification misses are resolved by
+  bounded candidate evaluation. Full workspace location and function-extent
+  parity remain separate concerns. Unsupported evaluation paths retain
+  diagnostics as described in ADR 0007.
 
 ### KD-004 — the reference cannot name imports behind `R_X86_64_PC32` relocations
 
@@ -270,34 +264,30 @@ of this project's release contract.
   General emulated switches, including bases established outside this local
   sequence, remain outside this implementation.
 
-### KD-007 — function starts created by the workspace emulator's call monitor
+### KD-007: function starts created by the workspace emulator's call monitor
 
 - **Class:** recovery / function extent
 - **Direction:** capa-x reports fewer matches
-- **Affects:** `calculate modulo 256 via x86 assembly`,
-  `encrypt data using RC4 PRGA`, `use io_uring IO interface on Linux`, and one
-  of the two upstream locations of `parse credit card information` on
-  `49a34cfb` (the other is KD-003, so that rule belongs to both classes)
-- **Samples:** `512a5575…c92.elf_` (all 3 of its diffs; functions `0x40b380`,
-  `0x40e080`, `0x404c47`, `0x404e8f`, `0x4052ac`, `0x40556d`),
-  `49a34cfb…bb6.exe_` (2 of its 4; functions `0x599940`, `0x5ff610`)
-- **Root cause:** `vivisect/impemu/monitor.py`. Two hooks on the workspace
-  emulator create functions that no static flow reaches:
-  `AnalysisMonitor.apicall` (line 159) types each argument of an emulated call
-  against the `impapi` tables and calls `vw.makeFunction(arg)` for any pointer
-  argument the table names `funcptr`; `addAnalysisResults` (line 72) replays
-  the operand dereferences the run evaluated and calls
-  `vw.guessDataPointer(val, tsize)` on the discrete ones, which reaches
-  `makeFunction` through the same `analyzePointer` → `isProbablyCode` path as
-  KD-003. Both depend on values that exist only during emulation, and `apicall`
-  additionally depends on the ~11.5k lines of `impapi` type tables
-  (the emulator decision). Measured during metadata parity work: none of these eight
-  functions is reachable by a call chain from any function capa-x recovers,
-  and `isFunctionSignature` is `False` at every one, so neither codeflow nor
-  `isProbablyCode`'s emulator-free half offers a way in.
-- **Upstream analogue:** same as KD-002 — a backend whose function set is built
-  by a different method gets its own expectations.
-- **Status:** accepted, downstream of the emulator decision.
+- **Affects:** the seven remaining misses on `a70052c4...exe_`, including
+  RC4, PE export parsing, and socket send/receive; the RC4 miss on
+  `49a34cfb...bb6.exe_`.
+- **Root cause:** `vivisect/impemu/monitor.py:AnalysisMonitor.apicall`
+  types emulated arguments with the `impapi` tables and creates functions
+  for arguments typed `funcptr`. `addAnalysisResults` also replays evaluated
+  dereferences through `guessDataPointer`. The values and API argument types
+  require workspace call analysis beyond a candidate classifier.
+- **Evidence:** live creation-stack tracing on `a70052c4` attributes
+  `0x405c40`, `0x405e80`, `0x4051a0`, `0x406980`, and `0x406aa0` to
+  `apicall`. The first two already exist and are marked no-return when
+  upstream's emucode module starts. Later roots `0x405290` and `0x406b80`
+  originate in emucode but depend on references exposed by those callbacks.
+  On `49a34cfb`, the previously attributed roots include `0x599940` and
+  `0x5ff610`.
+- **Corrected attribution:** `512a5575...c92.elf_` no longer differs after
+  KD-002/KD-003 candidate discovery. Its earlier attribution to this class
+  does not imply that the callback monitor is necessary for its rule set.
+- **Status:** remains outside the bounded interpreter in ADR 0007. This is
+  not a remaining absence of pointer classification or emucode discovery.
 
 ### KD-008 — code the reference decodes but never wraps in a function
 

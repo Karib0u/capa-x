@@ -4,6 +4,85 @@ This page records the methodology behind the summary numbers in the project
 README. The measurements are reproducible evidence for a pinned implementation,
 ruleset, corpus, and host. They are not universal rankings.
 
+## Pointer and unreferenced-function discovery (capa 10.0.0)
+
+Measured on 2026-10-20 against main `69070db` and the KD-002/KD-003
+implementation described in ADR 0007. Both release binaries were freshly
+analyzed with `--no-rust-cache`, using the verified pinned capa 10.0.0
+reference cache. This compares rule names, not exact evidence addresses.
+
+| Outer corpus | Main | Candidate evaluation |
+|---|---:|---:|
+| Samples / reference-matched rules | 200 / 6,300 | 200 / 6,300 |
+| Missing / extra rules | 51 / 32 | 12 / 27 |
+| Total divergences | 83 | 39 |
+| Rule-level agreement | 98.68% | 99.38% |
+| Identical samples | 165/200 | 181/200 |
+| Analysis errors | 0 | 0 |
+
+Twenty samples improve by the per-sample difference count; no sample's
+count increases, and no new rule-level difference is introduced. The smoke
+corpus improves from 8 missing / 10 extra to
+1 missing / 9 extra, with identical samples increasing from 16/23 to 19/23.
+Both expected files are deliberately updated to preserve these gains.
+
+Representative changes:
+
+| Sample prefix | Diffs before / after | Evidence |
+|---|---:|---|
+| `112f9f0e` | 3 / 0 | Operand-reference candidates recover hook and keyboard capabilities |
+| `294b8db1` | 4 / 0 | Pointer and emucode discovery expose missing Linux capabilities |
+| `2f7f5fb5` | 1 / 0 | Recover AES through newly discovered code |
+| `b5f0524e` | 3 / 0 | Accept pointer-only roots without registered entry signatures |
+| `512a5575` | 3 / 0 | Recover RC4/modulo and io_uring without the API callback monitor |
+| `49a34cfb` | 4 / 1 | Recover stackstrings, MD5, and credit-card parsing |
+| `70fd3347` | 6 / 3 | Recover three missing rules; KD-014's overlapping PEB block remains |
+| `e17e6a79` | 2 / 0 | Prevent unbounded indexed jumps from absorbing adjacent pointer tables |
+| `a70052c4` | 7 / 7 | Live creation tracing attributes the remaining roots to KD-007 callbacks |
+
+The ELF table correction is necessary alongside pointer discovery:
+`i386Opcode.getBranches` labels only scale-four SIB operands as `BR_TABLE`.
+The old fallback also scanned scale-eight operands until a non-code pointer,
+swallowing adjacent tables and defining unrelated addresses as instructions.
+Recognized guarded absolute tables now use the actual selector bound; other
+scale-eight operands remain unresolved. This removes the two `e17e6a79`
+extras previously attributed to pointer classification.
+
+The candidate-source tests also distinguish RIP-relative LEA from absolute
+x86 LEA. `i386ImmMemOper.getOperValue` returns no static value without an
+emulator for the latter. Treating it as a `REF_PTR` incorrectly introduced
+`check OS version` on `49a34cfb`: `lea ecx,[0x456850]` at `0x43979f`
+created a speculative function whose call exposed `0x4397f0`. The pinned
+workspace holds `0x456850` as a four-byte data location, never evaluates it
+as an emucode candidate, and has no function at `0x4397f0`. Restricting LEA
+candidate references to the decoder-supported RIP-relative form removes
+that extra without losing the three recovered rules.
+
+Validation of the final implementation:
+
+- `cargo test --workspace`: 437 passed, 6 slow gates ignored.
+- `cargo test -p capa-x --test features_parity`: 4 passed.
+- `cargo +1.98.1 clippy --workspace --all-targets -- -D warnings`: passed.
+  The default 1.96 toolchain rejects existing MSRV-preserving lint annotations.
+- `cargo fmt --all -- --check`, `git diff --check`, `scripts/check_env.sh`,
+  and all 6 Python script tests: passed.
+- Determinism: 72 runs at jobs 1, 2, and 4, with two repetitions per job
+  count over 12 samples, matched the single-job output byte for byte.
+  The set comprises `corpus-jobs.txt` plus `b5f0524e`, `2f7f5fb5`,
+  `294b8db1`, `6f99a2c8`, `e17e6a79`, `49a34cfb`, and `a70052c4`.
+
+Reproduce the rule comparison and deliberate baseline refresh:
+
+```bash
+cargo build --release
+python3 scripts/difftest.py --mode full --samples scripts/corpus-outer.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-rust-cache
+python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-rust-cache
+```
+
+Add `--write-expected` only when deliberately recording the same change.
+
 ## Recovery gap verification (capa 10.0.0)
 
 Measured on 2026-10-20 against latest main `b3835e1` and the recovery fixes
