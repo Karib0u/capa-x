@@ -185,12 +185,23 @@ impl Discovery {
                     if op.is_ip_rel_memory_operand() {
                         self.add(analysis, target, SeedKind::Emulated);
                     }
-                } else if !covered(analysis, target) {
-                    self.data_locations.push((
-                        target,
-                        target.saturating_add(op.memory_size().size() as u64),
-                    ));
-                    if op.memory_size().size() == analysis.image.architecture.pointer_width()
+                    // i386/calling.py:AnalysisMonitor.prehook explicitly
+                    // records LEA operands despite isDeref being false.
+                    // addAnalysisResults then calls guessDataPointer on the
+                    // source slot. The amd64 monitor has no such LEA hook.
+                    if analysis.image.architecture != Architecture::X86 {
+                        continue;
+                    }
+                }
+                if !covered(analysis, target) {
+                    let size = if op.mnemonic() == Mnemonic::Lea {
+                        op.op0_register().size()
+                    } else {
+                        op.memory_size().size()
+                    };
+                    self.data_locations
+                        .push((target, target.saturating_add(size as u64)));
+                    if size == analysis.image.architecture.pointer_width()
                         && !analysis.image.import_locations.contains_key(&target)
                         && !probable_string(analysis, target)
                     {

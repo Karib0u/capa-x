@@ -98,6 +98,9 @@ to the shared freeze and matching layers.
   undefined pointer and operand-reference targets with a bounded abstract
   interpreter over iced-x86, before late signature scans. It tracks private
   state without executing samples; unsupported paths retain diagnostics.
+  Windows callback recovery reuses this state for typed API arguments.
+  x86/x64 compatibility recovery uses registered entry signatures rather than broad
+  prologue and raw call scans; native recovery retains those fallbacks.
   See [ADR 0007](decisions/0007-candidate-evaluation.md).
 - **Raw shellcode:** the shellcode loader supplies an explicitly selected
   architecture, then uses the shared recovery and x86 feature pipeline without

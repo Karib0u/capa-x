@@ -60,6 +60,61 @@ fn recovery_populates_code_data_and_call_indexes() {
 }
 
 #[test]
+fn callback_and_lea_discovery_recover_reference_function_roots() {
+    for (sample, targets) in [
+        (
+            "a70052c45e907820187c7e6bcdc7ecca.exe_",
+            &[0x4051a0, 0x405c40, 0x405e80, 0x406980][..],
+        ),
+        ("253309d8b3675d3cc61d4bf23aa15d4b.dll_", &[0x1000429f]),
+        // This executable callback shares a dead-data section with imports.
+        ("c335a9d41185a32ad918c5389ee54235.exe_", &[0x402820]),
+        // The x86 LEA monitor follows a pointer slot at 0x6a6b3c; the
+        // pointed-to function calls the RC4 implementation at 0x599940.
+        (
+            "49a34cfbeed733c24392c9217ef46bb6.exe_",
+            &[0x599030, 0x599940],
+        ),
+        // A relocation points to this function. Its lock xadd must not force
+        // recovery to depend on finding raw call opcodes in unrelated bytes.
+        (
+            "74e0758e469ab87f38cda7925d696ea41a122364891860e1ae30fc9ff2f68e7d.exe_",
+            &[0x4037bc],
+        ),
+    ] {
+        let bytes = std::fs::read(root().join("tests/testfiles").join(sample)).unwrap();
+        let analysis = analyze(&bytes).unwrap();
+        for target in targets {
+            assert!(
+                analysis.functions.contains_key(target),
+                "{sample}: {target:#x}"
+            );
+        }
+        if sample.starts_with("49a34") {
+            assert!(!analysis.functions.contains_key(&0x6a6b3c));
+        }
+    }
+}
+
+#[test]
+fn compatibility_uses_the_stored_relative_relocation_pointer() {
+    use capa_x::extract::recovery::{analyze_with_backend, RecoveryBackend};
+
+    let bytes = std::fs::read(
+        root()
+            .join("tests/testfiles")
+            .join("e5e8c139772efe47f738f4788ae9b3dc97960b1c006bc6a406715cab69f27cfc.elf_"),
+    )
+    .unwrap();
+    let compat = analyze(&bytes).unwrap();
+    // R_X86_64_RELATIVE at 0x6c08 has addend 0x4b30, but the stored slot
+    // is zero. Vivisect reads that slot instead of applying the addend.
+    assert!(!compat.functions.contains_key(&0x2004b30));
+    let native = analyze_with_backend(&bytes, RecoveryBackend::Native).unwrap();
+    assert!(native.functions.contains_key(&0x2004b30));
+}
+
+#[test]
 fn pointer_discovery_recovers_entries_without_signatures_and_preserves_shared_functions() {
     let bytes = std::fs::read(
         root()
