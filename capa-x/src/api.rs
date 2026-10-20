@@ -352,13 +352,14 @@ fn extract_pe_input(
 ) -> Result<LoadedInput, AnalysisError> {
     let (mut features, analysis, libraries) = timed(&mut timings.load_and_recover, || {
         let features = extract_pe(bytes).map_err(AnalysisError::PeExtract)?;
-        let analysis = recovery::analyze(bytes).map_err(AnalysisError::PeRecover)?;
         let signatures = if let Some(path) = &options.signatures_path {
             Signatures::from_path_with_options(path, options)
         } else {
             Signatures::embedded_with_options(options)
         }
         .map_err(AnalysisError::Signature)?;
+        let analysis = recovery::analyze_with_signatures(bytes, &signatures)
+            .map_err(AnalysisError::PeRecover)?;
         let libraries =
             identify_library_functions(&analysis, &signatures).map_err(AnalysisError::Signature)?;
         Ok::<_, AnalysisError>((features, analysis, libraries))

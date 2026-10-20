@@ -24,10 +24,12 @@ pub(super) struct Discovery {
     candidates: BTreeMap<u64, SeedKind>,
     tried: BTreeSet<u64>,
     examined_instructions: BTreeSet<u64>,
+    examined_functions: BTreeSet<u64>,
     scanned: bool,
     emucode_active: bool,
     data_locations: Vec<(u64, u64)>,
     candidate_limit_hit: bool,
+    relocation_index: usize,
 }
 
 impl Discovery {
@@ -54,10 +56,12 @@ impl Discovery {
             candidates,
             tried: BTreeSet::new(),
             examined_instructions: BTreeSet::new(),
+            examined_functions: BTreeSet::new(),
             scanned: !enabled,
             emucode_active: enabled,
             data_locations: Vec::new(),
             candidate_limit_hit: false,
+            relocation_index: 0,
         }
     }
 
@@ -73,7 +77,7 @@ impl Discovery {
     fn add(&mut self, analysis: &Analysis, target: u64, kind: SeedKind) {
         if (kind != SeedKind::Emulated || self.emucode_active)
             && analysis.image.is_executable_address(target)
-            && !analysis.image.is_dead_data(target)
+            && (kind != SeedKind::Emulated || !analysis.image.is_dead_data(target))
             && !covered(analysis, target)
             && !self.tried.contains(&target)
         {
@@ -85,19 +89,26 @@ impl Discovery {
         }
     }
 
+    fn mark_data(&mut self, start: u64, size: usize) {
+        let end = start.saturating_add(size as u64);
+        let first = self.data_locations.partition_point(|(_, end)| *end < start);
+        let last = self
+            .data_locations
+            .partition_point(|(start, _)| *start <= end);
+        let start = self
+            .data_locations
+            .get(first)
+            .filter(|_| first < last)
+            .map_or(start, |(previous, _)| start.min(*previous));
+        let end = last
+            .checked_sub(1)
+            .and_then(|index| self.data_locations.get(index))
+            .filter(|_| first < last)
+            .map_or(end, |(_, previous)| end.max(*previous));
+        self.data_locations.splice(first..last, [(start, end)]);
+    }
+
     fn collect(&mut self, analysis: &mut Analysis) {
-        if !self.scanned {
-            let width = analysis.image.architecture.pointer_width() as u64;
-            for &source in &analysis.image.relocation_locations {
-                if !covered(analysis, source) {
-                    self.data_locations
-                        .push((source, source.saturating_add(width)));
-                    if let Some(target) = super::read_pointer(&analysis.image, source) {
-                        self.add(analysis, target, SeedKind::PointerTarget);
-                    }
-                }
-            }
-        }
         if !self.scanned && analysis.image.format == ImageFormat::Elf {
             self.scanned = true;
             // `VivWorkspace.findPointers`: unaligned pointers are allowed on
@@ -129,8 +140,7 @@ impl Discovery {
                     });
                     self.add(analysis, target, SeedKind::PointerTarget);
                     if analysis.image.section_containing(target).is_some() {
-                        self.data_locations
-                            .push((source, source.saturating_add(width as u64)));
+                        self.mark_data(source, width);
                     }
                     // Upstream skips a whole pointer when its value is mapped.
                     offset += if analysis.image.section_containing(target).is_some() {
@@ -199,11 +209,13 @@ impl Discovery {
                     } else {
                         op.memory_size().size()
                     };
-                    self.data_locations
-                        .push((target, target.saturating_add(size as u64)));
+                    if let Some(size) = string_size(analysis, target) {
+                        self.mark_data(target, size);
+                        continue;
+                    }
+                    self.mark_data(target, size);
                     if size == analysis.image.architecture.pointer_width()
                         && !analysis.image.import_locations.contains_key(&target)
-                        && !probable_string(analysis, target)
                     {
                         if let Some(target) = super::read_pointer(&analysis.image, target) {
                             self.add(analysis, target, SeedKind::PointerTarget);
@@ -212,16 +224,6 @@ impl Discovery {
                 }
             }
         }
-        self.data_locations.sort_unstable();
-        let mut merged: Vec<(u64, u64)> = Vec::new();
-        for &(start, end) in &self.data_locations {
-            if let Some(previous) = merged.last_mut().filter(|previous| start <= previous.1) {
-                previous.1 = previous.1.max(end);
-            } else {
-                merged.push((start, end));
-            }
-        }
-        self.data_locations = merged;
         if self.candidate_limit_hit {
             analysis.diagnostics.push(RecoveryDiagnostic {
                 address: analysis.image.image_base,
@@ -239,9 +241,45 @@ impl Discovery {
         if analysis.image.architecture == Architecture::AArch64 {
             return None;
         }
+        if analysis.image.format == ImageFormat::Pe {
+            // ms/hotpatch.py:analyzeFunction marks a run of at least five
+            // identical NOP or INT3 bytes immediately before a new function.
+            // It runs before generic.emucode evaluates remaining candidates.
+            for &function in analysis.function_order.keys() {
+                if !self.examined_functions.insert(function) {
+                    continue;
+                }
+                let Some(section) = analysis.image.section_containing(function) else {
+                    continue;
+                };
+                let Some(size) = function
+                    .checked_sub(section.address)
+                    .and_then(|size| usize::try_from(size).ok())
+                else {
+                    continue;
+                };
+                let Some(bytes) = analysis.image.bytes_at(section.address, size) else {
+                    continue;
+                };
+                let Some(&padding @ (0x90 | 0xcc)) = bytes.last() else {
+                    continue;
+                };
+                let count = bytes
+                    .iter()
+                    .rev()
+                    .take_while(|&&byte| byte == padding)
+                    .count();
+                let start = function.saturating_sub(count as u64);
+                if count >= 5 && !covered(analysis, start) {
+                    self.mark_data(start, count);
+                }
+            }
+        }
         // Drain this candidate batch before rescanning operands. Walking one
         // new function per call must not rescan the whole instruction map.
-        if !self.scanned || self.candidates.is_empty() {
+        if self.relocation_index >= analysis.image.relocation_locations.len()
+            && (!self.scanned || self.candidates.is_empty())
+        {
             self.collect(analysis);
         }
         if self.tried.len() >= MAX_CANDIDATES {
@@ -254,7 +292,31 @@ impl Discovery {
             }
             return None;
         }
-        while let Some((address, kind)) = self.candidates.pop_first() {
+        loop {
+            // generic.relocations follows each pointer before typing the next
+            // slot. A later relocation can lie inside the code just discovered.
+            let candidate = if let Some(&source) = analysis
+                .image
+                .relocation_locations
+                .get(self.relocation_index)
+            {
+                self.relocation_index += 1;
+                if covered(analysis, source) {
+                    continue;
+                }
+                self.mark_data(source, analysis.image.architecture.pointer_width());
+                super::read_pointer(&analysis.image, source)
+                    .map(|target| (target, SeedKind::PointerTarget))
+            } else {
+                self.candidates.pop_first()
+            };
+            let Some((address, kind)) = candidate else {
+                if self.relocation_index < analysis.image.relocation_locations.len() {
+                    continue;
+                }
+                break;
+            };
+
             if self.tried.len() >= MAX_CANDIDATES {
                 analysis.diagnostics.push(RecoveryDiagnostic {
                     address,
@@ -263,13 +325,21 @@ impl Discovery {
                 self.candidates.clear();
                 return None;
             }
-            if !self.tried.insert(address)
+            if !analysis.image.is_executable_address(address)
+                || !self.tried.insert(address)
                 || covered(analysis, address)
                 || emucode::in_data(&self.data_locations, address)
-                || analysis.image.is_dead_data(address)
-                || (kind == SeedKind::PointerTarget && probable_string(analysis, address))
+                || (kind == SeedKind::Emulated && analysis.image.is_dead_data(address))
             {
                 continue;
+            }
+            if kind == SeedKind::PointerTarget {
+                if let Some(size) = string_size(analysis, address) {
+                    // analyzePointer/followPointer creates a string location.
+                    // Later traces must reject branches into these bytes.
+                    self.mark_data(address, size);
+                    continue;
+                }
             }
             // `isProbablyCode` accepts a registered entry signature before
             // running the watcher. The signature scanner already populated
@@ -301,7 +371,7 @@ impl Discovery {
                 Verdict::NotCode => {}
             }
         }
-        if self.examined_instructions.len() < analysis.instructions.len() {
+        if !self.scanned || self.examined_instructions.len() < analysis.instructions.len() {
             return self.next(analysis, noreturn);
         }
         None
@@ -309,17 +379,15 @@ impl Discovery {
 }
 
 #[allow(clippy::chunks_exact_to_as_chunks)] // Keep the Rust 1.87 MSRV.
-fn probable_string(analysis: &Analysis, address: u64) -> bool {
+fn string_size(analysis: &Analysis, address: u64) -> Option<usize> {
     // `VivWorkspace.analyzePointer` checks strings before code. Keep this
     // bounded and require the same printable ASCII and NUL terminator.
-    let Some(bytes) = analysis.image.bytes_at(address, 4096) else {
-        return false;
-    };
+    let bytes = analysis.image.bytes_at(address, 4096)?;
     let printable = |byte: u8| byte.is_ascii_graphic() || byte == b' ' || matches!(byte, 9..=13);
     for (count, &byte) in bytes.iter().enumerate() {
         if byte == 0 {
             if count >= 4 {
-                return true;
+                return Some(count + 1);
             }
             break;
         }
@@ -327,19 +395,15 @@ fn probable_string(analysis: &Analysis, address: u64) -> bool {
             break;
         }
     }
-    let Some(&charset) = bytes.get(1) else {
-        return false;
-    };
+    let &charset = bytes.get(1)?;
     for (index, pair) in bytes.chunks_exact(2).enumerate() {
-        let Some((&first, rest)) = pair.split_first() else {
-            return false;
-        };
+        let (&first, rest) = pair.split_first()?;
         if first == 0 {
-            return index > 4;
+            return (index > 4).then_some((index + 1) * 2);
         }
         if !printable(first) || rest.first() != Some(&charset) {
-            return false;
+            return None;
         }
     }
-    false
+    None
 }

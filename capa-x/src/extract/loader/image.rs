@@ -222,12 +222,18 @@ fn collect_pe_relocation_locations(pe: &PE<'_>, image: &mut LoadedImage) {
 /// Unknown ordinals keep their original `#N` form, as capa does for ordinal
 /// imports it cannot name.
 ///
-/// Only the socket tables are transcribed. `PE/ordlookup` also ships
-/// `mfc42`, `oledlg`, `msvbvm60`, `comctl32` and `oleaut32`; no corpus
+/// The socket and automation tables are transcribed. `PE/ordlookup` also ships
+/// `mfc42`, `oledlg`, `msvbvm60` and `comctl32`; no corpus
 /// sample has needed them yet, and each is a large table best added when a
 /// measurement asks for it.
 fn resolve_pe_ordinal(dll: &str, ordinal: u16) -> Option<&'static str> {
-    let dll = dll.trim_end_matches(".dll");
+    let dll = dll
+        .get(..dll.len().saturating_sub(4))
+        .filter(|_| dll.to_ascii_lowercase().ends_with(".dll"))
+        .unwrap_or(dll);
+    if dll.eq_ignore_ascii_case("oleaut32") {
+        return super::oleaut32_ordinals::lookup(ordinal);
+    }
     // `PE/ordlookup/__init__.py`: `'ws2_32.dll'` and `'wsock32.dll'` both
     // resolve against `ws2_32.ord_names`.
     if dll.eq_ignore_ascii_case("ws2_32") || dll.eq_ignore_ascii_case("wsock32") {
@@ -568,6 +574,8 @@ pub struct LoadedImage {
     pub load_diagnostics: Vec<String>,
     /// PE relocation slots, retained as pointer locations during recovery.
     pub(crate) relocation_locations: Vec<u64>,
+    /// ELF PLT section ranges, separate from the PT_LOAD memory mappings.
+    pub(crate) elf_plt_ranges: Vec<(u64, u64)>,
     /// Vivisect's PE loader marks directory sections and sections without
     /// code, execute, or write characteristics as dead data. The end address
     /// is inclusive because `VivWorkspace.isDeadData()` uses `<= end`.
@@ -835,6 +843,7 @@ impl LoadedImage {
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
             relocation_locations: Vec::new(),
+            elf_plt_ranges: Vec::new(),
             dead_data,
             uninitialized,
             primary_code,
@@ -1041,11 +1050,37 @@ impl LoadedImage {
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
             relocation_locations: Vec::new(),
+            elf_plt_ranges: Vec::new(),
             dead_data: Vec::new(),
             uninitialized: Vec::new(),
             primary_code,
             mapped_bytes,
         };
+        // vivisect/analysis/elf/elfplt.py:getPLTs uses section names even
+        // though the image's executable mappings come from PT_LOAD segments.
+        for section in &elf.section_headers {
+            let Some(name) = elf.shdr_strtab.get_at(section.sh_name) else {
+                continue;
+            };
+            if name.starts_with(".plt") || name == ".rela.plt" {
+                let start =
+                    section
+                        .sh_addr
+                        .checked_add(load_bias)
+                        .ok_or(ImageError::AddressOverflow {
+                            format: ImageFormat::Elf,
+                            context: "PLT section address",
+                        })?;
+                let end =
+                    start
+                        .checked_add(section.sh_size)
+                        .ok_or(ImageError::AddressOverflow {
+                            format: ImageFormat::Elf,
+                            context: "PLT section size",
+                        })?;
+                image.elf_plt_ranges.push((start, end));
+            }
+        }
         for relocation in elf
             .dynrelas
             .iter()
@@ -1123,6 +1158,7 @@ impl LoadedImage {
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
             relocation_locations: Vec::new(),
+            elf_plt_ranges: Vec::new(),
             dead_data: Vec::new(),
             uninitialized: Vec::new(),
             primary_code: vec![(
@@ -1285,6 +1321,7 @@ impl LoadedImage {
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
             relocation_locations: Vec::new(),
+            elf_plt_ranges: Vec::new(),
             dead_data: Vec::new(),
             uninitialized: Vec::new(),
             primary_code,
@@ -1398,6 +1435,19 @@ impl LoadedImage {
                 })
             })
             .flatten();
+        // envi/archs/i386/disasm.py:disasm calls getOperValue(0) for
+        // INS_TRAP when platform metadata is present. INT1 has no operand,
+        // so the pinned decoder rejects it. The amd64 decoder does not
+        // perform this check.
+        if self.architecture == Architecture::X86
+            && matches!(self.format, ImageFormat::Pe | ImageFormat::Elf)
+            && opcode_offset.is_some_and(|offset| bytes.get(offset) == Some(&0xf1))
+        {
+            return Err(ImageError::InvalidInstruction {
+                address,
+                reason: "INT1 has no operand for the reference i386 platform trap check".into(),
+            });
+        }
         let bound_offset = opcode_offset.filter(|offset| bytes.get(*offset) == Some(&0x62));
         // The same opcode table gives C6/C7 and 8F direct MOV/POP entries,
         // ignoring the ModRM extension bits that modern decoders validate.
@@ -2394,6 +2444,7 @@ impl LoadedImage {
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
             relocation_locations: Vec::new(),
+            elf_plt_ranges: Vec::new(),
             dead_data: Vec::new(),
             uninitialized: Vec::new(),
             primary_code,
@@ -2508,6 +2559,7 @@ mod tests {
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
             relocation_locations: Vec::new(),
+            elf_plt_ranges: Vec::new(),
             dead_data: Vec::new(),
             uninitialized: Vec::new(),
             primary_code: vec![(0x1000, 0x1000u64.saturating_add(bytes.len() as u64))],
@@ -2554,6 +2606,19 @@ mod tests {
     }
 
     #[test]
+    fn compatibility_preserves_the_i386_platform_int1_decode_failure() {
+        for architecture in [Architecture::X86, Architecture::X64] {
+            let mut image = LoadedImage::from_shellcode(&[0xf1], architecture);
+            image.format = ImageFormat::Pe;
+            assert!(image.decode_at(image.image_base).is_ok());
+            assert_eq!(
+                image.decode_at_compat(image.image_base).is_err(),
+                architecture == Architecture::X86
+            );
+        }
+    }
+
+    #[test]
     fn truncated_instruction_is_a_contextual_error() {
         let image = synthetic_image(
             vec![0x48, 0x8b],
@@ -2590,6 +2655,17 @@ mod tests {
         assert_eq!(resolve_pe_ordinal("wsock32", 116), Some("WSACleanup"));
         assert_eq!(resolve_pe_ordinal("wsock32.dll", 9999), None);
         assert_eq!(resolve_pe_ordinal("kernel32.dll", 10), None);
+    }
+
+    #[test]
+    fn automation_ordinals_resolve_with_case_insensitive_library_names() {
+        assert_eq!(
+            resolve_pe_ordinal("OLEAUT32.DLL", 2),
+            Some("SysAllocString")
+        );
+        assert_eq!(resolve_pe_ordinal("oleaut32", 8), Some("VariantInit"));
+        assert_eq!(resolve_pe_ordinal("oleaut32.dll", 65535), None);
+        assert_eq!(resolve_pe_ordinal("WS2_32.DLL", 115), Some("WSAStartup"));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! Port of pinned Vivisect 1.3.2 `vivisect/analysis/i386/golang.py`.
+//! Port of pinned Vivisect 1.3.2 `vivisect/analysis/{i386,amd64}/golang.py`.
 //!
 //! Upstream's own summary: "GO binaries start from a single export and proceed
 //! thru several functions that initialize GO. Specific application code is
@@ -12,8 +12,7 @@
 //! indirect call. Measured on `49a34cfbeed733c24392c9217ef46bb6.exe_`, it is
 //! the root of 966 of the reference's 1709 functions.
 //!
-//! Registered for i386 only, and gated on the same `Go build ID: ` marker
-//! upstream checks for.
+//! Gated on the same `Go build ID: ` marker upstream checks for.
 
 use iced_x86::{Mnemonic, OpKind};
 
@@ -39,6 +38,26 @@ const GO_I386_SEQUENCE: &[Mnemonic] = &[
     Mnemonic::Pop,
 ];
 
+/// amd64/golang.py:_GOLANG_AMD64_INSTRS. LEA at len - 6 points to
+/// the eight-byte runtime_main slot.
+const GO_AMD64_SEQUENCE: &[Mnemonic] = &[
+    Mnemonic::Cld,
+    Mnemonic::Call,
+    Mnemonic::Mov,
+    Mnemonic::Mov,
+    Mnemonic::Mov,
+    Mnemonic::Mov,
+    Mnemonic::Call,
+    Mnemonic::Call,
+    Mnemonic::Call,
+    Mnemonic::Lea,
+    Mnemonic::Push,
+    Mnemonic::Push,
+    Mnemonic::Call,
+    Mnemonic::Pop,
+    Mnemonic::Pop,
+];
+
 /// `golang.py:81` -- `instrs[len(match) - idx]` with `idx = 5`.
 const PUSH_INDEX: usize = GO_I386_SEQUENCE.len() - 5;
 
@@ -50,7 +69,9 @@ const BUILD_ID_MARKER: &[u8] = b"Go build ID: ";
 /// its first bytes. The section check is upstream's own guard against matching
 /// "a `.upxN` segment of a packed sample".
 pub fn is_go_image(image: &LoadedImage) -> bool {
-    if image.format != ImageFormat::Pe || image.architecture != Architecture::X86 {
+    if image.format != ImageFormat::Pe
+        || !matches!(image.architecture, Architecture::X86 | Architecture::X64)
+    {
         return false;
     }
     image
@@ -78,6 +99,20 @@ pub fn runtime_main(
     entry: &Function,
     blocks_at: &dyn Fn(u64) -> Option<Function>,
 ) -> Option<u64> {
+    if image.architecture == Architecture::X64 {
+        let lea = find_sequence(
+            &entry.blocks,
+            GO_AMD64_SEQUENCE,
+            GO_AMD64_SEQUENCE.len() - 6,
+        )?;
+        if lea.op_count() != 2 || !lea.is_ip_rel_memory_operand() {
+            return None;
+        }
+        let pointer = lea.ip_rel_memory_address();
+        let target = super::read_pointer(image, pointer)?;
+        image.bytes_at(target, 8)?.get(..8)?;
+        return Some(target);
+    }
     let push = find_sequence_block(&entry.blocks)
         .or_else(|| find_sequence_block_via_stack(image, entry, blocks_at))?;
     // `parse_push_imm(..., get_content=True)`: the immediate is a pointer, and
@@ -92,21 +127,29 @@ pub fn runtime_main(
 /// `find_golang_bblock`: the first block that contains [`GO_I386_SEQUENCE`]
 /// starting at its first `cld`.
 fn find_sequence_block(blocks: &[BasicBlock]) -> Option<iced_x86::Instruction> {
+    find_sequence(blocks, GO_I386_SEQUENCE, PUSH_INDEX)
+}
+
+fn find_sequence(
+    blocks: &[BasicBlock],
+    sequence: &[Mnemonic],
+    selected: usize,
+) -> Option<iced_x86::Instruction> {
     let recorded = blocks.iter().find_map(|block| {
         let from_cld = block
             .insns
             .iter()
-            .position(|insn| insn.x86_instruction().mnemonic() == GO_I386_SEQUENCE[0])?;
+            .position(|insn| Some(&insn.x86_instruction().mnemonic()) == sequence.first())?;
         let tail = block.insns.get(from_cld..)?;
-        (tail.len() >= GO_I386_SEQUENCE.len()).then_some(tail)
+        (tail.len() >= sequence.len()).then_some(tail)
     })?;
     // Upstream stops at the first block long enough and then requires an exact
     // prefix match -- a near miss is not retried against later blocks.
     recorded
         .iter()
-        .zip(GO_I386_SEQUENCE)
+        .zip(sequence)
         .all(|(insn, mnemonic)| insn.x86_instruction().mnemonic() == *mnemonic)
-        .then(|| recorded.get(PUSH_INDEX).map(|insn| *insn.x86_instruction()))?
+        .then(|| recorded.get(selected).map(|insn| *insn.x86_instruction()))?
 }
 
 /// `find_golang_bblock_via_stack`: some Go executables put the sequence one
@@ -273,6 +316,21 @@ mod tests {
         // The marker prefixes the code, so the sequence starts past it.
         let start = TEXT + MARKER_LEN;
         let entry = block(&image, start, GO_I386_SEQUENCE.len());
+        assert_eq!(runtime_main(&image, &entry, &no_blocks), Some(RUNTIME_MAIN));
+    }
+
+    #[test]
+    fn reads_amd64_runtime_main_through_a_rip_relative_pointer() {
+        let mut code = go_entry_sequence();
+        let displacement = (POINTER as i64 - (TEXT + MARKER_LEN + 36) as i64) as i32;
+        let mut lea = vec![0x48, 0x8d, 0x05];
+        lea.extend_from_slice(&displacement.to_le_bytes());
+        lea.push(0x50); // push rax
+        code.splice(29..34, lea);
+        let mut image = image_with(&code, true);
+        image.architecture = Architecture::X64;
+        let entry = block(&image, TEXT + MARKER_LEN, GO_AMD64_SEQUENCE.len());
+        assert!(is_go_image(&image));
         assert_eq!(runtime_main(&image, &entry, &no_blocks), Some(RUNTIME_MAIN));
     }
 

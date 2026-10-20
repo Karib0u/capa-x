@@ -15,8 +15,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::address::Address;
 use crate::features::Feature;
 
-use super::image::ImageFormat;
+use super::image::{Architecture, ImageFormat};
 use super::recovery::{Analysis, EdgeKind, Function};
+use crate::extract::decoder::Flow;
 
 /// capa/features/extractors/viv/function.py: `extract_features` /
 /// `FUNCTION_HANDLERS`.
@@ -24,7 +25,7 @@ pub fn extract_features(analysis: &Analysis, function: &Function) -> Vec<(Addres
     let mut out = Vec::new();
     out.extend(extract_function_symtab_names(analysis, function));
     out.extend(extract_function_calls_to(analysis, function));
-    out.extend(extract_function_loop(function));
+    out.extend(extract_function_loop(function, analysis.image.architecture));
     out
 }
 
@@ -73,20 +74,41 @@ fn extract_function_calls_to(analysis: &Analysis, function: &Function) -> Vec<(A
         .collect()
 }
 
-/// port of `extract_function_loop`. Builds the edge list from each block's
-/// already-recovered successor edges (`Analysis`'s CFG), excluding
-/// `TailCall` edges (a tail call leaves the function, so it can never be
-/// part of an intra-function loop) -- the remaining kinds
-/// (fallthrough/branch/jump-table) are exactly upstream's `BR_COND |
-/// BR_FALL | BR_TABLE | mnem=="jmp"` inclusion criteria, since our recovery
-/// model only records an edge for a block-terminating branch/fallthrough in
-/// the first place (never for a call, which doesn't end a block here).
-fn extract_function_loop(function: &Function) -> Vec<(Address, Feature)> {
+/// `viv/function.py:extract_function_loop` uses getBranches without an
+/// emulator on each block's final opcode. Recovered switch targets are not
+/// part of that edge list. AArch64 retains its native CFG-based extraction.
+fn extract_function_loop(
+    function: &Function,
+    architecture: Architecture,
+) -> Vec<(Address, Feature)> {
     let mut edges = Vec::new();
     for block in &function.blocks {
-        for edge in &block.succs {
-            if edge.kind != EdgeKind::TailCall {
-                edges.push((block.addr, edge.target));
+        if architecture == Architecture::AArch64 {
+            for edge in &block.succs {
+                if edge.kind != EdgeKind::TailCall {
+                    edges.push((block.addr, edge.target));
+                }
+            }
+        } else if let Some(insn) = block.insns.last() {
+            if matches!(
+                insn.flow,
+                Flow::Next | Flow::Call | Flow::IndirectCall | Flow::ConditionalBranch
+            ) {
+                edges.push((block.addr, insn.next_address));
+            }
+            if matches!(
+                insn.flow,
+                Flow::ConditionalBranch | Flow::UnconditionalBranch
+            ) {
+                if let Some(target) = insn.direct_target {
+                    edges.push((block.addr, target));
+                }
+            } else if insn.flow == Flow::IndirectBranch {
+                // A dereferenced jump contributes its pointer/table address,
+                // not the runtime destination stored there.
+                if let Some(target) = insn.memory_target {
+                    edges.push((block.addr, target));
+                }
             }
         }
     }
@@ -220,6 +242,41 @@ mod tests {
     // ---- extract_function_loop ----
 
     #[test]
+    fn x86_loop_features_use_opcode_branches_not_resolved_indirect_targets() {
+        use crate::extract::image::LoadedImage;
+        for (head, expected) in [([0xeb, 0x00], true), ([0xff, 0xe0], false)] {
+            let image =
+                LoadedImage::from_shellcode(&[head[0], head[1], 0xeb, 0xfc], Architecture::X86);
+            let base = image.image_base;
+            let function = Function {
+                addr: base,
+                blocks: vec![
+                    BasicBlock {
+                        addr: base,
+                        insns: vec![image.decode_at(base).unwrap()],
+                        succs: vec![Edge {
+                            target: base + 2,
+                            kind: EdgeKind::Branch,
+                        }],
+                    },
+                    BasicBlock {
+                        addr: base + 2,
+                        insns: vec![image.decode_at(base + 2).unwrap()],
+                        succs: vec![Edge {
+                            target: base,
+                            kind: EdgeKind::Branch,
+                        }],
+                    },
+                ],
+            };
+            assert_eq!(
+                !extract_function_loop(&function, Architecture::X86).is_empty(),
+                expected
+            );
+        }
+    }
+
+    #[test]
     fn function_loop_detected_across_two_blocks() {
         let function = Function {
             addr: 0x1000,
@@ -241,7 +298,7 @@ mod tests {
             ],
         };
         assert_eq!(
-            extract_function_loop(&function),
+            extract_function_loop(&function, Architecture::AArch64),
             vec![(
                 Address::Absolute(0x1000),
                 Feature::Characteristic("loop".to_string())
@@ -261,7 +318,7 @@ mod tests {
                 }],
             )],
         };
-        assert!(extract_function_loop(&straight_line).is_empty());
+        assert!(extract_function_loop(&straight_line, Architecture::AArch64).is_empty());
 
         // a tail call back to the function's own start doesn't count --
         // TailCall edges are excluded (the "call" leaves the function).
@@ -275,7 +332,7 @@ mod tests {
                 }],
             )],
         };
-        assert!(extract_function_loop(&tail_call_only).is_empty());
+        assert!(extract_function_loop(&tail_call_only, Architecture::AArch64).is_empty());
     }
 
     // ---- extract_function_calls_to ----
@@ -357,6 +414,9 @@ mod tests {
             ),
             seeds: BTreeMap::new(),
             functions: BTreeMap::new(),
+            function_order: BTreeMap::new(),
+            function_location_counts: BTreeMap::new(),
+            instruction_order: BTreeMap::new(),
             instructions: BTreeMap::new(),
             code_xrefs: BTreeMap::new(),
             data_xrefs: BTreeMap::new(),

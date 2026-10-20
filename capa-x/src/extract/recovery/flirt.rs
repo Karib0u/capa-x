@@ -398,6 +398,9 @@ struct MatcherState<'a> {
     data_xrefs_from: &'a BTreeMap<u64, Vec<u64>>,
     recognized: &'a mut BTreeMap<u64, String>,
     cache: BTreeMap<u64, CacheEntry>,
+    function_order: usize,
+    location_count: usize,
+    local_starts: &'a mut BTreeSet<u64>,
 }
 
 fn index_xrefs_by_source(index: &BTreeMap<u64, Vec<u64>>) -> BTreeMap<u64, Vec<u64>> {
@@ -417,30 +420,64 @@ pub fn identify_library_functions(
     analysis: &Analysis,
     signatures: &Signatures,
 ) -> Result<BTreeMap<u64, String>, FlirtError> {
+    identify_with_local_starts(analysis, signatures).map(|(libraries, _)| libraries)
+}
+
+/// Undefined local symbols cause makeFunction in viv_utils/flirt.py. Recovery
+/// consumes these starts before the fallback function-entry scan.
+pub(super) fn identify_with_local_starts(
+    analysis: &Analysis,
+    signatures: &Signatures,
+) -> Result<(BTreeMap<u64, String>, BTreeSet<u64>), FlirtError> {
     if analysis.image.format != ImageFormat::Pe || signatures.is_empty() {
-        return Ok(BTreeMap::new());
+        return Ok((BTreeMap::new(), BTreeSet::new()));
     }
 
+    let mut local_starts = BTreeSet::new();
     let mut recognized = BTreeMap::new();
     let code_xrefs_from = index_xrefs_by_source(&analysis.code_xrefs);
     let data_xrefs_from = index_xrefs_by_source(&analysis.data_xrefs);
-    for database in signatures.databases.iter() {
-        let mut state = MatcherState {
-            analysis,
-            database,
-            code_xrefs_from: &code_xrefs_from,
-            data_xrefs_from: &data_xrefs_from,
-            recognized: &mut recognized,
-            cache: BTreeMap::new(),
-        };
-        for address in analysis.functions.keys().copied() {
-            if state.recognized.contains_key(&address) {
-                continue;
+    let mut addresses: Vec<_> = analysis.functions.keys().copied().collect();
+    addresses.sort_by_key(|address| {
+        (
+            analysis
+                .function_order
+                .get(address)
+                .copied()
+                .unwrap_or(usize::MAX),
+            *address,
+        )
+    });
+    // viv_utils.flirt.FlirtFunctionAnalyzer runs each database when a
+    // function is created, with a fresh recursive cache for that invocation.
+    for address in addresses {
+        for database in signatures.databases.iter() {
+            if recognized.contains_key(&address) {
+                break;
             }
+            let mut state = MatcherState {
+                analysis,
+                database,
+                code_xrefs_from: &code_xrefs_from,
+                data_xrefs_from: &data_xrefs_from,
+                recognized: &mut recognized,
+                cache: BTreeMap::new(),
+                local_starts: &mut local_starts,
+                function_order: analysis
+                    .function_order
+                    .get(&address)
+                    .copied()
+                    .unwrap_or(usize::MAX),
+                location_count: analysis
+                    .function_location_counts
+                    .get(&address)
+                    .copied()
+                    .unwrap_or(usize::MAX),
+            };
             let _ = state.match_function(address)?;
         }
     }
-    Ok(recognized)
+    Ok((recognized, local_starts))
 }
 
 /// Adds the recovered code hierarchy while omitting recognized library
@@ -601,11 +638,20 @@ fn function_with_tail_blocks(analysis: &Analysis, root: &Function) -> Function {
 }
 
 impl MatcherState<'_> {
+    fn function_exists(&self, address: u64) -> bool {
+        self.analysis.functions.contains_key(&address)
+            && self
+                .analysis
+                .function_order
+                .get(&address)
+                .is_none_or(|order| *order <= self.function_order)
+    }
+
     fn match_function(&mut self, address: u64) -> Result<Option<String>, FlirtError> {
         if let Some(name) = self.recognized.get(&address) {
             return Ok(Some(name.clone()));
         }
-        if !self.analysis.functions.contains_key(&address) {
+        if !self.function_exists(address) {
             return Ok(None);
         }
         if let Some(entry) = self.cache.get(&address) {
@@ -758,12 +804,12 @@ impl MatcherState<'_> {
                     (false, Symbol::Local(name)) | (true, Symbol::Public(name)) => name,
                     _ => continue,
                 };
-                self.apply_name(base, name);
+                self.apply_name(base, name, !public);
             }
         }
     }
 
-    fn apply_name(&mut self, base: u64, name: &Name) {
+    fn apply_name(&mut self, base: u64, name: &Name, local: bool) {
         let address = if name.offset >= 0 {
             u64::try_from(name.offset)
                 .ok()
@@ -774,9 +820,24 @@ impl MatcherState<'_> {
                 .and_then(|offset| u64::try_from(offset).ok())
                 .and_then(|offset| base.checked_sub(offset))
         };
-        if let Some(address) =
-            address.filter(|address| self.analysis.functions.contains_key(address))
-        {
+        if let Some(address) = address {
+            if local
+                && !self.function_exists(address)
+                && self.containing_instruction(address).is_none()
+                && self.analysis.image.is_executable_address(address)
+            {
+                self.local_starts.insert(address);
+            }
+        }
+        if let Some(address) = address.filter(|address| {
+            self.function_exists(*address)
+                || (local
+                    && self.analysis.functions.contains_key(address)
+                    && self
+                        .containing_instruction(*address)
+                        .and_then(|start| self.analysis.instruction_order.get(&start))
+                        .is_some_and(|order| *order >= self.location_count))
+        }) {
             self.recognized.insert(address, name.name.clone());
             self.cache
                 .insert(address, CacheEntry::Complete(Some(name.name.clone())));
@@ -872,6 +933,40 @@ mod tests {
             result,
             Err(FlirtError::UnsupportedExtension { .. })
         ));
+    }
+
+    #[test]
+    fn secondary_public_names_require_existing_functions_but_local_names_can_create_them() {
+        use crate::extract::image::SHELLCODE_BASE;
+        use crate::extract::recovery::analyze_shellcode;
+
+        let mut bytes = vec![0xe8, 27, 0, 0, 0, 0xe8, 54, 0, 0, 0, 0xc3];
+        bytes.resize(96, 0xcc);
+        bytes[32..35].copy_from_slice(&[0x31, 0xc0, 0xc3]);
+        bytes[64..67].copy_from_slice(&[0x31, 0xc9, 0xc3]);
+        let mut analysis = analyze_shellcode(&bytes, Architecture::X86).unwrap();
+        analysis.image.format = ImageFormat::Pe;
+        let first = SHELLCODE_BASE + 32;
+        let second = SHELLCODE_BASE + 64;
+        analysis.function_order = BTreeMap::from([(first, 0), (second, 1), (SHELLCODE_BASE, 2)]);
+        analysis.function_location_counts.insert(first, 5);
+        analysis.instruction_order.insert(second, 10);
+
+        for (suffix, expected) in [("", false), ("@", true)] {
+            let pattern = format!(
+                "31C0C3{} 00 0000 0040 :0000 root :0020{suffix} secondary\n---",
+                "..".repeat(29)
+            );
+            let signatures = Signatures {
+                databases: vec![
+                    parse_database(PathBuf::from("order.pat"), pattern.as_bytes()).unwrap(),
+                ]
+                .into(),
+            };
+            let libraries = identify_library_functions(&analysis, &signatures).unwrap();
+            assert_eq!(libraries.get(&first).map(String::as_str), Some("root"));
+            assert_eq!(libraries.contains_key(&second), expected);
+        }
     }
 
     #[test]

@@ -133,11 +133,31 @@ pub(crate) fn mnemonic_text(insn: &super::image::DecodedInstruction) -> String {
     output
 }
 
-/// A function consisting of exactly one unconditional-jump instruction --
-/// stand-in for `viv_utils`' `Thunk` function-metadata flag (viv's thunk
-/// classifier itself is heuristic and not reproduced here; this covers the
-/// common single-instruction jump-stub case it's meant to catch).
-fn is_thunk_function(function: &Function) -> bool {
+/// Known ELF PLT stubs and single-instruction jump wrappers model the
+/// reference's `Thunk` function metadata for API feature suppression.
+fn is_thunk_function(analysis: &Analysis, function: &Function) -> bool {
+    // elf/elfplt.py marks PLT stubs as thunks, including CET stubs with an
+    // ENDBR instruction before their jump through the import slot.
+    if analysis.image.format == ImageFormat::Elf
+        && analysis
+            .image
+            .elf_plt_ranges
+            .iter()
+            .any(|&(start, end)| start <= function.addr && function.addr < end)
+        && function.blocks.len() == 1
+        && function
+            .blocks
+            .first()
+            .and_then(|block| block.insns.last())
+            .is_some_and(|insn| {
+                insn.flow == crate::extract::decoder::Flow::IndirectBranch
+                    && insn
+                        .memory_target
+                        .is_some_and(|slot| analysis.image.external_bindings.contains_key(&slot))
+            })
+    {
+        return true;
+    }
     let mut insns = function.blocks.iter().flat_map(|block| block.insns.iter());
     let Some(only) = insns.next() else {
         return false;
@@ -315,7 +335,7 @@ fn extract_insn_api_features(
     if mnemonic != "call" && mnemonic != "jmp" {
         return out;
     }
-    if mnemonic == "jmp" && is_thunk_function(ctx.function) {
+    if mnemonic == "jmp" && is_thunk_function(ctx.analysis, ctx.function) {
         return out;
     }
 
@@ -940,6 +960,9 @@ mod tests {
                 image,
                 seeds: BTreeMap::new(),
                 functions: BTreeMap::new(),
+                function_order: BTreeMap::new(),
+                function_location_counts: BTreeMap::new(),
+                instruction_order: BTreeMap::new(),
                 instructions,
                 code_xrefs: BTreeMap::new(),
                 data_xrefs: BTreeMap::new(),
@@ -1150,6 +1173,35 @@ mod tests {
         let call = fixture.insn(0);
         let out = extract_insn_api_features(&ctx, call, "call");
         assert_eq!(out, vec![(addr(call), Feature::Api("sym_foo".to_string()))]);
+    }
+
+    #[test]
+    fn api_skipped_for_cet_plt_stubs_but_retained_in_ordinary_code() {
+        for (section, skipped) in [(".plt.sec", true), (".text", false)] {
+            let mut fixture = Fixture::build(
+                ImageFormat::Elf,
+                Architecture::X64,
+                vec![(
+                    CODE_BASE,
+                    vec![0xf3, 0x0f, 0x1e, 0xfa, 0xff, 0x25, 0xf6, 0x7f, 0, 0],
+                )],
+                Vec::new(),
+                BTreeMap::from([(0x9000, vec!["memfrob".to_string()])]),
+            );
+            if section == ".plt.sec" {
+                fixture
+                    .analysis
+                    .image
+                    .elf_plt_ranges
+                    .push((CODE_BASE, CODE_BASE + 10));
+            }
+            let libraries = no_libraries();
+            let ctx = fixture.ctx(&libraries);
+            assert_eq!(
+                extract_insn_api_features(&ctx, fixture.insn(1), "jmp").is_empty(),
+                skipped
+            );
+        }
     }
 
     #[test]

@@ -8,7 +8,7 @@
 //! native counterpart recognizes ADRP/ADD/LDRSW/ADD/BR with the same guard.
 //! Unsupported sequences keep the existing unresolved-branch diagnostic.
 
-use iced_x86::{Instruction, Mnemonic, OpKind, Register};
+use iced_x86::{Instruction, InstructionInfoFactory, Mnemonic, OpAccess, OpKind, Register};
 
 use super::decoder::{self, Flow};
 use super::image::{Architecture, DecodedInstruction, LoadedImage};
@@ -135,6 +135,88 @@ fn absolute_targets(
 fn previous(analysis: &Analysis, address: u64) -> Option<&DecodedInstruction> {
     let (_, insn) = analysis.instructions.range(..address).next_back()?;
     (insn.next_address == address).then_some(insn)
+}
+
+/// Resolve a base carried between guarded dispatches. Every reaching
+/// definition must be the same constant; calls and unknown writes stop the
+/// proof. The bound is local, not an upstream emulator limit.
+fn constant_before(analysis: &Analysis, address: u64, register: Register) -> Option<u64> {
+    let mut pending = vec![address];
+    let mut visited = std::collections::BTreeSet::new();
+    let mut value = None;
+    let mut info = InstructionInfoFactory::new();
+    while let Some(address) = pending.pop() {
+        if !visited.insert(address) {
+            continue;
+        }
+        if visited.len() > 8192 {
+            return None;
+        }
+        let mut predecessors = Vec::new();
+        if let Some(prior) = previous(analysis, address) {
+            if matches!(
+                prior.flow,
+                Flow::Next | Flow::Call | Flow::IndirectCall | Flow::ConditionalBranch
+            ) && !analysis.noreturn_calls.contains(&prior.address)
+            {
+                predecessors.push(prior);
+            }
+        }
+        for source in analysis.code_xrefs.get(&address).into_iter().flatten() {
+            if let Some(prior) = analysis.instructions.get(source) {
+                if !matches!(prior.flow, Flow::Call | Flow::IndirectCall) {
+                    predecessors.push(prior);
+                }
+            }
+        }
+        if predecessors.is_empty() {
+            return None;
+        }
+        for prior in predecessors {
+            let op = prior.x86_instruction();
+            if matches!(prior.flow, Flow::Call | Flow::IndirectCall)
+                && matches!(
+                    register,
+                    Register::RAX
+                        | Register::RCX
+                        | Register::RDX
+                        | Register::R8
+                        | Register::R9
+                        | Register::R10
+                        | Register::R11
+                )
+            {
+                return None;
+            }
+            let writes = info.info(op).used_registers().iter().any(|used| {
+                used.register().full_register() == register
+                    && matches!(
+                        used.access(),
+                        OpAccess::Write
+                            | OpAccess::CondWrite
+                            | OpAccess::ReadWrite
+                            | OpAccess::ReadCondWrite
+                    )
+            });
+            if writes {
+                let found = if op.mnemonic() == Mnemonic::Lea
+                    && reg_operand(op, 0) == Some(register)
+                    && op.is_ip_rel_memory_operand()
+                {
+                    op.ip_rel_memory_address()
+                } else {
+                    return None;
+                };
+                if value.is_some_and(|value| value != found) {
+                    return None;
+                }
+                value = Some(found);
+            } else {
+                pending.push(prior.address);
+            }
+        }
+    }
+    value
 }
 
 fn guarded_sequence<'a>(
@@ -315,21 +397,46 @@ fn x64_targets(
         _ => return None,
     };
     let count = case_count(immediate(cmp)?, inclusive)?;
-    let (base_insn, mut rest) = body.split_first()?;
-    let lea = base_insn.x86_instruction();
-    let base_reg = reg_operand(lea, 0)?;
-    if lea.mnemonic() != Mnemonic::Lea
-        || lea.op1_kind() != OpKind::Memory
-        || !lea.is_ip_rel_memory_operand()
-        || base_reg.size() != 8
-        || base_reg == selector.full_register()
-    {
+    let (first, remaining) = body.split_first()?;
+    // MSVC can establish the image base immediately before CMP, or after
+    // the guard. Both keep the base definition on the guarded path.
+    let (base_reg, base, mut rest) = if first.x86_instruction().mnemonic() == Mnemonic::Lea {
+        let lea = first.x86_instruction();
+        if !lea.is_ip_rel_memory_operand() {
+            return None;
+        }
+        (reg_operand(lea, 0)?, lea.ip_rel_memory_address(), remaining)
+    } else {
+        let load = body.iter().map(|insn| insn.x86_instruction()).find(|op| {
+            matches!(
+                op.mnemonic(),
+                Mnemonic::Mov | Mnemonic::Movzx | Mnemonic::Movsxd
+            ) && op.op1_kind() == OpKind::Memory
+        })?;
+        let register = load.memory_base();
+        (
+            register,
+            constant_before(analysis, compare.address, register)?,
+            body,
+        )
+    };
+    if base_reg.size() != 8 || base_reg == selector.full_register() {
         return None;
     }
-    let base = lea.ip_rel_memory_address();
     let mut index = selector.full_register();
     let sign_extend = rest.first().is_some_and(|insn| {
-        insn.x86_instruction().mnemonic() == Mnemonic::Cdqe && index == Register::RAX
+        let op = insn.x86_instruction();
+        if op.mnemonic() == Mnemonic::Cdqe && index == Register::RAX {
+            return true;
+        }
+        if op.mnemonic() == Mnemonic::Movsxd
+            && reg_operand(op, 1) == Some(selector)
+            && reg_operand(op, 0).is_some_and(|dest| dest.size() == 8 && dest != base_reg)
+        {
+            index = op.op0_register();
+            return true;
+        }
+        false
     });
     if sign_extend {
         rest = rest.get(1..)?;
