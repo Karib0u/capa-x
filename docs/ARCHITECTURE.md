@@ -85,6 +85,14 @@ library and Python callers, at the cost of retaining the databases until
 process exit. Custom signature paths are loaded afresh on each call so edits,
 removed files, and parse errors remain visible.
 
+The signature-storage prototype pools symbol records and interns duplicate
+names per database. Parsed signatures retain their original head, CRC, tail,
+and footer data; only fully matched candidates regain owned symbol names.
+This preserves the dependency's checks and ambiguous-candidate ordering.
+Packing currently happens after parsing, so it trades extra initialization
+work for lower retained memory. Measurements and the decision gate are in
+[`BENCHMARKS.md`](BENCHMARKS.md#p1-signature-storage-prototype-2026-10-20).
+
 ## Backend integration points
 
 Each backend has the same broad responsibilities: validate its container,
