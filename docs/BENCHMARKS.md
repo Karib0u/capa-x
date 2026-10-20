@@ -6,22 +6,75 @@ ruleset, corpus, and host. They are not universal rankings.
 
 ## Accuracy
 
-The current accuracy result was measured on the release tree against Python
-capa 9.4.0 and the pinned capa-rules release over the 200-sample corpus in
-`scripts/corpus-outer.txt`. The exact command, host, failures, and timeouts
-are recorded in the release measurement log below.
+The current accuracy result was measured after bounded static switch
+recovery against Python capa 9.4.0 and the pinned capa-rules release over
+the 200-sample corpus in `scripts/corpus-outer.txt`. The fresh comparison
+is recorded below; the release measurement log preserves the older baseline.
 
 | Metric | capa-x |
 |---|---:|
-| Rule-level agreement | **98.55%** |
+| Rule-level agreement | **98.59%** |
 | Reference-matched rules | 6,263 |
-| Divergent rules | 91: 61 missing, 30 extra |
-| Samples with identical rule sets | 161/200 (80.5%) |
+| Divergent rules | 88: 57 missing, 31 extra |
+| Samples with identical rule sets | 162/200 (81.0%) |
 
 Rule-level agreement is the headline because it measures individual rules
 instead of treating a one-rule difference and a hundred-rule difference as the
 same failed sample. Every measured difference is assigned to a root-cause
 class in [`../KNOWN_DIVERGENCES.md`](../KNOWN_DIVERGENCES.md).
+
+### Static switch recovery verification (2026-10-20)
+
+Fresh before/after runs on a MacBook Pro M1 Max (10 CPUs), macOS 27.0.1
+build 26A434, with the versions in `PINNED.md`. The before binary was built
+from `8309d6c`; the after binary includes the bounded static switch resolver.
+Both runs used `--no-rust-cache`. Python reference results use the harness's
+normal pinned-reference cache.
+
+| Corpus | Before | After |
+|---|---|---|
+| Outer, 200 samples / 6,263 reference-matched rules | 61 missing, 30 extra; 161 identical | 57 missing, 31 extra; 162 identical |
+| AArch64 BinExport2, 3 samples / 29 reference-matched rules | 1 missing, 0 extra; 2 identical | 0 missing, 0 extra; 3 identical |
+
+The outer run has no baseline regressions and no analysis failures.
+Only two outer samples change: `276f691a` loses its three missing rules,
+and `f5903519` gains `log keystrokes via Input Method Manager` plus
+`check for unmoving mouse cursor`. The latter is an additional valid rule
+match against code the reference leaves without function ownership, not a
+merged-function artifact: both cursor calls are inside the same PE unwind
+interval. See KD-008 for the addresses and attribution. These are the
+deliberate changes recorded in `scripts/corpus-outer.expected.json`.
+The smoke corpus remains at 9 missing / 7 extra and 16/23 identical samples,
+with no baseline regressions.
+
+Reproduction commands (substitute the saved before binary for the CLI path
+to repeat the before side):
+
+```bash
+python3 scripts/difftest.py --mode full --samples scripts/corpus-outer.txt \
+  --capa-cli target/release/capa-x --no-rust-cache --jobs 6
+python3 scripts/difftest.py --profile aarch64-binexport --mode full \
+  --capa-cli target/release/capa-x --no-rust-cache --jobs 3
+python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt \
+  --capa-cli target/release/capa-x --no-rust-cache --jobs 6
+```
+
+All ten switch regression tests, the x86 and AArch64 feature-parity suites,
+and `cargo test --workspace` pass. The AArch64 fixture exceptions are
+removed. The release-profile robustness test passes all 900 mutated ELF
+samples with `--include-ignored`. Clippy passes with Rust 1.98.1 and
+`--workspace --all-targets -- -D warnings`; builds and tests use Rust 1.96.0.
+Determinism checks cover `scripts/corpus-jobs.txt` plus the three switch
+samples: 24 runs at job counts 1, 2, and 4 are byte-identical to the
+single-worker results.
+
+```bash
+cargo test -p capa-x --lib extract::recovery::switch
+cargo test -p capa-x --test features_parity --test aarch64_features_parity
+cargo test --workspace
+cargo test --release -p capa-x --test aarch64_elf_fuzz -- --include-ignored
+cargo +1.98.1 clippy --workspace --all-targets -- -D warnings
+```
 
 ### Native backend accuracy
 

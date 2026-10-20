@@ -1,8 +1,9 @@
 # Known divergences vs Python capa
 
 Every result difference between capa-x and the pinned Python capa
-(`flare-capa` 9.4.0 + the vivisect it pins, see [`PINNED.md`](PINNED.md)) that
-is **accepted rather than fixed**, one entry per *class* of difference.
+(`flare-capa` 9.4.0 + the vivisect it pins, see [`PINNED.md`](PINNED.md)),
+one entry per *class* of difference. Resolved entries retain their IDs and
+historical causes so earlier measurements remain interpretable.
 
 ## Why a document like this is the right answer
 
@@ -49,7 +50,7 @@ of this project's release contract.
 - **Samples:** <sha or filename> (0xADDR), <sha> (+N more)
 - **Root cause:** <the mechanism, naming the pinned upstream file>
 - **Upstream analogue:** <the comparable backend divergence upstream accepts>
-- **Status:** accepted | tracked in the divergence record
+- **Status:** accepted | tracked in the divergence record | resolved
 ```
 
 ## Entries
@@ -256,8 +257,18 @@ of this project's release contract.
 - **Upstream analogue:** the `xfail:` rows in the idalib/BinExport tables — a
   backend without the reference's jump-table resolution is given its own
   expectation rather than being expected to match it.
-- **Status:** accepted, downstream of the emulator decision. Measured
-  by `scripts/triage/attribute_missing.py`.
+- **Status:** resolved for the documented missing capabilities by bounded
+  static recovery in `capa-x/src/extract/recovery/switch.rs`. The resolver
+  requires an unsigned `cmp`/`ja` or `jae` guard, a RIP-relative `lea`
+  establishing the base, and a validated load/add/jump register chain.
+  It supports unsigned 32-bit RVAs, signed 32-bit offsets, and an optional
+  byte selector table. It reads only indexes admitted by the guard and
+  rejects the entire dispatch if any table access or target is invalid.
+  All three missing rules on `276f691a` are recovered, along with
+  `log keystrokes via Input Method Manager` on `f5903519`.
+  The latter also exposes a valid additional match under KD-008 below.
+  General emulated switches, including bases established outside this local
+  sequence, remain outside this implementation.
 
 ### KD-007 — function starts created by the workspace emulator's call monitor
 
@@ -292,10 +303,11 @@ of this project's release contract.
 
 - **Class:** matching scope (reference-side), reached through recovery
 - **Direction:** capa-x reports **more** matches
-- **Affects:** `connect to URL`, `contain loop` (×2 samples), `create
+- **Affects:** `check for unmoving mouse cursor`, `connect to URL`,
+  `contain loop` (×2 samples), `create
   directory`, `delete directory`, `delete registry key`, `decode data using
   Base64 via VBMI lookup table`, `enumerate files on Windows`, `enumerate files
-  recursively` (9 extras)
+  recursively` (10 extras)
 - **Samples:** two shapes of the same cause. The address capa-x matched at
   is itself unowned — `9324d1a8…exe_` (`0x407c43`), `c2d46d25…exe_`
   (`0x14004a300` +4 more); or the *function start* is shared and capa-x
@@ -327,6 +339,17 @@ of this project's release contract.
   sides, and the only difference is whether they sit inside a `makeFunction`
   boundary. That is a workspace-model project, not a codeflow fix. The correct
   first step is a Vivisect **workspace**.
+
+**Additional evidence after static switch recovery (2026-10-20).**
+On `f5903519`, the newly reached `GetCursorPos` calls at `0x14007b1ad`
+and `0x14007b25e` satisfy `check for unmoving mouse cursor` in function
+`0x140079a90`. `scripts/triage/attribute_shared_extras.py` attributes this
+to code without reference function ownership: both call addresses are
+unowned, and the reference extracts no cursor-position API feature from
+that function. Both calls lie inside the same PE runtime-function interval,
+`[0x140079a90, 0x14007bdd0)`, independently confirming that this is not
+merging separate functions. Keep the match rather than discarding valid
+switch arms to reproduce the reference's ownership gap.
 
 ### KD-009 — PE section names: the workspace's segment model, not pefile's
 
@@ -502,6 +525,13 @@ absorbing everything reachable from the entry into one function.
   backend without the reference's jump-table resolution is given its own
   expectation rather than being expected to match it, the same posture KD-006
   documents for vivisect's switch-case emulation.
-- **Status:** accepted; measured and root-caused during AArch64 acceptance.
-  Reopen only with a static jump-table bounds analysis for the AAPCS64 dispatch
-  pattern, not with a byte-pattern special case for this one sample.
+- **Status:** resolved for the documented dispatch by bounded static analysis
+  in `capa-x/src/extract/recovery/switch.rs`. It validates the unsigned
+  `cmp`/`b.hi` or `b.hs` guard, register relationships, table extent, signed
+  offsets, and aligned executable targets before adding any edges. The
+  index's upper bits must also be constrained when a W-register comparison
+  feeds an X-register table index. Unsupported forms remain unresolved.
+  A fresh before/after run on the three pinned AArch64 pairs recovered
+  `terminate process`, changing 1 missing / 0 extra to 0 missing / 0 extra
+  against 29 reference-matched rules. The formerly exempt feature rows at
+  `function=0x105128,bb=0x105450` now pass without exceptions.

@@ -14,7 +14,7 @@ affiliated with or endorsed by Google LLC or Mandiant, Inc.
   and native AArch64 PE/ELF.
 - Produces deterministic output at every `--jobs` value.
 - Fails with context on unsupported inputs and unknown rule syntax.
-- Reaches 98.55% rule-level agreement with pinned Python capa 9.4.0 on the
+- Reaches 98.59% rule-level agreement with pinned Python capa 9.4.0 on the
   200-sample evaluation corpus.
 
 Python capa is the behavioral reference. capa-x is a native backend, not a
@@ -74,7 +74,7 @@ distinction is how a port starts overclaiming.
 | Upstream-parity raw input | PE, ELF, shellcode (x86/x64), .NET/CLR | Python capa 9.4.0 direct comparison, recorded in `docs/BENCHMARKS.md` |
 | Cross-backend parity | AArch64 ELF | No raw-AArch64 Python oracle; pinned Ghidra BinExport2 feature- and rule-level comparison, methodology in [docs/BENCHMARKS.md](docs/BENCHMARKS.md) |
 | capa-x extension | Mach-O (x86_64, AArch64), AArch64 PE | No Python oracle at all -- pinned capa 9.4.0 has no raw Mach-O or AArch64 input; validated against a hand-built structural/feature fixture corpus (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)), never claimed as upstream parity |
-| Accepted divergence / non-goal | Vivisect-bound recovery gaps, other ISAs, live dynamic extractors | [`KNOWN_DIVERGENCES.md`](KNOWN_DIVERGENCES.md) (13 root-caused classes) |
+| Accepted divergence / non-goal | Vivisect-bound recovery gaps, other ISAs, live dynamic extractors | [`KNOWN_DIVERGENCES.md`](KNOWN_DIVERGENCES.md) (13 documented classes, including 2 resolved switch cases) |
 
 ## Install
 
@@ -170,15 +170,15 @@ gets a cheaper linux-only build plus the same schema-validation check.
 
 ## Accuracy and limitations
 
-Differential run on the release tree against Python capa 9.4.0 and the
-pinned rules:
+Fresh differential run after bounded static switch recovery against Python
+capa 9.4.0 and the pinned rules:
 
 | Metric | Result |
 |---|---:|
-| Rule-level agreement | **98.55%** |
+| Rule-level agreement | **98.59%** |
 | Reference-matched rules | 6,263 |
-| Divergent rules | 91: 61 missing, 30 extra |
-| Samples with identical rule sets | 161/200 (80.5%) |
+| Divergent rules | 88: 57 missing, 31 extra |
+| Samples with identical rule sets | 162/200 (81.0%) |
 
 Rule-level agreement leads because it measures individual capability rules.
 Every measured difference is mapped to a documented root cause. Exact methods,

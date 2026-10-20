@@ -117,12 +117,8 @@
       "details": []
     },
     "276f691a3df25481f59d79781799e35f.exe_": {
-      "diffs": 3,
-      "details": [
-        "  rule missing in capa-x: 'compute adler32 checksum'",
-        "  rule missing in capa-x: 'hash data with CRC32'",
-        "  rule missing in capa-x: 'resolve function by parsing PE exports'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "2826b762b9c268601a44974ef469a671b441e798a6c3cbb40070450c6c030ba2.exe_": {
       "diffs": 2,
@@ -912,7 +908,7 @@
       "diffs": 2,
       "details": [
         "  rule missing in capa-x: 'hash data using SHA256'",
-        "  rule missing in capa-x: 'log keystrokes via Input Method Manager'"
+        "  rule extra in capa-x: 'check for unmoving mouse cursor'"
       ]
     },
     "f9ac6b16273556b3a57bf2c6d7e7db97.exe_": {
