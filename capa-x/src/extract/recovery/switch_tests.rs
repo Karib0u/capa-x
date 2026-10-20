@@ -66,6 +66,27 @@ fn resolved(code: &[u8], arch: Architecture, branch: u64) -> Option<Vec<u64>> {
 }
 
 #[test]
+fn x64_dispatch_accepts_base_before_guard_and_explicit_sign_extension() {
+    let expected = Some(vec![
+        SHELLCODE_BASE + 0x40,
+        SHELLCODE_BASE + 0x44,
+        SHELLCODE_BASE + 0x48,
+    ]);
+    let (mut code, branch) = x64_code(false);
+    code[2..14].copy_from_slice(&[
+        0x4c, 0x8d, 0x1d, 0xf7, 0xff, 0xff, 0xff, // lea r11,base
+        0x83, 0xf8, 2, // cmp eax,2
+        0x77, 0x32, // ja default
+    ]);
+    assert_eq!(resolved(&code, Architecture::X64, branch), expected);
+
+    let (mut code, branch) = x64_code(false);
+    code.splice(14..16, [0x48, 0x63, 0xc0]); // movsxd rax,eax
+    code.remove(0x3f); // keep the default arm and tables at their original VAs
+    assert_eq!(resolved(&code, Architecture::X64, branch + 1), expected);
+}
+
+#[test]
 fn compatibility_stops_at_rejected_table_entry_before_selector_remapping() {
     let (mut code, branch) = x64_code(true);
     // Entry one divides by a known zero. Although the byte selector skips

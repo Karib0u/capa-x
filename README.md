@@ -177,20 +177,22 @@ inputs. Shared freeze tests separately check JSON evidence.
 
 | Metric | Result |
 |---|---:|
-| Rule-name agreement | **99.72%** |
+| Rule-name agreement | **100%** |
 | Reference rule/sample matches | 11,412 |
-| Divergent rules | 29 missing, 3 extra |
-| Samples with identical rule sets | 358/376 (95.2%) |
-| Samples with identical rule and match-address sets | 177/376 (47.1%) |
+| Divergent rules | 0 missing, 0 extra |
+| Samples with identical rule sets | 376/376 (100%) |
+| Samples with identical rule and match-address sets | 251/376 (66.8%) |
 
-The earlier 200-sample regression corpus still has identical rule sets.
-Expanding to every native input exposes differences outside that selection.
-The [full validation report](docs/validation/full-corpus-2026-10-20.md)
-records each case and the other backend checks. Complete
+The [compatibility validation report](docs/validation/compatibility-2026-10-20.md)
+records the fixes and remaining address differences. Rule names now match on
+every comparable native input; 125 samples still differ at one or more match
+addresses. This is corpus compatibility, not a claim of identical recovery or
+evidence trees for arbitrary binaries. Complete
 [original reference results](tests/reference-results/capa-10.0.0/README.md)
-are preserved for future regression work. The newly found differences still
-require root-cause investigation. Historical methods and performance
-measurements are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+remain available for regression work. The
+[earlier expanded validation](docs/validation/full-corpus-2026-10-20.md)
+preserves the starting measurements and checks of other backends. Historical
+methods and performance measurements are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 On the v1.0.0 release, a controlled result-equivalent sample had medians of
 0.959 seconds for capa-x and 3.007 seconds for Python capa 9.4.0 across five

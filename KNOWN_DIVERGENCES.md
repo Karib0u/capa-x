@@ -7,14 +7,20 @@ historical causes so earlier measurements remain interpretable.
 
 ## Current measured remainder
 
-The 2026-10-20 expanded run covers all 377 native x86/x64 and shellcode inputs.
-Original capa rejects one malformed ELF. Among the 376 comparable inputs,
-358 have identical rule sets and 18 differ, with 29 missing and three extra
-rules. Exact rule and match-address sets agree on 177 inputs and differ on
-199. These newly observed cases require root-cause investigation; they are
-listed in the [full validation report](docs/validation/full-corpus-2026-10-20.md),
-with [complete reference outputs](tests/reference-results/capa-10.0.0/README.md)
-preserved for regression work.
+The latest 2026-10-20 run covers all 377 native x86/x64 and shellcode inputs.
+Original capa rejects one malformed ELF. All 376 comparable inputs now have
+identical rule-name sets: 11,412 reference rule/sample matches, zero missing,
+and zero extra. Exact rule and match-address sets agree on 251 inputs and
+differ on 125, improved from 177 identical inputs. Match-location and evidence
+tree compatibility are not complete.
+
+The [compatibility report](docs/validation/compatibility-2026-10-20.md)
+records the fixes and links every remaining address difference. The
+[earlier full validation](docs/validation/full-corpus-2026-10-20.md) and
+[complete reference outputs](tests/reference-results/capa-10.0.0/README.md)
+remain unchanged. The remaining address cases need further investigation;
+the resolved mechanisms below do not assert that every remaining difference
+has the same cause.
 
 The earlier 200-sample regression run has zero rule-name differences,
 with 6,300 reference-matched rules. The four formerly remaining
@@ -551,3 +557,99 @@ of this project's release contract.
   through the pinned decoder's legacy BOUND operand layout, including in
   amd64 mode. Native decoding retains EVEX support. Previously included in
   KD-008 because instruction-address comparison reported unowned bytes.
+
+### KD-017: ordinal-only OLE Automation imports
+
+- **Class:** loader
+- **Direction:** historically fewer API matches
+- **Root cause:** the loader lacked the pinned Vivisect 1.3.2
+  `PE/ordlookup/oleaut32.py` ordinal names. Ordinal-only calls therefore had
+  no named API feature.
+- **Resolution:** port the complete pinned table and normalize the DLL suffix
+  case-insensitively. The table cites its source and adds no dependency.
+- **Status:** resolved on the expanded corpus.
+
+### KD-018: switch bases established before the local dispatch window
+
+- **Class:** recovery / function extent
+- **Direction:** historically fewer matches
+- **Root cause:** `generic/switchcase.py` reads the live emulator's base
+  register, while the static resolver previously required a nearby LEA.
+- **Resolution:** prove constant register values through bounded predecessor
+  traversal, including a base established before the guard and the optional
+  MOVSXD form. Validate bounds, register relationships, and every table read.
+- **Status:** the expanded corpus's rule-name misses are resolved. Arbitrary
+  symbolic dispatch and full function-extent parity remain incomplete.
+
+### KD-019: library recognition depends on function creation order
+
+- **Class:** recovery / library-function scope
+- **Direction:** historically both fewer and more matches
+- **Root cause:** `viv_utils/flirt.py` runs each signature database when a
+  function completes. Secondary public labels require an existing function;
+  local labels may create functions at undefined executable addresses. Applying
+  signatures to the final address-sorted function set changes which bodies
+  capa excludes from capability matching.
+- **Resolution:** record function completion and opcode-definition order,
+  apply databases in that order with per-invocation caches, distinguish public
+  and local labels, and discover local-label code before fallback function
+  entries. Static indirect callees and no-return callees complete before their
+  callers. PE entry-point flow precedes other loader roots.
+- **Evidence:** `3265b2b0...exe_` retains the modulo-256 match in the nonlibrary
+  function at `0x440bc9`; `03b236b2...dll_` now has identical match-address sets.
+- **Status:** rule-name regressions are resolved. Local discovery is a bounded
+  phase before fallback entries, not a complete reproduction of nested
+  workspace callbacks. Remaining address differences require further work.
+
+### KD-020: typed locations and candidate evaluation timing
+
+- **Class:** recovery / candidate discovery
+- **Direction:** historically both fewer and more matches
+- **Root cause:** the reference follows each relocation before typing later
+  slots, checks location types at every candidate instruction, marks strings
+  and hotpatch padding as data, and ignores writes through unmapped taint
+  addresses in safe-memory mode (`generic/relocations.py`,
+  `generic/emucode.py`, `ms/hotpatch.py`, `impemu/emulator.py`).
+- **Resolution:** preserve sequential relocation handling, merge typed-data
+  ranges, reject paths entering typed data, and retain concrete callback stack
+  arguments across unknown-address writes. Support the pinned bit-test
+  operations used by trap-flag checks. Forwarded PE exports do not seed code.
+- **Evidence:** `07f7846b...exe_` loses spurious library-derived detections;
+  Practical Malware Analysis Lab 14-02 retains its file and pipe rules.
+- **Status:** resolved for the expanded rule-name comparison; general emulator
+  and workspace-location parity remains bounded as described in ADR 0007.
+
+### KD-021: AMD64 Go runtime root
+
+- **Class:** recovery / function discovery
+- **Direction:** historically fewer matches
+- **Root cause:** only the i386 Go startup sequence was implemented. The
+  pinned `analysis/amd64/golang.py` locates runtime_main through a RIP-relative
+  pointer in its startup sequence.
+- **Resolution:** port the AMD64 mnemonic sequence, build-ID gate, and checked
+  pointer read alongside the existing i386 path.
+- **Status:** resolved for the expanded rule-name comparison.
+
+### KD-022: INT1 decoding in the pinned i386 backend
+
+- **Class:** recovery / decoder compatibility
+- **Direction:** historically more matches
+- **Root cause:** the pinned i386 decoder's platform-trap handling raises on
+  operandless opcode F1. Continuing through it exposes code the reference
+  never recovers.
+- **Resolution:** compatibility decoding rejects this opcode for i386 PE and
+  ELF input. AMD64 and native decoding retain their existing behavior.
+- **Status:** resolved; removes the extra kernel HMAC rule.
+
+### KD-023: static loop edges and ELF PLT thunk features
+
+- **Class:** feature extraction
+- **Direction:** historically both fewer and more match locations
+- **Root cause:** `viv/function.py:extract_function_loop` uses static branch
+  targets rather than emulator-resolved switch edges. `analysis/elf/elfplt.py`
+  also marks multi-instruction CET PLT stubs as thunks, suppressing their jump
+  API feature.
+- **Resolution:** derive x86 loop edges from terminal instruction branches;
+  retain ELF PLT section ranges and recognize import jumps following ENDBR.
+- **Status:** these mechanisms are implemented and tested. They improve match
+  locations but do not eliminate the remaining 125 differing samples.

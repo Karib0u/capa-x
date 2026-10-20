@@ -2,6 +2,7 @@ pub mod elf;
 pub mod elf_os;
 pub mod image;
 pub mod macho;
+mod oleaut32_ordinals;
 pub mod pe;
 pub mod shellcode;
 

@@ -171,12 +171,10 @@ impl State {
             OpKind::Memory => {
                 if let Some(address) = self.address(op, image.architecture) {
                     self.write(address, op.memory_size().size(), value);
-                } else {
-                    // An aliasing store invalidates values written earlier.
-                    for value in self.memory.values_mut() {
-                        *value = None;
-                    }
                 }
+                // impemu/emulator.py:writeMemory ignores writes through
+                // unmapped taint addresses in safe_mem mode. An unknown
+                // destination must not erase concrete stack arguments.
             }
             _ => {}
         }
@@ -235,6 +233,24 @@ impl State {
             And if right == Some(0) => Some(0),
             And => left.zip(right).map(|(a, b)| a & b),
             Or => left.zip(right).map(|(a, b)| a | b),
+            Bt => return Ok(()),
+            Bts | Btr | Btc => {
+                // envi/archs/i386/emu.py:doBitTest reduces the index modulo
+                // the destination width, including for memory operands.
+                let size = if op.op0_kind() == OpKind::Register {
+                    op.op0_register().size()
+                } else {
+                    op.memory_size().size()
+                };
+                left.zip(right).map(|(value, index)| {
+                    let bit = 1u64 << (index % (size.clamp(1, 8) as u64 * 8));
+                    match op.mnemonic() {
+                        Bts => value | bit,
+                        Btr => value & !bit,
+                        _ => value ^ bit,
+                    }
+                })
+            }
             Inc => left.map(|value| value.wrapping_add(1)),
             Dec => left.map(|value| value.wrapping_sub(1)),
             Neg => left.map(u64::wrapping_neg),
@@ -395,10 +411,6 @@ impl State {
                 if op.op0_kind() == OpKind::Memory {
                     if let Some(address) = address {
                         self.write(address, op.memory_size().size(), sum);
-                    } else {
-                        for value in self.memory.values_mut() {
-                            *value = None;
-                        }
                     }
                 } else {
                     self.assign(image, op, 0, sum);
@@ -519,10 +531,6 @@ impl State {
             };
             if let Some(address) = destination {
                 self.write(address, size, value);
-            } else {
-                for value in self.memory.values_mut() {
-                    *value = None;
-                }
             }
         }
         if loads {
@@ -604,6 +612,12 @@ pub(super) fn evaluate(
             }
             if !image.is_executable_address(address) {
                 break;
+            }
+            // watcher.prehook checks the location type at every instruction.
+            // A branch into an existing pointer or string invalidates a trace,
+            // even if the candidate's first byte was undefined.
+            if in_data(data_locations, address) {
+                return Verdict::NotCode;
             }
             // runFunction logs a decoder exception as an anomaly; the
             // watcher's badcode flag rejects the entire candidate, even
@@ -710,6 +724,28 @@ mod tests {
     fn verdict(bytes: &[u8]) -> Verdict {
         let image = LoadedImage::from_shellcode(bytes, Architecture::X86);
         evaluate(&image, image.image_base, &BTreeSet::new(), &[])
+    }
+
+    #[test]
+    fn supports_bit_tests_used_by_trap_flag_checks() {
+        assert_eq!(
+            verdict(&[0x0f, 0xba, 0x2c, 0x24, 0x08, 0xc3]),
+            Verdict::Code
+        );
+    }
+
+    #[test]
+    fn rejects_a_trace_that_branches_into_defined_data() {
+        let image = LoadedImage::from_shellcode(&[0xeb, 0x02, 0xcc, 0xcc, 0xc3], Architecture::X86);
+        let start = image.image_base;
+        assert_eq!(
+            evaluate(&image, start, &BTreeSet::new(), &[]),
+            Verdict::Code
+        );
+        assert_eq!(
+            evaluate(&image, start, &BTreeSet::new(), &[(start + 4, start + 5)]),
+            Verdict::NotCode
+        );
     }
 
     #[test]

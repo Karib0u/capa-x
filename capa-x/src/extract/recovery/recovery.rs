@@ -48,6 +48,8 @@ pub enum SeedKind {
     Emulated,
     /// Known API argument explicitly typed as a function pointer.
     ApiCallback,
+    /// Undefined local symbol from a validated FLIRT signature.
+    FlirtLocal,
     LibcMain,
     GoRuntimeMain,
     FunctionSignature,
@@ -108,6 +110,13 @@ pub struct Analysis {
     pub image: LoadedImage,
     pub seeds: BTreeMap<u64, BTreeSet<SeedKind>>,
     pub functions: BTreeMap<u64, Function>,
+    /// Order of function completion during compatibility codeflow. FLIRT
+    /// public names can only label functions that already exist at that point.
+    pub function_order: BTreeMap<u64, usize>,
+    /// Opcode discovery count when a function was first completed.
+    pub function_location_counts: BTreeMap<u64, usize>,
+    /// First-definition order for opcode locations.
+    pub instruction_order: BTreeMap<u64, usize>,
     /// Discovered opcode locations. In compatibility mode, block extraction
     /// may expose a different stream starting inside one of these locations.
     pub instructions: BTreeMap<u64, DecodedInstruction>,
@@ -158,6 +167,8 @@ struct DirectFlowGraph {
 #[derive(Debug, thiserror::Error)]
 pub enum RecoveryError {
     #[error(transparent)]
+    Signature(#[from] super::flirt::FlirtError),
+    #[error(transparent)]
     Image(#[from] ImageError),
     #[error("collecting {format:?} recovery seeds: {context}")]
     Seeds {
@@ -182,6 +193,24 @@ pub fn analyze_with_backend(
         LoadedImage::parse(bytes)?
     };
     analyze_image(bytes, image, backend)
+}
+
+/// PE recovery with the same signatures used by the caller for library recognition.
+pub fn analyze_with_signatures(
+    bytes: &[u8],
+    signatures: &super::flirt::Signatures,
+) -> Result<Analysis, RecoveryError> {
+    let image = LoadedImage::parse(bytes)?;
+    let backend = RecoveryBackend::VivisectCompat;
+    let (seeds, symbols, diagnostics) = collect_seeds(bytes, &image, backend)?;
+    analyze_seeded_image_with_signatures(
+        image,
+        backend,
+        seeds,
+        symbols,
+        diagnostics,
+        Some(signatures),
+    )
 }
 
 /// `-f sc32`/`sc64`. Function seeds come only from the entry point
@@ -219,9 +248,33 @@ fn analyze_image(
 fn analyze_seeded_image(
     image: LoadedImage,
     backend: RecoveryBackend,
+    seeds: SeedMap,
+    elf_function_symbols: FunctionSymbolMap,
+    diagnostics: Vec<RecoveryDiagnostic>,
+) -> Result<Analysis, RecoveryError> {
+    let signatures =
+        if backend == RecoveryBackend::VivisectCompat && image.format == ImageFormat::Pe {
+            Some(super::flirt::Signatures::embedded()?)
+        } else {
+            None
+        };
+    analyze_seeded_image_with_signatures(
+        image,
+        backend,
+        seeds,
+        elf_function_symbols,
+        diagnostics,
+        signatures.as_ref(),
+    )
+}
+
+fn analyze_seeded_image_with_signatures(
+    image: LoadedImage,
+    backend: RecoveryBackend,
     mut seeds: SeedMap,
     elf_function_symbols: FunctionSymbolMap,
     diagnostics: Vec<RecoveryDiagnostic>,
+    signatures: Option<&super::flirt::Signatures>,
 ) -> Result<Analysis, RecoveryError> {
     if backend == RecoveryBackend::Native {
         seeds.retain(|address, kinds| {
@@ -254,6 +307,9 @@ fn analyze_seeded_image(
         image,
         seeds,
         functions: BTreeMap::new(),
+        function_order: BTreeMap::new(),
+        function_location_counts: BTreeMap::new(),
+        instruction_order: BTreeMap::new(),
         instructions: BTreeMap::new(),
         code_xrefs: BTreeMap::new(),
         data_xrefs: BTreeMap::new(),
@@ -279,12 +335,15 @@ fn analyze_seeded_image(
             analysis.seeds.clone_from(&base_seeds);
             analysis.diagnostics.clone_from(&base_diagnostics);
             analysis.functions.clear();
+            analysis.function_order.clear();
+            analysis.function_location_counts.clear();
+            analysis.instruction_order.clear();
             analysis.instructions.clear();
             analysis.code_xrefs.clear();
             analysis.data_xrefs.clear();
             analysis.noreturn_calls.clear();
         }
-        recover_functions(&mut analysis, &fallback, &noreturn, backend)?;
+        recover_functions(&mut analysis, &fallback, &noreturn, backend, signatures)?;
         let next = noreturn::propagate(&analysis, &noreturn_seed);
         if next == noreturn || pass.saturating_add(1) == noreturn::MAX_PASSES {
             break;
@@ -309,6 +368,7 @@ fn recover_functions(
     fallback: &SeedMap,
     noreturn: &BTreeSet<u64>,
     backend: RecoveryBackend,
+    signatures: Option<&super::flirt::Signatures>,
 ) -> Result<(), RecoveryError> {
     let evaluate_candidates = backend == RecoveryBackend::VivisectCompat
         && matches!(
@@ -324,7 +384,13 @@ fn recover_functions(
             .get(address)
             .map(|kinds| seed_priority(kinds, evaluate_candidates))
             .unwrap_or(usize::MAX);
-        (priority, *address)
+        // pe.py registers the image entry point before exports, SafeSEH,
+        // and unwind entries. Its call tree must finish before those later
+        // roots: function-analyzer order affects FLIRT reference matching.
+        let later_pe_root = evaluate_candidates
+            && analysis.image.format == ImageFormat::Pe
+            && analysis.image.entry_point != Some(*address);
+        (priority, later_pe_root, *address)
     });
     let mut pending: VecDeque<u64> = initial.into();
     let mut function_starts = BTreeSet::new();
@@ -358,6 +424,37 @@ fn recover_functions(
             if let Some(address) = pointers.next(analysis, noreturn) {
                 pending.push_front(address);
             } else {
+                if let Some(signatures) = signatures {
+                    // FLIRT local symbols can expose code that must exist
+                    // before generic.funcentries scans undefined bytes.
+                    // Keep oversized functions out of this optional pass;
+                    // final materialization emits their limit diagnostic.
+                    for &address in &function_starts {
+                        match build_function_view(analysis, &direct_flow, address, false) {
+                            Ok(function) => {
+                                analysis.functions.insert(address, function);
+                            }
+                            Err(RecoveryError::Limit(_)) => {
+                                analysis.functions.remove(&address);
+                            }
+                            Err(error) => return Err(error),
+                        }
+                    }
+                    let (_, mut locals) =
+                        super::flirt::identify_with_local_starts(analysis, signatures)?;
+                    locals.retain(|address| !function_starts.contains(address));
+                    if !locals.is_empty() && function_starts.len() < MAX_FUNCTIONS {
+                        for address in locals.into_iter().rev() {
+                            analysis
+                                .seeds
+                                .entry(address)
+                                .or_default()
+                                .insert(SeedKind::FlirtLocal);
+                            pending.push_front(address);
+                        }
+                        continue;
+                    }
+                }
                 early_candidates_done = true;
                 pointers.finish_emucode();
                 run_import_call_wave(
@@ -490,6 +587,7 @@ fn recover_functions(
             }
         }
     }
+    analysis.functions.clear();
     for start in function_starts {
         if let Some(function) = direct_flow.import_functions.remove(&start) {
             analysis.functions.insert(start, function);
@@ -1048,6 +1146,11 @@ fn collect_pe_seeds(
         context: error.to_string(),
     })?;
     for export in &pe.exports {
+        // vivisect/parsers/pe.py records forwarded exports as strings. Their
+        // RVA names another DLL's symbol, so it is not a function entry.
+        if export.reexport.is_some() {
+            continue;
+        }
         if let Some(address) = image.image_base.checked_add(export.rva as u64) {
             add_seed(image, seeds, address, SeedKind::Export);
         }
@@ -1842,7 +1945,7 @@ fn discover_direct_flow(
 
 enum FlowTask {
     Path(u64),
-    FinishFunction(u64),
+    FinishFunction(u64, bool),
 }
 
 fn discover_flow(
@@ -1853,13 +1956,25 @@ fn discover_flow(
     mut import_functions: Option<&mut BTreeSet<u64>>,
 ) -> BTreeSet<u64> {
     let mut pending = VecDeque::from([FlowTask::Path(start)]);
+    if direct_flow.compatibility && import_functions.is_none() {
+        pending.push_back(FlowTask::FinishFunction(start, false));
+    }
     let mut calls = BTreeSet::new();
     let mut discovered = 0usize;
 
     while let Some(task) = pending.pop_front() {
         let path_start = match task {
             FlowTask::Path(address) => address,
-            FlowTask::FinishFunction(address) => {
+            FlowTask::FinishFunction(address, preserve_view) => {
+                let order = analysis.function_order.len();
+                analysis.function_order.entry(address).or_insert(order);
+                analysis
+                    .function_location_counts
+                    .entry(address)
+                    .or_insert(analysis.instructions.len());
+                if !preserve_view {
+                    continue;
+                }
                 match build_function_view(analysis, direct_flow, address, false) {
                     Ok(function) => {
                         direct_flow.import_functions.insert(address, function);
@@ -1925,6 +2040,8 @@ fn discover_flow(
             let flow = insn.flow;
             discovered = discovered.saturating_add(1);
             analysis.instructions.entry(address).or_insert(insn.clone());
+            let order = analysis.instruction_order.len();
+            analysis.instruction_order.entry(address).or_insert(order);
             match flow {
                 Flow::Next => {
                     direct_flow.successors.insert(
@@ -1936,10 +2053,38 @@ fn discover_flow(
                     );
                     address = next;
                 }
-                Flow::Call => {
-                    let target = insn.direct_target;
+                Flow::Call | Flow::IndirectCall => {
+                    // envi/codeflow.py follows BR_DEREF procedural targets
+                    // immediately. Import slots are removed by _cb_opcode
+                    // before that step, so call [ExitProcess] still falls through.
+                    let imported = insn
+                        .memory_target
+                        .is_some_and(|slot| analysis.image.external_bindings.contains_key(&slot));
+                    let target = if flow == Flow::Call {
+                        insn.direct_target
+                    } else if direct_flow.compatibility
+                        && !imported
+                        && insn.x86_instruction().memory_index() == iced_x86::Register::None
+                    {
+                        insn.memory_target
+                            .and_then(|slot| read_pointer(&analysis.image, slot))
+                            .filter(|target| {
+                                is_executable(&analysis.image, *target)
+                                    && !analysis.image.is_uninitialized(*target)
+                            })
+                    } else {
+                        None
+                    };
+                    if flow == Flow::IndirectCall && target.is_none() && !imported {
+                        analysis.diagnostics.push(RecoveryDiagnostic {
+                            address,
+                            message: "unresolved indirect call".to_string(),
+                        });
+                    }
                     if let Some(target) = target {
-                        push_xref(&mut analysis.code_xrefs, target, address);
+                        if flow == Flow::Call {
+                            push_xref(&mut analysis.code_xrefs, target, address);
+                        }
                         // Pinned Vivisect 1.3.2 `envi/codeflow.py` records a
                         // procedural target only when it differs from the
                         // instruction after the call. `call $+5` remains a
@@ -1955,18 +2100,20 @@ fn discover_flow(
                     // call site keeps its code xref but loses its fallthrough,
                     // so the caller ends here instead of absorbing whatever
                     // bytes follow.
-                    if target.is_some_and(|target| target != next && noreturn.contains(&target)) {
+                    let ends_flow =
+                        target.is_some_and(|target| target != next && noreturn.contains(&target));
+                    if ends_flow {
                         analysis.noreturn_calls.insert(address);
                         direct_flow.successors.insert(address, Vec::new());
-                        break;
+                    } else {
+                        direct_flow.successors.insert(
+                            address,
+                            vec![Edge {
+                                target: next,
+                                kind: EdgeKind::Fallthrough,
+                            }],
+                        );
                     }
-                    direct_flow.successors.insert(
-                        address,
-                        vec![Edge {
-                            target: next,
-                            kind: EdgeKind::Fallthrough,
-                        }],
-                    );
                     // `envi/codeflow.py:addCodeFlow` descends into procedural
                     // targets before resuming a loose import-call fragment.
                     // `base.py:_cb_function` runs codeblocks.py immediately.
@@ -1979,53 +2126,35 @@ fn discover_flow(
                         if import_functions.as_deref_mut().is_some_and(|known| {
                             known.len() < MAX_FUNCTIONS && known.insert(target)
                         }) {
-                            pending.push_front(FlowTask::Path(next));
-                            pending.push_front(FlowTask::FinishFunction(target));
+                            if !ends_flow {
+                                pending.push_front(FlowTask::Path(next));
+                            }
+                            pending.push_front(FlowTask::FinishFunction(target, true));
                             pending.push_front(FlowTask::Path(target));
                             break;
                         }
                         if direct_flow.compatibility
                             && import_functions.is_none()
-                            && !direct_flow.successors.contains_key(&target)
+                            && !analysis.function_order.contains_key(&target)
+                            && !pending.iter().any(|task| {
+                                matches!(task, FlowTask::FinishFunction(address, _) if *address == target)
+                            })
                         {
-                            // addCodeFlow completes a direct callee before
-                            // resuming its caller. First-created locations
-                            // determine later overlapping block boundaries.
-                            pending.push_front(FlowTask::Path(next));
+                            // addEntryPoint completes a callee even when its
+                            // bytes were previously reached through a jump.
+                            // Only a completed or currently active function
+                            // suppresses that callback.
+                            if !ends_flow {
+                                pending.push_front(FlowTask::Path(next));
+                            }
+                            pending.push_front(FlowTask::FinishFunction(target, false));
                             pending.push_front(FlowTask::Path(target));
                             break;
                         }
                     }
-                    address = next;
-                }
-                Flow::IndirectCall => {
-                    if insn.memory_target.is_none_or(|target| {
-                        !analysis.image.external_bindings.contains_key(&target)
-                    }) {
-                        analysis.diagnostics.push(RecoveryDiagnostic {
-                            address,
-                            message: "unresolved indirect call".to_string(),
-                        });
+                    if ends_flow {
+                        break;
                     }
-                    // NOTE: `call [ExitProcess]` keeps its fallthrough, even
-                    // though the IAT slot is in the no-return set. Vivisect's
-                    // `BR_DEREF` no-return check (`envi/codeflow.py:218-220`)
-                    // is unreachable for imports: `_cb_opcode`
-                    // (`vivisect/base.py:820`) drops every branch whose target
-                    // is a `LOC_IMPORT` -- "dont code flow through import
-                    // calls" -- before codeflow ever inspects the branch list.
-                    // Measured on `Practical Malware Analysis Lab 17-02.dll_`:
-                    // all 35 of its `NoReturnCalls` sites are direct calls, and
-                    // all 10 `call [no-return import]` sites keep their
-                    // fallthrough. Imports reach the no-return set only through
-                    // a thunk (`checkNoRetApi`), which is a *direct* call.
-                    direct_flow.successors.insert(
-                        address,
-                        vec![Edge {
-                            target: next,
-                            kind: EdgeKind::Fallthrough,
-                        }],
-                    );
                     address = next;
                 }
                 Flow::ConditionalBranch => {
@@ -2574,6 +2703,42 @@ mod tests {
     }
 
     #[test]
+    fn flirt_local_code_precedes_fallback_function_entries() {
+        let mut bytes = vec![0xe8, 0x1b, 0, 0, 0, 0xc3];
+        bytes.resize(0x20, 0xcc);
+        bytes.extend_from_slice(&[0x31, 0xc0, 0xc3]);
+        bytes.resize(0x40, 0xcc);
+        bytes.extend_from_slice(&[0xe9, 0x3b, 0, 0, 0]);
+        bytes.resize(0x80, 0xcc);
+        bytes.extend_from_slice(&[0x55, 0x8b, 0xec, 0x5d, 0xc3]);
+        bytes.resize(0x100, 0xcc);
+        let image = noreturn_test_image(&bytes);
+        let path = std::env::temp_dir().join(format!("capa-x-local-{}.pat", std::process::id()));
+        let pattern = format!(
+            "31C0C3{} 00 0000 0040 :0000 root :0020@ local\n---",
+            "..".repeat(29)
+        );
+        std::fs::write(&path, pattern).unwrap();
+        let signatures = super::super::flirt::Signatures::from_path(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        let analysis = analyze_seeded_image_with_signatures(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(0x1000, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+            Some(&signatures),
+        )
+        .unwrap();
+        assert!(analysis.functions.contains_key(&0x1040));
+        assert!(analysis.instructions.contains_key(&0x1080));
+        assert!(!analysis.functions.contains_key(&0x1080));
+        let libraries =
+            super::super::flirt::identify_library_functions(&analysis, &signatures).unwrap();
+        assert_eq!(libraries.get(&0x1040).map(String::as_str), Some("local"));
+    }
+
+    #[test]
     fn import_call_functions_keep_the_extent_at_creation() {
         let mut bytes = vec![0xc3];
         bytes.resize(0x10, 0xcc);
@@ -2647,6 +2812,7 @@ mod tests {
             0x6a, 0, 0x6a, 0, 0x6a, 0, // last three arguments
             0x8d, 0x05, 0x40, 0x10, 0, 0, // lea eax, [0x1040]
             0x50, 0x6a, 0, 0x6a, 0, // callback, size, attributes
+            0x89, 0x43, 8, // mov [ebx+8], eax: unknown destination, not the stack
             0xff, 0x15, 0, 0x20, 0, 0, // call [CreateThread]
             0xc3,
         ];
@@ -2822,6 +2988,140 @@ mod tests {
                 architecture == Architecture::X64
             );
         }
+    }
+
+    #[test]
+    fn relocation_targets_are_followed_before_later_slots_are_typed() {
+        let target = SHELLCODE_BASE + 32;
+        let mut bytes = vec![0xc3];
+        bytes.resize(16, 0xcc);
+        bytes.extend_from_slice(&(target as u32).to_le_bytes());
+        bytes.resize(32, 0xcc);
+        bytes.extend_from_slice(&[0x31, 0xc0, 0x40, 0xc3]);
+        let mut image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+        image.format = ImageFormat::Pe;
+        image.relocation_locations = vec![SHELLCODE_BASE + 16, target];
+        let analysis = analyze_seeded_image(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(analysis.functions.contains_key(&target));
+        assert!(analysis.seeds[&target].contains(&SeedKind::PointerTarget));
+    }
+
+    #[test]
+    fn calls_complete_previously_decoded_jump_targets_before_the_caller() {
+        let mut bytes = vec![0xe8, 27, 0, 0, 0, 0xe8, 38, 0, 0, 0, 0xc3];
+        bytes.resize(32, 0xcc);
+        bytes.extend_from_slice(&[0xeb, 14]);
+        bytes.resize(48, 0xcc);
+        bytes.push(0xc3);
+        let analysis = analyze_seeded_image(
+            LoadedImage::from_shellcode(&bytes, Architecture::X86),
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        let order = &analysis.function_order;
+        assert!(order[&(SHELLCODE_BASE + 32)] < order[&(SHELLCODE_BASE + 48)]);
+        assert!(order[&(SHELLCODE_BASE + 48)] < order[&SHELLCODE_BASE]);
+    }
+
+    #[test]
+    fn pe_entry_point_precedes_lower_address_export_roots() {
+        let mut image = LoadedImage::from_shellcode(&[0xc3, 0xc3], Architecture::X86);
+        image.format = ImageFormat::Pe;
+        image.entry_point = Some(SHELLCODE_BASE + 1);
+        let analysis = analyze_seeded_image(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([
+                (SHELLCODE_BASE, BTreeSet::from([SeedKind::Export])),
+                (SHELLCODE_BASE + 1, BTreeSet::from([SeedKind::EntryPoint])),
+            ]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(
+            analysis.function_order[&(SHELLCODE_BASE + 1)]
+                < analysis.function_order[&SHELLCODE_BASE]
+        );
+    }
+
+    #[test]
+    fn pointer_candidates_cannot_branch_into_a_completed_functions_hotpatch_padding() {
+        let mut bytes = vec![0xe8, 27, 0, 0, 0, 0xc3];
+        bytes.resize(16, 0xcc);
+        bytes.extend_from_slice(&[0x31, 0xc0, 0x40, 0x40, 0x40, 0xeb, 4]);
+        bytes.resize(32, 0x90);
+        bytes.push(0xc3);
+        bytes.resize(48, 0xcc);
+        bytes.extend_from_slice(&((SHELLCODE_BASE + 16) as u32).to_le_bytes());
+        let mut image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+        image.format = ImageFormat::Pe;
+        image.relocation_locations = vec![SHELLCODE_BASE + 48];
+        let analysis = analyze_seeded_image(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(analysis.functions.contains_key(&(SHELLCODE_BASE + 32)));
+        assert!(!analysis.functions.contains_key(&(SHELLCODE_BASE + 16)));
+    }
+
+    #[test]
+    fn static_indirect_callees_complete_before_their_callers() {
+        let slot = SHELLCODE_BASE + 16;
+        let target = SHELLCODE_BASE + 32;
+        let mut bytes = vec![0xff, 0x15];
+        bytes.extend_from_slice(&(slot as u32).to_le_bytes());
+        bytes.push(0xc3);
+        bytes.resize(16, 0xcc);
+        bytes.extend_from_slice(&(target as u32).to_le_bytes());
+        bytes.resize(32, 0xcc);
+        bytes.extend_from_slice(&[0x31, 0xc0, 0xc3]);
+        let analysis = analyze_seeded_image(
+            LoadedImage::from_shellcode(&bytes, Architecture::X86),
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(analysis.functions.contains_key(&target));
+        assert!(analysis.seeds[&target].contains(&SeedKind::CallTarget));
+        assert!(analysis.function_order[&target] < analysis.function_order[&SHELLCODE_BASE]);
+    }
+
+    #[test]
+    fn forwarded_pe_exports_do_not_seed_functions() {
+        let bytes = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../tests/testfiles/kernel32.dll_"),
+        )
+        .unwrap();
+        let image = LoadedImage::parse(&bytes).unwrap();
+        let mut seeds = SeedMap::new();
+        collect_pe_seeds(&bytes, &image, &mut seeds, &mut Vec::new()).unwrap();
+        let pe = PE::parse(&bytes).unwrap();
+        let forwarded: Vec<_> = pe.exports.iter().filter(|e| e.reexport.is_some()).collect();
+        assert!(!forwarded.is_empty());
+        for export in forwarded {
+            assert!(!seeds.contains_key(&(image.image_base + export.rva as u64)));
+        }
+        assert!(seeds
+            .values()
+            .any(|kinds| kinds.contains(&SeedKind::Export)));
     }
 
     #[test]
@@ -3742,6 +4042,9 @@ mod tests {
         // reached only by re-running discovery with the enlarged set.
         assert!(analysis.noreturn.contains(&0x1010));
         assert!(analysis.noreturn_calls.contains(&0x1000));
+        // addEntryPoint completes even a known no-return callee before the
+        // caller's fallthrough is suppressed on subsequent recovery sweeps.
+        assert!(analysis.function_order[&0x1010] < analysis.function_order[&0x1000]);
         let entry = analysis
             .functions
             .get(&0x1000)
