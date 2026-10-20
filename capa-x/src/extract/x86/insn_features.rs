@@ -188,7 +188,18 @@ fn code_ref_from(analysis: &Analysis, va: u64) -> Option<u64> {
         FlowControl::Call | FlowControl::UnconditionalBranch | FlowControl::ConditionalBranch => {
             recovery::direct_target(insn).or_else(|| recovery::memory_target(insn))
         }
-        FlowControl::IndirectCall | FlowControl::IndirectBranch => recovery::memory_target(insn),
+        FlowControl::IndirectCall | FlowControl::IndirectBranch => {
+            recovery::memory_target(insn).or_else(|| {
+                // AnalysisMonitor.addAnalysisResults adds a code reference
+                // for resolved import-register calls. Thunk traversal uses
+                // that reference just as it uses a direct IAT call.
+                let Operand::Reg(register) = classify_operand(insn.x86_instruction(), 0) else {
+                    return None;
+                };
+                find_definition(analysis, va, register)
+                    .filter(|target| analysis.image.external_bindings.contains_key(target))
+            })
+        }
         _ => None,
     }
 }
@@ -202,7 +213,10 @@ fn get_previous_instructions(analysis: &Analysis, va: u64) -> Vec<u64> {
     let mut out = Vec::new();
     if let Some((&prev_addr, prev_insn)) = analysis.instructions.range(..va).next_back() {
         let end = prev_addr.saturating_add(prev_insn.bytes.len() as u64);
-        if end == va && falls_through(prev_insn.x86_instruction()) {
+        if end == va
+            && falls_through(prev_insn.x86_instruction())
+            && !analysis.noreturn_calls.contains(&prev_addr)
+        {
             out.push(prev_addr);
         }
     }
@@ -1098,6 +1112,54 @@ mod tests {
         assert_eq!(
             out,
             vec![(addr(call), Feature::Api("ws2_32.recv".to_string()))]
+        );
+    }
+
+    #[test]
+    fn register_definition_does_not_cross_a_no_return_call() {
+        let mut fixture = Fixture::build(
+            ImageFormat::Pe,
+            Architecture::X86,
+            vec![(
+                CODE_BASE,
+                vec![
+                    0x8b, 0x05, 0, 0x90, 0, 0, // mov eax,[0x9000]
+                    0xe8, 0, 0, 0, 0, // call next
+                    0xff, 0xd0, // call eax
+                ],
+            )],
+            Vec::new(),
+            BTreeMap::from([(0x9000, vec!["kernel32.Sleep".into()])]),
+        );
+        assert_eq!(
+            find_definition(&fixture.analysis, CODE_BASE + 11, Register::EAX),
+            Some(0x9000)
+        );
+        fixture.analysis.noreturn_calls.insert(CODE_BASE + 6);
+        assert_eq!(
+            find_definition(&fixture.analysis, CODE_BASE + 11, Register::EAX),
+            None
+        );
+    }
+
+    #[test]
+    fn api_thunk_chain_follows_resolved_import_register_calls() {
+        let fixture = Fixture::build(
+            ImageFormat::Pe,
+            Architecture::X86,
+            vec![
+                (CODE_BASE, vec![0xe8, 0x01, 0x10, 0, 0]), // call 0x2006
+                (0x2000, vec![0x8b, 0x05, 0, 0x90, 0, 0, 0xff, 0xd0, 0xc3]),
+            ],
+            Vec::new(),
+            BTreeMap::from([(0x9000, vec!["user32.FindWindowExW".into()])]),
+        );
+        let libraries = no_libraries();
+        let ctx = fixture.ctx(&libraries);
+        let call = fixture.insn(0);
+        assert_eq!(
+            extract_insn_api_features(&ctx, call, "call"),
+            vec![(addr(call), Feature::Api("user32.FindWindowExW".into()))]
         );
     }
 

@@ -117,6 +117,20 @@ impl State {
         if !(1..=8).contains(&size) {
             return None;
         }
+        // The reference returns an import taint, not the on-disk value or
+        // the slot address. In particular, watcher.apicall does not mistake
+        // that taint for an address in NoReturnApisVa. Callback tracing
+        // resolves API identities separately.
+        if size == image.architecture.pointer_width()
+            && image.import_locations.contains_key(&address)
+            && !(0..size).any(|offset| {
+                address
+                    .checked_add(offset as u64)
+                    .is_some_and(|byte| self.memory.contains_key(&byte))
+            })
+        {
+            return None;
+        }
         let mut value = 0;
         for offset in 0..size {
             let address = address.checked_add(offset as u64)?;
@@ -207,7 +221,19 @@ impl State {
             Mov | Movzx | Movd | Movq => right,
             // Vector state is deliberately unknown, including after a move.
             // These operations are supported by envi's i_mov aliases.
-            Movaps | Movapd | Movups | Movupd | Movdqa | Movdqu | Movss => None,
+            Movaps | Movapd | Movups | Movupd | Movdqa | Movdqu | Movss | Movlps | Movlpd
+            | Movhps | Movhpd => None,
+            // envi/archs/i386/emu.py implements these packed bitwise
+            // operations. Like vector moves, they invalidate the abstract
+            // destination without changing scalar registers or control flow.
+            Xorps | Xorpd | Pxor | Andps | Andpd | Pand | Pandn | Orps | Orpd | Por => None,
+            // The same upstream emulator implements these lane operations.
+            // Vector values stay unknown, including extracted scalar values.
+            Punpcklbw | Punpcklwd | Punpckldq | Punpcklqdq | Punpckhbw | Punpckhwd | Punpckhdq
+            | Punpckhqdq | Psrlw | Psrld | Psrlq | Psrldq | Psllw | Pslld | Psllq | Pslldq
+            | Pextrd | Pmovmskb | Pcmpeqb | Pcmpeqw | Pcmpeqd | Pcmpeqq | Pshufb | Pshufd
+            | Pshufw | Pshuflw | Pshufhw | Pinsrb | Pinsrw | Pinsrd | Paddb | Paddw | Paddd
+            | Paddq | Psubb | Psubw | Psubd | Psubq => None,
             Movsx | Movsxd => {
                 let size = if op.op1_kind() == OpKind::Register {
                     op.op1_register().size()
@@ -233,6 +259,7 @@ impl State {
             And if right == Some(0) => Some(0),
             And => left.zip(right).map(|(a, b)| a & b),
             Or => left.zip(right).map(|(a, b)| a | b),
+            Arpl => left.zip(right).map(|(a, b)| (a & !3) | (a & 3).max(b & 3)),
             Bt => return Ok(()),
             Bts | Btr | Btc => {
                 // envi/archs/i386/emu.py:doBitTest reduces the index modulo
@@ -310,7 +337,9 @@ impl State {
                 self.assign(image, op, 0, value);
                 return Ok(());
             }
-            Pushad | Popad => {
+            // The pinned decoder calls 66 60/61 pushad/popad too, and
+            // envi's handlers explicitly use 32-bit stack slots for both.
+            Pushad | Popad | Pusha | Popa => {
                 let registers = [
                     Register::EAX,
                     Register::ECX,
@@ -322,7 +351,7 @@ impl State {
                     Register::EDI,
                 ];
                 let original = self.register(Register::ESP);
-                if op.mnemonic() == Pushad {
+                if matches!(op.mnemonic(), Pushad | Pusha) {
                     for register in registers {
                         let value = if register == Register::ESP {
                             original
@@ -417,15 +446,44 @@ impl State {
                 }
                 return Ok(());
             }
-            Cmp | Test | Nop | Endbr32 | Endbr64 | Clc | Stc | Cmc | Sahf | Lfence | Clflush
-            | Prefetchw => return Ok(()),
+            Cmpxchg => {
+                // envi/archs/i386/emu.py:i_cmpxchg compares the accumulator
+                // with the destination. Preserve concrete equality; otherwise
+                // invalidate both possible destinations when it is unknown.
+                let size = if op.op0_kind() == OpKind::Register {
+                    op.op0_register().size()
+                } else {
+                    op.memory_size().size()
+                };
+                let accumulator = match size {
+                    1 => Register::AL,
+                    2 => Register::AX,
+                    4 => Register::EAX,
+                    _ => Register::RAX,
+                };
+                match self.register(accumulator).zip(left) {
+                    Some((a, b)) if a == b => self.assign(image, op, 0, right),
+                    Some(_) => self.set_register(accumulator, left),
+                    None => {
+                        self.assign(image, op, 0, None);
+                        self.set_register(accumulator, None);
+                    }
+                }
+                return Ok(());
+            }
+            Cmp | Test | Nop | Endbr32 | Endbr64 | Clc | Stc | Cmc | Sahf | Cli | Sti | Lfence
+            | Clflush | Prefetchw => return Ok(()),
+            Lahf => {
+                self.set_register(Register::AH, None);
+                return Ok(());
+            }
             Cld | Std => {
                 self.backwards = op.mnemonic() == Std;
                 return Ok(());
             }
-            // Upstream intentionally ignores these four FPU instructions
-            // (`envi/archs/i386/emu.py:i_fldz/i_fld/i_fild/i_fstp`).
-            Fldz | Fld | Fild | Fstp => return Ok(()),
+            // Upstream intentionally ignores these FPU instructions
+            // (`envi/archs/i386/emu.py:i_fldz/i_fld/i_fild/i_fstp/i_wait`).
+            Fldz | Fld | Fild | Fstp | Wait => return Ok(()),
             Stosb | Stosw | Stosd | Stosq | Movsb | Movsw | Movsd | Movsq | Lodsb | Lodsw
             | Lodsd | Lodsq | Cmpsb | Cmpsw | Cmpsd | Cmpsq | Scasb | Scasw | Scasd | Scasq => {
                 return self.string_step(image, op);
@@ -490,13 +548,9 @@ impl State {
 
     fn string_step(&mut self, image: &LoadedImage, op: &Instruction) -> Result<(), &'static str> {
         use Mnemonic::*;
-        if matches!(op.mnemonic(), Movsd | Cmpsd)
-            && op
-                .op_kinds()
-                .any(|kind| matches!(kind, OpKind::Register | OpKind::Memory))
-        {
-            return Err("unsupported scalar vector operation");
-        }
+        // envi/archs/i386/emu.py dispatches by mnemonic: its i_movsd and
+        // i_cmpsd use the string registers even for the SSE operand forms.
+        // Preserve that pinned behavior when evaluating compatibility code.
         let size = match op.mnemonic() {
             Stosb | Movsb | Lodsb | Cmpsb | Scasb => 1,
             Stosw | Movsw | Lodsw | Cmpsw | Scasw => 2,
@@ -582,16 +636,52 @@ pub(super) fn in_data(locations: &[(u64, u64)], address: u64) -> bool {
         .is_some_and(|(_, end)| address < *end)
 }
 
-pub(super) fn evaluate(
+pub(super) fn in_import(image: &LoadedImage, address: u64) -> bool {
+    image
+        .import_locations
+        .range(..=address)
+        .next_back()
+        .is_some_and(|(&start, _)| {
+            address.saturating_sub(start) < image.architecture.pointer_width() as u64
+        })
+}
+
+pub(super) fn evaluate_candidate(
+    analysis: &super::Analysis,
+    start: u64,
+    noreturn: &BTreeSet<u64>,
+    data_locations: &[(u64, u64)],
+) -> Verdict {
+    evaluate_with_flow(
+        &analysis.image,
+        start,
+        noreturn,
+        data_locations,
+        Some(analysis),
+    )
+}
+
+#[cfg(test)]
+fn evaluate(
     image: &LoadedImage,
     start: u64,
     noreturn: &BTreeSet<u64>,
     data_locations: &[(u64, u64)],
 ) -> Verdict {
+    evaluate_with_flow(image, start, noreturn, data_locations, None)
+}
+
+fn evaluate_with_flow(
+    image: &LoadedImage,
+    start: u64,
+    noreturn: &BTreeSet<u64>,
+    data_locations: &[(u64, u64)],
+    analysis: Option<&super::Analysis>,
+) -> Verdict {
     if !matches!(image.architecture, Architecture::X86 | Architecture::X64) {
         return Verdict::NotCode;
     }
-    if in_data(data_locations, start) {
+    if in_data(data_locations, start) || in_import(image, start) {
         return Verdict::NotCode;
     }
     let state = State::entry();
@@ -616,7 +706,7 @@ pub(super) fn evaluate(
             // watcher.prehook checks the location type at every instruction.
             // A branch into an existing pointer or string invalidates a trace,
             // even if the candidate's first byte was undefined.
-            if in_data(data_locations, address) {
+            if in_data(data_locations, address) || in_import(image, address) {
                 return Verdict::NotCode;
             }
             // runFunction logs a decoder exception as an anomaly; the
@@ -644,6 +734,7 @@ pub(super) fn evaluate(
             *counts.entry(mnemonic).or_default() += 1;
             let total = counts.values().sum();
             if decoded.flow == Flow::Return
+                || noreturn.contains(&address)
                 || (image.architecture == Architecture::X86
                     && op.mnemonic() == Mnemonic::Int
                     && state.register(Register::EAX) == Some(1))
@@ -654,9 +745,9 @@ pub(super) fn evaluate(
                     Verdict::NotCode
                 };
             }
-            // Only a call to a known no-return target establishes an exit
-            // below. A previous pass's function label at this instruction
-            // cannot validate this candidate (or one of its shared tails).
+            // watcher.prehook also accepts a previously established no-return
+            // instruction. The caller supplies only statuses known at this
+            // point in discovery, not labels from a later recovery pass.
             match decoded.flow {
                 Flow::Call | Flow::IndirectCall => {
                     // iced groups system transfers with calls. envi supports
@@ -689,10 +780,72 @@ pub(super) fn evaluate(
                     }
                 }
                 Flow::UnconditionalBranch | Flow::IndirectBranch => {
+                    if decoded.flow == Flow::IndirectBranch
+                        && !(op.op0_kind() == OpKind::Memory && op.memory_index() == Register::None)
+                    {
+                        // checkBranches follows code references established
+                        // by an earlier switch pass. An unresolved table
+                        // during its own discovery has no such references.
+                        let mut found = false;
+                        let mut has_references = false;
+                        if let Some(analysis) = analysis {
+                            for (&target, sources) in &analysis.code_xrefs {
+                                if sources.contains(&address) {
+                                    has_references = true;
+                                    if analysis.instructions.contains_key(&target) {
+                                        pending.push((target, state.clone()));
+                                        found = true;
+                                    }
+                                }
+                            }
+                        }
+                        if found || has_references {
+                            break;
+                        }
+                        // i386SibOper.getBranches(emu) scans an unresolved
+                        // scale-four table independently of the selector.
+                        if op.op0_kind() == OpKind::Memory && op.memory_index_scale() == 4 {
+                            if let Some(base) = state.register(op.memory_base()) {
+                                let base = base.wrapping_add(op.memory_displacement64());
+                                let width = op.memory_size().size();
+                                let mut targets = Vec::new();
+                                for index in 0..=MAX_PATHS {
+                                    let Some(slot) = base.checked_add((index * width) as u64)
+                                    else {
+                                        break;
+                                    };
+                                    let Some(target) = state.read(image, slot, width) else {
+                                        break;
+                                    };
+                                    if image.section_containing(target).is_none() {
+                                        break;
+                                    }
+                                    if index == MAX_PATHS {
+                                        return Verdict::Inconclusive {
+                                            address,
+                                            reason: "candidate jump table budget exceeded".into(),
+                                        };
+                                    }
+                                    targets.push(target);
+                                }
+                                if targets.len() > 1 {
+                                    let mut seen = BTreeSet::new();
+                                    for target in targets {
+                                        if seen.insert(target) {
+                                            pending.push((target, state.clone()));
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     if let Some(target) = state.operand(image, op, 0) {
                         address = target;
                     } else {
-                        incomplete = Some((address, "unresolved indirect branch".to_owned()));
+                        // runFunction ends this path when its target is
+                        // unknown. Without a return on another path, the
+                        // watcher's hasret remains false.
                         break;
                     }
                 }
@@ -724,6 +877,11 @@ mod tests {
     fn verdict(bytes: &[u8]) -> Verdict {
         let image = LoadedImage::from_shellcode(bytes, Architecture::X86);
         evaluate(&image, image.image_base, &BTreeSet::new(), &[])
+    }
+
+    #[test]
+    fn wait_does_not_stop_a_candidate_trace() {
+        assert_eq!(verdict(&[0x9b, 0x31, 0xc0, 0xc3]), Verdict::Code);
     }
 
     #[test]
@@ -798,6 +956,46 @@ mod tests {
     }
 
     #[test]
+    fn packed_bitwise_operations_do_not_reject_code_candidates() {
+        for bytes in [
+            vec![0x0f, 0x57, 0xc0, 0xc3],       // xorps xmm0,xmm0; ret
+            vec![0x66, 0x0f, 0xef, 0xc0, 0xc3], // pxor xmm0,xmm0; ret
+            vec![0x66, 0x0f, 0xdb, 0xc1, 0xc3], // pand xmm0,xmm1; ret
+        ] {
+            assert_eq!(verdict(&bytes), Verdict::Code);
+        }
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn cmpxchg_updates_only_the_selected_destination() {
+        let image = LoadedImage::from_shellcode(&[0x0f, 0xb1, 0xcb], Architecture::X86);
+        let op = image.decode_at(image.image_base).unwrap();
+        for (accumulator, expected_eax, expected_ebx) in [(7, 7, 9), (8, 7, 7)] {
+            let mut state = State::entry();
+            state.set_register(Register::EAX, Some(accumulator));
+            state.set_register(Register::EBX, Some(7));
+            state.set_register(Register::ECX, Some(9));
+            state.step(&image, op.x86_instruction()).unwrap();
+            assert_eq!(state.register(Register::EAX), Some(expected_eax));
+            assert_eq!(state.register(Register::EBX), Some(expected_ebx));
+        }
+    }
+
+    #[test]
+    #[allow(clippy::unwrap_used)]
+    fn sse_movsd_uses_the_pinned_emulators_string_registers() {
+        let image = LoadedImage::from_shellcode(&[0xf2, 0x0f, 0x10, 0xc1], Architecture::X86);
+        let op = image.decode_at(image.image_base).unwrap();
+        let mut state = State::entry();
+        state.set_register(Register::ESI, Some(image.image_base));
+        state.set_register(Register::EDI, Some(STACK_BASE));
+        state.step(&image, op.x86_instruction()).unwrap();
+        assert_eq!(state.register(Register::ESI), Some(image.image_base + 4));
+        assert_eq!(state.register(Register::EDI), Some(STACK_BASE + 4));
+    }
+
+    #[test]
     fn known_zero_divisor_is_an_anomaly() {
         assert_eq!(verdict(&[0x31, 0xc9, 0xf7, 0xf1, 0xc3]), Verdict::NotCode);
     }
@@ -835,10 +1033,7 @@ mod tests {
 
     #[test]
     fn unresolved_jump_and_budget_do_not_establish_code() {
-        assert!(matches!(
-            verdict(&[0xff, 0xe0]),
-            Verdict::Inconclusive { .. }
-        ));
+        assert_eq!(verdict(&[0xff, 0xe0]), Verdict::NotCode);
         let mut bytes = vec![0x90; MAX_STEPS + 1];
         bytes.push(0xc3);
         assert!(matches!(verdict(&bytes), Verdict::Inconclusive { .. }));
@@ -853,6 +1048,37 @@ mod tests {
             Verdict::Code
         );
         assert_eq!(verdict(&[0xb8, 1, 0, 0, 0, 0xcd, 0x80]), Verdict::Code);
+    }
+
+    #[test]
+    fn import_taints_do_not_alias_concrete_no_return_addresses() {
+        for prefix in [vec![0xff, 0x15], vec![0x8b, 0x35]] {
+            let mut bytes = prefix.clone();
+            bytes.extend_from_slice(&0x1000u32.to_le_bytes());
+            if prefix.first() == Some(&0x8b) {
+                bytes.extend_from_slice(&[0xff, 0xd6]);
+            }
+            bytes.extend_from_slice(&[0, 0]);
+            let image = LoadedImage::from_shellcode(&bytes, Architecture::X86)
+                .with_import_location(0x1000, "kernel32.ExitProcess");
+            assert_eq!(
+                evaluate(&image, image.image_base, &BTreeSet::from([0x1000]), &[]),
+                Verdict::NotCode
+            );
+        }
+    }
+
+    #[test]
+    fn packed_shuffles_insertions_and_arithmetic_can_reach_a_return() {
+        assert_eq!(
+            verdict(&[
+                0x66, 0x0f, 0x70, 0xc0, 0, // pshufd xmm0,xmm0,0
+                0x66, 0x0f, 0x3a, 0x22, 0xc0, 0, // pinsrd xmm0,eax,0
+                0x66, 0x0f, 0xfe, 0xc1, // paddd xmm0,xmm1
+                0xc3,
+            ]),
+            Verdict::Code
+        );
     }
 
     #[test]

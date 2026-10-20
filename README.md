@@ -177,17 +177,19 @@ inputs. Shared freeze tests separately check JSON evidence.
 
 | Metric | Result |
 |---|---:|
-| Rule-name agreement | **100%** |
+| Rule-name agreement | **99.98%** |
 | Reference rule/sample matches | 11,412 |
-| Divergent rules | 0 missing, 0 extra |
-| Samples with identical rule sets | 376/376 (100%) |
-| Samples with identical rule and match-address sets | 251/376 (66.8%) |
+| Divergent rules | 0 missing, 2 extra |
+| Samples with identical rule sets | 374/376 (99.5%) |
+| Samples with identical rule and match-address sets | 321/376 (85.4%) |
 
-The [compatibility validation report](docs/validation/compatibility-2026-10-20.md)
-records the fixes and remaining address differences. Rule names now match on
-every comparable native input; 125 samples still differ at one or more match
-addresses. This is corpus compatibility, not a claim of identical recovery or
-evidence trees for arbitrary binaries. Complete
+The [match-address validation report](docs/validation/match-address-progress-2026-10-20.md)
+records the fixes and remaining differences. There are 55 samples with rule
+or match-address differences, including extra `contain anti-disasm techniques`
+and `contain pusha popa sequence` matches. The 100% exact-parity target is not
+yet met. This is corpus
+compatibility, not a claim of identical recovery or evidence trees for arbitrary
+binaries. Complete
 [original reference results](tests/reference-results/capa-10.0.0/README.md)
 remain available for regression work. The
 [earlier expanded validation](docs/validation/full-corpus-2026-10-20.md)

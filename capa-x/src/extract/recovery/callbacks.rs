@@ -1,14 +1,14 @@
-//! Bounded API callback discovery, following AnalysisMonitor.apicall.
+//! Bounded callback and concrete-callee discovery, following AnalysisMonitor.apicall.
 //! Argument positions come from Vivisect 1.3.2's impapi/windows tables.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use iced_x86::{Mnemonic, OpKind, Register};
 
 use super::decoder::{DecodedInstruction, Flow};
 use super::emucode::State;
 use super::image::{Architecture, ImageFormat, LoadedImage};
-use super::{Analysis, RecoveryDiagnostic};
+use super::{Analysis, RecoveryDiagnostic, SeedKind};
 
 // Local resource bounds, independent of the upstream emulator's limits.
 const MAX_STEPS: usize = 8192;
@@ -169,19 +169,16 @@ fn argument(image: &LoadedImage, state: &State, index: usize) -> Option<u64> {
 pub(super) fn enabled(image: &LoadedImage) -> bool {
     image.format == ImageFormat::Pe
         && matches!(image.architecture, Architecture::X86 | Architecture::X64)
-        && image
-            .import_locations
-            .values()
-            .any(|name| callback_api(name, image.architecture).is_some())
 }
 
 pub(super) fn discover(
     analysis: &mut Analysis,
     start: u64,
     noreturn: &BTreeSet<u64>,
-) -> BTreeSet<u64> {
+    pointers: &mut super::pointers::Discovery,
+) -> BTreeMap<u64, SeedKind> {
     let image = &analysis.image;
-    let mut targets = BTreeSet::new();
+    let mut targets = BTreeMap::new();
     let mut pending = vec![(start, State::entry())];
     let mut visited = BTreeSet::new();
     while let Some((mut address, mut state)) = pending.pop() {
@@ -196,14 +193,59 @@ pub(super) fn discover(
                 });
                 return targets;
             }
-            let Some(insn) = analysis.instructions.get(&address) else {
+            if !image.is_executable_address(address) || image.is_uninitialized(address) {
                 break;
+            }
+            // The calling-analysis emulator can follow a computed jump into
+            // bytes that static codeflow has not decoded yet. It discovers
+            // calls there without assigning that loose code to the function.
+            let decoded;
+            let insn = if let Some(insn) = analysis.instructions.get(&address) {
+                insn
+            } else {
+                decoded = match image.decode_at_compat(address) {
+                    Ok(insn) => insn,
+                    Err(error) => {
+                        analysis.diagnostics.push(RecoveryDiagnostic {
+                            address,
+                            message: format!("calling trace at {start:#x}: {error}"),
+                        });
+                        break;
+                    }
+                };
+                &decoded
             };
             let op = insn.x86_instruction();
             match insn.flow {
                 Flow::Call | Flow::IndirectCall => {
-                    let api = call_import(image, &state, insn)
-                        .and_then(|name| callback_api(name, image.architecture));
+                    if image.architecture == Architecture::X86
+                        && insn
+                            .direct_target
+                            .is_some_and(|target| super::msvcfunc::is_seh3_prolog(image, target))
+                    {
+                        if let Some(table) = argument(image, &state, 0)
+                            .filter(|address| image.section_containing(*address).is_some())
+                        {
+                            if let Some(diagnostic) = pointers.seh3_scope_table(analysis, table) {
+                                analysis.diagnostics.push(diagnostic);
+                            }
+                        }
+                    }
+                    let imported = call_import(image, &state, insn);
+                    // impemu/monitor.py:AnalysisMonitor.apicall creates
+                    // concrete callees found while emulating a function.
+                    // Known imports use loader identities, never raw IAT
+                    // contents, which may point back into the input image.
+                    if let Some(target) = state.operand(image, op, 0).filter(|target| {
+                        imported.is_none()
+                            && *target != start
+                            && *target != insn.next_address
+                            && image.is_executable_address(*target)
+                            && !analysis.function_order.contains_key(target)
+                    }) {
+                        targets.entry(target).or_insert(SeedKind::CallTarget);
+                    }
+                    let api = imported.and_then(|name| callback_api(name, image.architecture));
                     if let Some((_, indexes, _)) = api {
                         for &index in indexes {
                             // apicall uses explicit type evidence rather than
@@ -213,7 +255,7 @@ pub(super) fn discover(
                                 image.is_executable_address(*target)
                                     && !super::pointers::covered(analysis, *target)
                             }) {
-                                targets.insert(target);
+                                targets.insert(target, SeedKind::ApiCallback);
                             }
                         }
                     }
@@ -240,6 +282,7 @@ pub(super) fn discover(
                         // ordinary calls, even when stack cleanup is unknown.
                         for register in [
                             Register::RBX,
+                            Register::RBP,
                             Register::RSI,
                             Register::RDI,
                             Register::R12,

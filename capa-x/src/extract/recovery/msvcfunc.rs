@@ -82,6 +82,15 @@ const SECURITY_CHECK_COOKIE_SIGNATURES: [(&[u8], &[u8]); 5] = [
 
 const LONGEST_SIGNATURE: usize = 29;
 
+/// The seh3_prolog row in vivisect/vamp/msvc/__init__.py. The PUSH
+/// immediate is the only wildcard; this helper's first argument is a
+/// SEH3_SCOPETABLE pointer in impapi/windows/ntdll_32.py.
+pub(super) fn is_seh3_prolog(image: &LoadedImage, address: u64) -> bool {
+    image.bytes_at(address, 12).is_some_and(|bytes| {
+        bytes.first() == Some(&0x68) && bytes.get(5..12) == Some(&[0x64, 0xa1, 0, 0, 0, 0, 0x50])
+    })
+}
+
 /// `msvc.py:analyzeFunction`'s `vs.getSignature(bytes, offset)` restricted to
 /// the `security_check_cookie` rows: does a `/GS` cookie check start exactly
 /// at `address`?

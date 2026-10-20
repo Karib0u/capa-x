@@ -99,9 +99,23 @@ fn compatibility_stops_at_rejected_table_entry_before_selector_remapping() {
         Some(vec![SHELLCODE_BASE + 0x40, SHELLCODE_BASE + 0x48])
     );
     assert_eq!(
-        targets_compat(&mut analysis, &jump, &BTreeSet::new()),
+        targets_compat(&mut analysis, &jump, &BTreeSet::new(), &mut Vec::new()),
         Some(vec![SHELLCODE_BASE + 0x40])
     );
+}
+
+#[test]
+fn compatibility_finishes_switch_arms_before_capturing_function_blocks() {
+    let (code, _) = x64_code(false);
+    let analysis = analyze_shellcode(&code, Architecture::X64).unwrap();
+    let blocks: BTreeSet<_> = analysis.functions[&SHELLCODE_BASE]
+        .blocks
+        .iter()
+        .map(|block| block.addr)
+        .collect();
+    for offset in [0x40, 0x44, 0x48] {
+        assert!(blocks.contains(&(SHELLCODE_BASE + offset)));
+    }
 }
 
 #[test]
@@ -134,10 +148,15 @@ fn absolute_pointer_tables_do_not_absorb_adjacent_tables() {
             Some(vec![SHELLCODE_BASE + 0x44, SHELLCODE_BASE + 0x48])
         );
         let analysis = analyze_shellcode(&code, arch).unwrap();
-        assert!(!analysis.functions[&SHELLCODE_BASE]
-            .blocks
-            .iter()
-            .any(|block| block.addr == SHELLCODE_BASE + 0x4c));
+        // Compatibility scans consecutive scale-four pointers until a
+        // later dispatch establishes the next table's boundary.
+        assert_eq!(
+            analysis.functions[&SHELLCODE_BASE]
+                .blocks
+                .iter()
+                .any(|block| block.addr == SHELLCODE_BASE + 0x4c),
+            arch == Architecture::X86
+        );
         code[5..7].copy_from_slice(&[0x90, 0x90]);
         assert_eq!(resolved(&code, arch, branch), None);
         if arch == Architecture::X64 {

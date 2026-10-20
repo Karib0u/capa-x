@@ -158,10 +158,14 @@ impl Analysis {
 #[derive(Debug, Default)]
 struct DirectFlowGraph {
     compatibility: bool,
+    known_noreturn: BTreeSet<u64>,
     successors: BTreeMap<u64, Vec<Edge>>,
-    /// Import-call fragments can create a function before the fragment's
-    /// remaining instructions exist. Keep that codeblocks.py view.
-    import_functions: BTreeMap<u64, Function>,
+    /// Preserve the codeblocks.py view when each compatibility function
+    /// completes. Later discoveries must not expand an earlier function.
+    completed_functions: BTreeMap<u64, Function>,
+    /// Functions created while walking otherwise unclaimed import-call fragments.
+    import_functions: BTreeSet<u64>,
+    pending_table_locations: Vec<(u64, usize)>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -213,24 +217,19 @@ pub fn analyze_with_signatures(
     )
 }
 
-/// `-f sc32`/`sc64`. Function seeds come only from the entry point
-/// (seeded generically below), call-target discovery, and the prologue
-/// scan -- there are no format-specific seeds (no exports/TLS/relocations/
-/// symbol tables) for a raw blob, mirrored by [`collect_seeds`]'s `Sc` arm.
+/// `-f sc32`/`sc64`, matching capa.loader.get_workspace's shellcode
+/// workspace. There are no container-specific exports, TLS callbacks,
+/// relocations, or symbol tables.
 pub fn analyze_shellcode(
     bytes: &[u8],
     architecture: Architecture,
 ) -> Result<Analysis, RecoveryError> {
     let image = LoadedImage::from_shellcode(bytes, architecture);
-    // Shellcode remains experimental and its contract explicitly includes
-    // prologue and call sweeps because it has no container-provided seeds.
-    analyze_image(bytes, image, RecoveryBackend::Native)
+    analyze_image(bytes, image, RecoveryBackend::VivisectCompat)
 }
 
-/// `-f macho`. `RecoveryBackend::Native`, same reasoning as
-/// [`analyze_shellcode`]: there is no pinned-Vivisect baseline to reproduce
-/// for a format Vivisect never loaded, so "Vivisect-compatible" isn't a
-/// meaningful mode here.
+/// `-f macho` uses native recovery because the pinned reference does not
+/// load this format.
 pub fn analyze_macho(bytes: &[u8], arch: Option<&str>) -> Result<Analysis, RecoveryError> {
     let image = LoadedImage::from_macho(bytes, arch)?;
     analyze_image(bytes, image, RecoveryBackend::Native)
@@ -343,8 +342,16 @@ fn analyze_seeded_image_with_signatures(
             analysis.data_xrefs.clear();
             analysis.noreturn_calls.clear();
         }
-        recover_functions(&mut analysis, &fallback, &noreturn, backend, signatures)?;
-        let next = noreturn::propagate(&analysis, &noreturn_seed);
+        let next = recover_functions(&mut analysis, &fallback, &noreturn, backend, signatures)?;
+        if backend == RecoveryBackend::VivisectCompat
+            && matches!(
+                analysis.image.architecture,
+                Architecture::X86 | Architecture::X64
+            )
+        {
+            noreturn = next;
+            break;
+        }
         if next == noreturn || pass.saturating_add(1) == noreturn::MAX_PASSES {
             break;
         }
@@ -369,14 +376,13 @@ fn recover_functions(
     noreturn: &BTreeSet<u64>,
     backend: RecoveryBackend,
     signatures: Option<&super::flirt::Signatures>,
-) -> Result<(), RecoveryError> {
+) -> Result<BTreeSet<u64>, RecoveryError> {
     let evaluate_candidates = backend == RecoveryBackend::VivisectCompat
         && matches!(
             analysis.image.architecture,
             Architecture::X86 | Architecture::X64
         );
     let mut pointers = super::pointers::Discovery::new(analysis, evaluate_candidates);
-    let discover_callbacks = evaluate_candidates && super::callbacks::enabled(&analysis.image);
     let mut initial: Vec<u64> = analysis.seeds.keys().copied().collect();
     initial.sort_by_key(|address| {
         let priority = analysis
@@ -397,31 +403,36 @@ fn recover_functions(
     let mut isolated_starts = BTreeSet::new();
     let mut direct_flow = DirectFlowGraph {
         compatibility: evaluate_candidates,
+        known_noreturn: noreturn.clone(),
         ..DirectFlowGraph::default()
     };
     let mut late_waves_done = false;
     let mut early_candidates_done = !evaluate_candidates;
     let mut function_budget_reported = false;
     loop {
+        for (address, size) in direct_flow.pending_table_locations.drain(..) {
+            pointers.mark_data(address, size);
+        }
         // `generic.relocations/pointers` and `generic.emucode` precede
         // `i386.importcalls` and `generic.funcentries`. In particular, a
         // relocation to `call [TlsAlloc]; ret` must become a function before
         // importcalls can claim it as loose code.
         if !early_candidates_done
             && pending.front().is_none_or(|address| {
-                analysis.seeds.get(address).is_some_and(|kinds| {
-                    kinds.iter().all(|kind| {
-                        matches!(
-                            kind,
-                            SeedKind::FunctionSignature
-                                | SeedKind::Prologue
-                                | SeedKind::SweepCallTarget
-                        )
+                analysis.image.format == ImageFormat::Pe
+                    && analysis.seeds.get(address).is_some_and(|kinds| {
+                        kinds.iter().all(|kind| {
+                            matches!(
+                                kind,
+                                SeedKind::FunctionSignature
+                                    | SeedKind::Prologue
+                                    | SeedKind::SweepCallTarget
+                            )
+                        })
                     })
-                })
             })
         {
-            if let Some(address) = pointers.next(analysis, noreturn) {
+            if let Some(address) = pointers.next(analysis, &direct_flow.known_noreturn) {
                 pending.push_front(address);
             } else {
                 if let Some(signatures) = signatures {
@@ -461,7 +472,7 @@ fn recover_functions(
                     analysis,
                     &mut direct_flow,
                     &mut pending,
-                    noreturn,
+                    &mut pointers,
                     Some(&function_starts),
                 );
             }
@@ -469,7 +480,7 @@ fn recover_functions(
         let Some(start) = pending.pop_front() else {
             if late_waves_done {
                 if evaluate_candidates {
-                    if let Some(address) = pointers.next(analysis, noreturn) {
+                    if let Some(address) = pointers.next(analysis, &direct_flow.known_noreturn) {
                         pending.push_back(address);
                         continue;
                     }
@@ -485,7 +496,13 @@ fn recover_functions(
             late_waves_done = true;
             run_go_runtime_main_wave(analysis, &direct_flow, &mut pending)?;
             if !evaluate_candidates {
-                run_import_call_wave(analysis, &mut direct_flow, &mut pending, noreturn, None);
+                run_import_call_wave(
+                    analysis,
+                    &mut direct_flow,
+                    &mut pending,
+                    &mut pointers,
+                    None,
+                );
             }
             // `vivisect.analysis.ms.msvcfunc` is amodlist[9]/[10] -- after
             // the import-call pass, and reading the function set the earlier
@@ -502,8 +519,13 @@ fn recover_functions(
                 .iter()
                 .all(|kind| matches!(kind, SeedKind::FunctionSignature | SeedKind::Prologue))
         });
+        // generic/funcentries.py scans undefined locations only. A match
+        // inside an instruction is not a new function, even if its bytes
+        // look like an entry signature.
         if function_starts.contains(&start)
-            || (late_signature_only && analysis.instructions.contains_key(&start))
+            || (late_signature_only
+                && (analysis.instructions.contains_key(&start)
+                    || (evaluate_candidates && super::pointers::covered(analysis, start))))
             || !is_executable(&analysis.image, start)
         {
             continue;
@@ -539,17 +561,7 @@ fn recover_functions(
         // statement about this backend's guard rail, not about the image.
         // Keep what the walk did discover and record why it stopped, rather
         // than failing the whole image on one runaway start.
-        let calls = discover_direct_flow(analysis, &mut direct_flow, start, noreturn);
-        if discover_callbacks {
-            for target in super::callbacks::discover(analysis, start, noreturn) {
-                analysis
-                    .seeds
-                    .entry(target)
-                    .or_default()
-                    .insert(SeedKind::ApiCallback);
-                pending.push_front(target);
-            }
-        }
+        let calls = discover_direct_flow(analysis, &mut direct_flow, start, &mut pointers);
         for target in calls.into_iter().rev() {
             if !is_executable(&analysis.image, target) {
                 continue;
@@ -582,17 +594,17 @@ fn recover_functions(
                 .entry(target)
                 .or_default()
                 .insert(SeedKind::CallTarget);
-            if is_new || (was_heuristic_only && !function_starts.contains(&target)) {
+            if is_new
+                || (!function_starts.contains(&target)
+                    && (was_heuristic_only
+                        || direct_flow.completed_functions.contains_key(&target)))
+            {
                 pending.push_front(target);
             }
         }
     }
     analysis.functions.clear();
     for start in function_starts {
-        if let Some(function) = direct_flow.import_functions.remove(&start) {
-            analysis.functions.insert(start, function);
-            continue;
-        }
         let function = match build_function_view(
             analysis,
             &direct_flow,
@@ -615,7 +627,26 @@ fn recover_functions(
         };
         analysis.functions.insert(start, function);
     }
-    Ok(())
+    // Compatibility propagates no-return decisions as functions complete.
+    // Native recovery uses the complete graph for its fixed point. Preserve
+    // import-call fragments in that graph, then apply captured feature scopes
+    // after recovery decisions.
+    for address in &direct_flow.import_functions {
+        if let Some(captured) = direct_flow.completed_functions.get(address) {
+            analysis.functions.insert(*address, captured.clone());
+        }
+    }
+    let next = if direct_flow.compatibility {
+        direct_flow.known_noreturn.clone()
+    } else {
+        noreturn::propagate(analysis, &noreturn::seed_addresses(&analysis.image))
+    };
+    for (address, captured) in direct_flow.completed_functions {
+        if let Some(function) = analysis.functions.get_mut(&address) {
+            *function = captured;
+        }
+    }
+    Ok(next)
 }
 
 /// Vivisect's `i386.golang` pass: seed `runtime_main`, the start every Go
@@ -673,6 +704,25 @@ fn run_go_runtime_main_wave(
 /// same two rules it does: an address begins a block if something branches to
 /// it, or if the instruction it follows ends one.
 fn code_block_start(analysis: &Analysis, direct_flow: &DirectFlowGraph, va: u64) -> Option<u64> {
+    if direct_flow.compatibility {
+        // getCodeBlock reads the last block written to the workspace map.
+        // Reconstructing a boundary from nearby instruction addresses loses
+        // that ownership when instruction streams or function views overlap.
+        return direct_flow
+            .completed_functions
+            .iter()
+            .flat_map(|(function, view)| {
+                view.blocks.iter().filter_map(|block| {
+                    let end = block.insns.last()?.next_address;
+                    (block.addr <= va && va < end).then_some((
+                        analysis.function_order.get(function).copied().unwrap_or(0),
+                        block.addr,
+                    ))
+                })
+            })
+            .max()
+            .map(|(_, start)| start);
+    }
     let mut address = va;
     loop {
         if !analysis.instructions.contains_key(&address) {
@@ -781,7 +831,7 @@ fn run_import_call_wave(
     analysis: &mut Analysis,
     direct_flow: &mut DirectFlowGraph,
     pending: &mut VecDeque<u64>,
-    noreturn: &BTreeSet<u64>,
+    pointers: &mut super::pointers::Discovery,
     function_starts: Option<&BTreeSet<u64>>,
 ) {
     let mut known_functions = function_starts.cloned();
@@ -819,7 +869,7 @@ fn run_import_call_wave(
             analysis,
             direct_flow,
             start,
-            noreturn,
+            pointers,
             known_functions.as_mut(),
         );
         for target in calls.into_iter().rev() {
@@ -832,7 +882,7 @@ fn run_import_call_wave(
                 .entry(target)
                 .or_default()
                 .insert(SeedKind::CallTarget);
-            if is_new || direct_flow.import_functions.contains_key(&target) {
+            if is_new || direct_flow.completed_functions.contains_key(&target) {
                 pending.push_front(target);
             }
         }
@@ -1938,51 +1988,147 @@ fn discover_direct_flow(
     analysis: &mut Analysis,
     direct_flow: &mut DirectFlowGraph,
     start: u64,
-    noreturn: &BTreeSet<u64>,
+    pointers: &mut super::pointers::Discovery,
 ) -> BTreeSet<u64> {
-    discover_flow(analysis, direct_flow, start, noreturn, None)
+    discover_flow(analysis, direct_flow, start, pointers, None)
 }
 
 enum FlowTask {
     Path(u64),
-    FinishFunction(u64, bool),
+    FinishFunction(u64),
+    FinalizeFunction(u64),
+    ResumeCall {
+        address: u64,
+        next: u64,
+        target: u64,
+    },
+}
+
+fn delay_function_for_branch(
+    pending: &VecDeque<FlowTask>,
+    target: u64,
+    delayed: &mut BTreeMap<u64, BTreeSet<u64>>,
+) {
+    let mut active = pending.iter().filter_map(|task| match task {
+        FlowTask::FinishFunction(address) => Some(*address),
+        FlowTask::Path(_) | FlowTask::ResumeCall { .. } | FlowTask::FinalizeFunction(_) => None,
+    });
+    if let Some(current) = active.next() {
+        if current != target && active.any(|address| address == target) {
+            delayed.entry(current).or_default().insert(target);
+        }
+    }
 }
 
 fn discover_flow(
     analysis: &mut Analysis,
     direct_flow: &mut DirectFlowGraph,
     start: u64,
-    noreturn: &BTreeSet<u64>,
+    pointers: &mut super::pointers::Discovery,
     mut import_functions: Option<&mut BTreeSet<u64>>,
 ) -> BTreeSet<u64> {
     let mut pending = VecDeque::from([FlowTask::Path(start)]);
     if direct_flow.compatibility && import_functions.is_none() {
-        pending.push_back(FlowTask::FinishFunction(start, false));
+        pending.push_back(FlowTask::FinishFunction(start));
     }
     let mut calls = BTreeSet::new();
     let mut discovered = 0usize;
+    // envi/codeflow.py delays the function callback when a branch enters
+    // an ancestor still on the analysis stack. Its complete extent is only
+    // available after that ancestor finishes.
+    let mut delayed = BTreeMap::<u64, BTreeSet<u64>>::new();
 
     while let Some(task) = pending.pop_front() {
         let path_start = match task {
             FlowTask::Path(address) => address,
-            FlowTask::FinishFunction(address, preserve_view) => {
+            FlowTask::ResumeCall {
+                address,
+                next,
+                target,
+            } => {
+                if direct_flow.known_noreturn.contains(&target) {
+                    analysis.noreturn_calls.insert(address);
+                    direct_flow.successors.insert(address, Vec::new());
+                } else {
+                    pending.push_front(FlowTask::Path(next));
+                }
+                continue;
+            }
+            FlowTask::FinishFunction(address) => {
+                if delayed.contains_key(&address)
+                    || direct_flow.completed_functions.contains_key(&address)
+                {
+                    continue;
+                }
                 let order = analysis.function_order.len();
                 analysis.function_order.entry(address).or_insert(order);
                 analysis
                     .function_location_counts
                     .entry(address)
                     .or_insert(analysis.instructions.len());
-                if !preserve_view {
-                    continue;
-                }
                 match build_function_view(analysis, direct_flow, address, false) {
                     Ok(function) => {
-                        direct_flow.import_functions.insert(address, function);
+                        direct_flow
+                            .completed_functions
+                            .entry(address)
+                            .or_insert(function);
                     }
                     Err(error) => analysis.diagnostics.push(RecoveryDiagnostic {
                         address,
-                        message: format!("could not preserve import-call function extent: {error}"),
+                        message: format!("could not preserve function extent: {error}"),
                     }),
+                }
+                pending.push_front(FlowTask::FinalizeFunction(address));
+                // Calling analysis runs after codeblocks and before noret,
+                // while the procedural caller is still suspended.
+                if direct_flow.compatibility && super::callbacks::enabled(&analysis.image) {
+                    for (target, kind) in super::callbacks::discover(
+                        analysis,
+                        address,
+                        &direct_flow.known_noreturn,
+                        pointers,
+                    )
+                    .into_iter()
+                    .rev()
+                    {
+                        analysis.seeds.entry(target).or_default().insert(kind);
+                        if direct_flow.completed_functions.contains_key(&target)
+                            || pending.iter().any(|task| matches!(task, FlowTask::FinishFunction(va) if *va == target))
+                        {
+                            continue;
+                        }
+                        calls.insert(target);
+                        pending.push_front(FlowTask::FinishFunction(target));
+                        pending.push_front(FlowTask::Path(target));
+                    }
+                }
+                continue;
+            }
+            FlowTask::FinalizeFunction(address) => {
+                if direct_flow.compatibility
+                    && direct_flow
+                        .completed_functions
+                        .get(&address)
+                        .is_some_and(|function| {
+                            noreturn::completed_function_never_returns(
+                                analysis,
+                                function,
+                                &direct_flow.known_noreturn,
+                            )
+                        })
+                {
+                    direct_flow.known_noreturn.insert(address);
+                }
+                let mut ready = Vec::new();
+                for (&waiting, dependencies) in &mut delayed {
+                    dependencies.remove(&address);
+                    if dependencies.is_empty() {
+                        ready.push(waiting);
+                    }
+                }
+                for waiting in ready.into_iter().rev() {
+                    delayed.remove(&waiting);
+                    pending.push_front(FlowTask::FinishFunction(waiting));
                 }
                 continue;
             }
@@ -1994,7 +2140,10 @@ fn discover_flow(
             // locations to functions. A known function entry is not a direct
             // flow barrier. Once an instruction is present in this shared
             // graph, every later function view can traverse its recorded edges.
-            if direct_flow.successors.contains_key(&address)
+            if super::emucode::in_data(pointers.code_barriers(), address)
+                || (direct_flow.compatibility
+                    && super::emucode::in_import(&analysis.image, address))
+                || direct_flow.successors.contains_key(&address)
                 || (direct_flow.compatibility && instruction_location(analysis, address).is_some())
                 || !is_executable(&analysis.image, address)
             {
@@ -2040,6 +2189,9 @@ fn discover_flow(
             let flow = insn.flow;
             discovered = discovered.saturating_add(1);
             analysis.instructions.entry(address).or_insert(insn.clone());
+            if direct_flow.compatibility {
+                pointers.observe_instruction(analysis, &insn, true);
+            }
             let order = analysis.instruction_order.len();
             analysis.instruction_order.entry(address).or_insert(order);
             match flow {
@@ -2100,8 +2252,9 @@ fn discover_flow(
                     // call site keeps its code xref but loses its fallthrough,
                     // so the caller ends here instead of absorbing whatever
                     // bytes follow.
-                    let ends_flow =
-                        target.is_some_and(|target| target != next && noreturn.contains(&target));
+                    let ends_flow = target.is_some_and(|target| {
+                        target != next && direct_flow.known_noreturn.contains(&target)
+                    });
                     if ends_flow {
                         analysis.noreturn_calls.insert(address);
                         direct_flow.successors.insert(address, Vec::new());
@@ -2127,9 +2280,14 @@ fn discover_flow(
                             known.len() < MAX_FUNCTIONS && known.insert(target)
                         }) {
                             if !ends_flow {
-                                pending.push_front(FlowTask::Path(next));
+                                pending.push_front(FlowTask::ResumeCall {
+                                    address,
+                                    next,
+                                    target,
+                                });
                             }
-                            pending.push_front(FlowTask::FinishFunction(target, true));
+                            direct_flow.import_functions.insert(target);
+                            pending.push_front(FlowTask::FinishFunction(target));
                             pending.push_front(FlowTask::Path(target));
                             break;
                         }
@@ -2137,7 +2295,7 @@ fn discover_flow(
                             && import_functions.is_none()
                             && !analysis.function_order.contains_key(&target)
                             && !pending.iter().any(|task| {
-                                matches!(task, FlowTask::FinishFunction(address, _) if *address == target)
+                                matches!(task, FlowTask::FinishFunction(address) if *address == target)
                             })
                         {
                             // addEntryPoint completes a callee even when its
@@ -2145,9 +2303,9 @@ fn discover_flow(
                             // Only a completed or currently active function
                             // suppresses that callback.
                             if !ends_flow {
-                                pending.push_front(FlowTask::Path(next));
+                                pending.push_front(FlowTask::ResumeCall { address, next, target });
                             }
-                            pending.push_front(FlowTask::FinishFunction(target, false));
+                            pending.push_front(FlowTask::FinishFunction(target));
                             pending.push_front(FlowTask::Path(target));
                             break;
                         }
@@ -2166,6 +2324,9 @@ fn discover_flow(
                         pending.push_back(FlowTask::Path(next));
                     }
                     if let Some(target) = insn.direct_target {
+                        if direct_flow.compatibility {
+                            delay_function_for_branch(&pending, target, &mut delayed);
+                        }
                         edges.push(Edge {
                             target,
                             kind: EdgeKind::Branch,
@@ -2185,6 +2346,9 @@ fn discover_flow(
                 }
                 Flow::UnconditionalBranch => {
                     if let Some(target) = insn.direct_target {
+                        if direct_flow.compatibility {
+                            delay_function_for_branch(&pending, target, &mut delayed);
+                        }
                         // Phase 2.1: a direct unconditional jump is ordinary
                         // control flow. A seed at the target only means the
                         // target *may* be a function entry -- it does not prove
@@ -2228,12 +2392,38 @@ fn discover_flow(
                         direct_flow.successors.insert(address, Vec::new());
                         break;
                     }
-                    let targets = if direct_flow.compatibility {
-                        super::switch::targets_compat(analysis, &insn, noreturn)
+                    let targets = if direct_flow.compatibility
+                        && insn.memory_target.is_some()
+                        && insn.x86_instruction().memory_index() != iced_x86::Register::None
+                    {
+                        Some(jump_table_targets_compat(
+                            analysis,
+                            &insn,
+                            &direct_flow.known_noreturn,
+                        ))
+                    } else if direct_flow.compatibility {
+                        super::switch::targets_compat(
+                            analysis,
+                            &insn,
+                            &direct_flow.known_noreturn,
+                            &mut direct_flow.pending_table_locations,
+                        )
                     } else {
                         super::switch::targets(analysis, &insn)
                     }
-                    .unwrap_or_else(|| jump_table_targets(&analysis.image, &insn));
+                    .unwrap_or_else(|| {
+                        if direct_flow.compatibility {
+                            jump_table_targets_compat(analysis, &insn, &direct_flow.known_noreturn)
+                        } else {
+                            jump_table_targets(&analysis.image, &insn)
+                        }
+                    });
+                    if direct_flow.compatibility {
+                        split_adjacent_tables(analysis, direct_flow, &insn, &targets);
+                        for &target in &targets {
+                            delay_function_for_branch(&pending, target, &mut delayed);
+                        }
+                    }
                     // codeblocks.py excludes BR_DEREF xrefs from a function's
                     // extent. A plain pointer jump can discover loose code,
                     // but does not own the pointed-to function or inherit its
@@ -2241,7 +2431,7 @@ fn discover_flow(
                     // the dispatching function.
                     if !targets.is_empty() && is_pointer_jump(&analysis.image, &insn) {
                         for target in targets {
-                            if import_functions.is_some() {
+                            if direct_flow.compatibility || import_functions.is_some() {
                                 pending.push_front(FlowTask::Path(target));
                             } else {
                                 pending.push_back(FlowTask::Path(target));
@@ -2251,20 +2441,46 @@ fn discover_flow(
                         direct_flow.successors.insert(address, Vec::new());
                         break;
                     }
+                    // base.py:_cb_branchtable defines pointer locations for
+                    // table entries. Without them, emucode may later accept
+                    // the table bytes as another function.
+                    if direct_flow.compatibility && !targets.is_empty() {
+                        if let Some(base) = insn.memory_target {
+                            let width = analysis.image.architecture.pointer_width();
+                            for index in 0..MAX_JUMP_TABLE_ENTRIES {
+                                let Some(slot) = base.checked_add((index * width) as u64) else {
+                                    break;
+                                };
+                                if !read_pointer(&analysis.image, slot)
+                                    .is_some_and(|target| targets.contains(&target))
+                                {
+                                    break;
+                                }
+                                direct_flow.pending_table_locations.push((slot, width));
+                            }
+                        }
+                    }
                     if targets.is_empty() {
                         analysis.diagnostics.push(RecoveryDiagnostic {
                             address,
                             message: "unresolved indirect branch".to_string(),
                         });
                     } else {
+                        // envi/codeflow.py completes every branch path before
+                        // invoking the function callback. Queue switch arms
+                        // ahead of FinishFunction in table order.
+                        if direct_flow.compatibility || import_functions.is_some() {
+                            for &target in targets.iter().rev() {
+                                pending.push_front(FlowTask::Path(target));
+                            }
+                        } else {
+                            for &target in &targets {
+                                pending.push_back(FlowTask::Path(target));
+                            }
+                        }
                         let edges: Vec<_> = targets
                             .into_iter()
                             .map(|target| {
-                                if import_functions.is_some() {
-                                    pending.push_front(FlowTask::Path(target));
-                                } else {
-                                    pending.push_back(FlowTask::Path(target));
-                                }
                                 push_xref(&mut analysis.code_xrefs, target, address);
                                 Edge {
                                     target,
@@ -2415,13 +2631,93 @@ fn build_function_view(
     })
 }
 
+fn split_adjacent_tables(
+    analysis: &mut Analysis,
+    graph: &mut DirectFlowGraph,
+    branch: &DecodedInstruction,
+    targets: &[u64],
+) {
+    let (Some(base), Some(first)) = (branch.memory_target, targets.first()) else {
+        return;
+    };
+    // makeJumpTable splits a previous table when this table's first arm
+    // already has a reference from an earlier indexed dispatch.
+    let previous: Vec<_> = analysis
+        .code_xrefs
+        .get(first)
+        .into_iter()
+        .flatten()
+        .filter_map(|source| analysis.instructions.get(source))
+        .filter(|insn| {
+            insn.address != branch.address
+                && insn.flow == Flow::IndirectBranch
+                && insn.x86_instruction().memory_index() != iced_x86::Register::None
+                && insn.memory_target.is_some_and(|previous| previous < base)
+        })
+        .map(|insn| insn.address)
+        .collect();
+    if previous.is_empty() {
+        return;
+    }
+    let affected: Vec<_> = graph
+        .completed_functions
+        .iter()
+        .filter(|(_, function)| {
+            function.blocks.iter().any(|block| {
+                block
+                    .insns
+                    .iter()
+                    .any(|insn| previous.contains(&insn.address))
+            })
+        })
+        .map(|(&address, _)| address)
+        .collect();
+    for source in previous {
+        if let Some(edges) = graph.successors.get_mut(&source) {
+            edges.retain(|edge| !targets.contains(&edge.target));
+        }
+        for target in targets {
+            if let Some(sources) = analysis.code_xrefs.get_mut(target) {
+                sources.retain(|address| *address != source);
+            }
+        }
+    }
+    // splitJumpTable removes the former owner's case blocks. Refresh scopes
+    // whose dispatch edges changed so they no longer retain those arms.
+    for target in targets {
+        let owner = graph
+            .completed_functions
+            .iter()
+            .filter(|(_, function)| function.blocks.iter().any(|block| block.addr == *target))
+            .max_by_key(|(address, _)| analysis.function_order.get(address).copied().unwrap_or(0))
+            .map(|(&address, _)| address);
+        if let Some(function) = owner.and_then(|owner| graph.completed_functions.get_mut(&owner)) {
+            function.blocks.retain(|block| block.addr != *target);
+        }
+    }
+    for address in affected {
+        match build_function_view(analysis, graph, address, false) {
+            Ok(function) => {
+                graph.completed_functions.insert(address, function);
+            }
+            Err(error) => analysis.diagnostics.push(RecoveryDiagnostic {
+                address,
+                message: format!("could not rebuild function after splitting its table: {error}"),
+            }),
+        }
+    }
+}
+
 fn instruction_location(analysis: &Analysis, address: u64) -> Option<&DecodedInstruction> {
+    // VivWorkspace.locmap overwrites each covered byte when a later opcode
+    // overlaps an earlier one. A location can start at most fourteen bytes
+    // before this address because x86 instructions are at most fifteen bytes.
     analysis
         .instructions
-        .range(..=address)
-        .next_back()
+        .range(address.saturating_sub(14)..=address)
+        .filter(|(_, insn)| address < insn.next_address)
+        .max_by_key(|(start, _)| analysis.instruction_order.get(start).copied().unwrap_or(0))
         .map(|(_, insn)| insn)
-        .filter(|insn| address < insn.next_address)
 }
 
 /// Vivisect 1.3.2 generic/codeblocks.py advances by the existing location's
@@ -2477,14 +2773,9 @@ fn build_compatibility_view(
                 succs = branches;
                 break;
             }
-            if next != start
-                && analysis
-                    .seeds
-                    .get(&next)
-                    .is_some_and(|kinds| kinds.contains(&SeedKind::Unwind))
-            {
-                break;
-            }
+            // vivisect/analysis/generic/codeblocks.py follows fallthrough
+            // across other function entries, including PE unwind roots.
+            // Unwind metadata seeds discovery but is not a flow barrier.
             if !branches.is_empty() || analysis.code_xrefs.contains_key(&next) {
                 succs = branches;
                 succs.push(Edge {
@@ -2584,6 +2875,69 @@ pub(crate) fn memory_target(insn: &DecodedInstruction) -> Option<u64> {
 }
 
 pub(crate) fn jump_table_targets(image: &LoadedImage, insn: &DecodedInstruction) -> Vec<u64> {
+    let mut targets = scan_jump_table(image, insn, |_, _| true);
+    targets.sort_unstable();
+    targets.dedup();
+    targets
+}
+
+fn jump_table_targets_compat(
+    analysis: &mut Analysis,
+    insn: &DecodedInstruction,
+    noreturn: &BTreeSet<u64>,
+) -> Vec<u64> {
+    if is_pointer_jump(&analysis.image, insn) {
+        return jump_table_targets(&analysis.image, insn);
+    }
+    let Some(base) = insn.memory_target else {
+        return Vec::new();
+    };
+    let width = analysis.image.architecture.pointer_width() as u64;
+    let candidates = scan_jump_table(&analysis.image, insn, |_, _| true);
+    let mut targets = Vec::new();
+    for (index, target) in candidates.into_iter().enumerate() {
+        let Some(slot) = base.checked_add((index as u64).saturating_mul(width)) else {
+            break;
+        };
+        if Some(slot) != insn.memory_target
+            && (analysis.code_xrefs.contains_key(&slot) || analysis.data_xrefs.contains_key(&slot))
+        {
+            break;
+        }
+        let signature = analysis
+            .seeds
+            .get(&target)
+            .is_some_and(|kinds| kinds.contains(&SeedKind::FunctionSignature));
+        if !signature && !targets.contains(&target) {
+            match super::emucode::evaluate_candidate(analysis, target, noreturn, &[]) {
+                super::emucode::Verdict::NotCode => break,
+                super::emucode::Verdict::Inconclusive { address, reason } => {
+                    analysis.diagnostics.push(RecoveryDiagnostic {
+                        address,
+                        message: format!(
+                            "switch {:#x} arm {target:#x} candidate evaluation inconclusive: {reason}",
+                            insn.address
+                        ),
+                    });
+                }
+                super::emucode::Verdict::Code => {}
+            }
+        }
+        // _cb_branchtable records each reference before evaluating the
+        // next entry. Subsequent candidate traces see that partial table.
+        push_xref(&mut analysis.code_xrefs, target, insn.address);
+        targets.push(target);
+    }
+    let mut seen = BTreeSet::new();
+    targets.retain(|target| seen.insert(*target));
+    targets
+}
+
+fn scan_jump_table(
+    image: &LoadedImage,
+    insn: &DecodedInstruction,
+    mut accept: impl FnMut(u64, u64) -> bool,
+) -> Vec<u64> {
     let Some(base) = insn.memory_target else {
         return Vec::new();
     };
@@ -2625,13 +2979,11 @@ pub(crate) fn jump_table_targets(image: &LoadedImage, insn: &DecodedInstruction)
             };
             u64::from(u32::from_le_bytes(value))
         };
-        if !is_executable(image, target) {
+        if !is_executable(image, target) || !accept(slot, target) {
             break;
         }
         targets.push(target);
     }
-    targets.sort_unstable();
-    targets.dedup();
     targets
 }
 
@@ -2826,6 +3178,154 @@ mod tests {
     }
 
     #[test]
+    fn callbacks_discovered_inside_import_fragments_become_functions() {
+        let mut bytes = vec![0xc3];
+        bytes.resize(0x10, 0xcc);
+        bytes.extend_from_slice(&[
+            0xff, 0x15, 0, 0x20, 0, 0, // loose call [CreateThread]
+            0xe8, 0x25, 0, 0, 0, // call 0x1040
+            0xc3,
+        ]);
+        bytes.resize(0x40, 0xcc);
+        bytes.extend_from_slice(&[
+            0x6a, 0, 0x6a, 0, 0x6a, 0, 0x8d, 0x05, 0xa0, 0x10, 0, 0, // lea eax,[0x10a0]
+            0x50, 0x6a, 0, 0x6a, 0, 0xff, 0x15, 0, 0x20, 0, 0, 0xc3,
+        ]);
+        bytes.resize(0xa0, 0xcc);
+        bytes.extend_from_slice(&[0xeb, 0xfe]);
+        bytes.resize(0x1100, 0);
+        let analysis = callback_image(&bytes, Architecture::X86, "kernel32.CreateThread");
+        assert!(analysis.functions.contains_key(&0x1040));
+        assert!(analysis.functions.contains_key(&0x10a0));
+        assert!(analysis.seeds[&0x10a0].contains(&SeedKind::ApiCallback));
+    }
+
+    #[test]
+    fn seh3_scope_tables_contribute_filter_and_handler_candidates() {
+        let mut bytes = vec![
+            0x6a, 0, // local allocation
+            0x68, 0x80, 0x10, 0, 0, // scope table
+            0xe8, 0x34, 0, 0, 0, // call seh3_prolog at 0x1040
+            0xc3,
+        ];
+        bytes.resize(0x40, 0xcc);
+        bytes.extend_from_slice(&[0x68, 0, 0, 0, 0, 0x64, 0xa1, 0, 0, 0, 0, 0x50, 0xc3]);
+        bytes.resize(0x80, 0xcc);
+        for value in [u32::MAX, 0x10c0, 0x10d0] {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
+        bytes.resize(0xc0, 0xcc);
+        bytes.extend_from_slice(&[0x31, 0xc0, 0xc3]);
+        bytes.resize(0xd0, 0xcc);
+        bytes.extend_from_slice(&[0x49, 0x75, 0xfd, 0xc3]);
+        let analysis = callback_image(&bytes, Architecture::X86, "kernel32.OtherApi");
+        for address in [0x10c0, 0x10d0] {
+            assert!(analysis.functions.contains_key(&address));
+            assert!(analysis.seeds[&address].contains(&SeedKind::Emulated));
+        }
+        assert!(!analysis.instructions.contains_key(&0x1080));
+    }
+
+    #[test]
+    fn callee_data_references_stop_the_callers_later_code_flow() {
+        let mut bytes = vec![0xe8, 0x0b, 0, 0, 0, 0x90, 0x90, 0x90, 0x90, 0xeb, 0xfe];
+        bytes.resize(0x10, 0xcc);
+        bytes.push(0xa1); // mov eax,[base+5]
+        bytes.extend_from_slice(&((SHELLCODE_BASE + 5) as u32).to_le_bytes());
+        bytes.push(0xc3);
+        let analysis = analyze_shellcode(&bytes, Architecture::X86).unwrap();
+        assert!(!analysis.instructions.contains_key(&(SHELLCODE_BASE + 5)));
+        assert_eq!(
+            function_instruction_addrs(&analysis.functions[&SHELLCODE_BASE]).len(),
+            1
+        );
+        assert!(analysis.functions.contains_key(&(SHELLCODE_BASE + 0x10)));
+    }
+
+    #[test]
+    fn candidate_traces_follow_previously_resolved_indirect_branches() {
+        let mut analysis = analyze_noreturn_test_image(&[0xff, 0xe0, 0xc3]);
+        assert_eq!(
+            super::super::emucode::evaluate_candidate(&analysis, 0x1000, &BTreeSet::new(), &[]),
+            super::super::emucode::Verdict::NotCode
+        );
+        let target = analysis.image.decode_at_compat(0x1002).unwrap();
+        analysis.instructions.insert(0x1002, target);
+        analysis.code_xrefs.insert(0x1002, vec![0x1000]);
+        assert_eq!(
+            super::super::emucode::evaluate_candidate(&analysis, 0x1000, &BTreeSet::new(), &[]),
+            super::super::emucode::Verdict::Code
+        );
+    }
+
+    #[test]
+    fn rejected_emucode_strings_become_code_barriers() {
+        let mut bytes = vec![0xc3];
+        bytes.resize(0x40, 0xcc);
+        bytes.extend_from_slice(b"hello world\0");
+        let mut analysis = analyze_noreturn_test_image(&bytes);
+        analysis
+            .seeds
+            .insert(0x1040, BTreeSet::from([SeedKind::Emulated]));
+        let mut discovery = super::super::pointers::Discovery::new(&mut analysis, true);
+        assert_eq!(discovery.next(&mut analysis, &BTreeSet::new()), None);
+        assert!(super::super::emucode::in_data(
+            discovery.code_barriers(),
+            0x1045
+        ));
+    }
+
+    #[test]
+    fn compatibility_preserves_jump_table_order_and_deduplicates_arms() {
+        let mut bytes = vec![0xff, 0x24, 0x85, 0x20, 0x10, 0, 0];
+        bytes.resize(0x20, 0xcc);
+        for target in [0x1080u32, 0x1040, 0x1080, 0x1060] {
+            bytes.extend_from_slice(&target.to_le_bytes());
+        }
+        bytes.resize(0x90, 0xcc);
+        for offset in [0x40, 0x60, 0x80] {
+            bytes[offset] = 0xc3;
+        }
+        let mut analysis = analyze_noreturn_test_image(&bytes);
+        let branch = analysis.instructions[&0x1000].clone();
+        assert_eq!(
+            jump_table_targets_compat(&mut analysis, &branch, &BTreeSet::new()),
+            [0x1080, 0x1040, 0x1060]
+        );
+        assert_eq!(
+            jump_table_targets(&analysis.image, &branch),
+            [0x1040, 0x1060, 0x1080]
+        );
+    }
+
+    #[test]
+    fn calling_trace_finds_callees_after_a_computed_jump() {
+        let mut bytes = vec![
+            0xc7, 0x05, 0x40, 0x10, 0, 0, 0x60, 0x10, 0, 0, // mov [0x1040],0x1060
+            0x8d, 0x05, 0x40, 0x10, 0, 0, // lea eax,[0x1040]
+            0xff, 0x20, // jmp [eax]
+        ];
+        bytes.resize(0x60, 0);
+        bytes.extend_from_slice(&[0xe8, 0x1b, 0, 0, 0, 0xc3]); // call 0x1080; ret
+        bytes.resize(0x80, 0xcc);
+        bytes.extend_from_slice(&[0xeb, 0xfe]); // a callee that cannot pass candidate evaluation
+        let analysis = callback_image(&bytes, Architecture::X86, "kernel32.OtherApi");
+        assert!(analysis.functions.contains_key(&0x1080));
+        assert!(analysis.seeds[&0x1080].contains(&SeedKind::CallTarget));
+    }
+
+    #[test]
+    fn calling_trace_does_not_treat_import_contents_as_a_callee() {
+        let mut bytes = vec![0xff, 0x15, 0, 0x20, 0, 0, 0xc3];
+        bytes.resize(0x40, 0xcc);
+        bytes.extend_from_slice(&[0xeb, 0xfe]);
+        bytes.resize(0x1000, 0);
+        bytes.extend_from_slice(&0x1040u32.to_le_bytes());
+        let analysis = callback_image(&bytes, Architecture::X86, "kernel32.OtherApi");
+        assert!(!analysis.functions.contains_key(&0x1040));
+    }
+
+    #[test]
     fn api_callbacks_preserve_import_registers_but_forget_volatile_values() {
         let mut bytes = vec![
             0x8b, 0x35, 0, 0x20, 0, 0, // mov esi, [CreateThread]
@@ -2836,19 +3336,24 @@ mod tests {
         ];
         bytes.resize(0x40, 0xcc);
         bytes.extend_from_slice(&[0xeb, 0xfe]);
-        assert!(
-            callback_image(&bytes, Architecture::X86, "kernel32.CreateThread")
-                .functions
-                .contains_key(&0x1040)
-        );
+        for (load, call) in [(0x35, 0xd6), (0x2d, 0xd5)] {
+            // Both ESI and EBP can hold an import across an unknown call.
+            bytes[1] = load;
+            bytes[30] = call;
+            assert!(
+                callback_image(&bytes, Architecture::X86, "kernel32.CreateThread")
+                    .functions
+                    .contains_key(&0x1040)
+            );
+        }
         // The same import held in EAX must be invalidated by the unknown call.
         bytes[1] = 0x05;
         bytes[30] = 0xd0;
-        assert!(
-            !callback_image(&bytes, Architecture::X86, "kernel32.CreateThread")
-                .functions
-                .contains_key(&0x1040)
-        );
+        let analysis = callback_image(&bytes, Architecture::X86, "kernel32.CreateThread");
+        // EAX no longer identifies CreateThread. The later LEA instead
+        // makes CALL EAX a concrete call to 0x1040, not an API callback.
+        assert!(!analysis.seeds[&0x1040].contains(&SeedKind::ApiCallback));
+        assert!(analysis.seeds[&0x1040].contains(&SeedKind::CallTarget));
     }
 
     #[test]
@@ -2958,6 +3463,21 @@ mod tests {
         )
         .unwrap();
         assert!(!analysis.functions.contains_key(&(SHELLCODE_BASE + 1)));
+    }
+
+    #[test]
+    fn entry_signatures_skip_instruction_interiors() {
+        let bytes = [0xb8, 0x55, 0x8b, 0xec, 0, 0xc3];
+        let analysis = analyze_seeded_image(
+            LoadedImage::from_shellcode(&bytes, Architecture::X86),
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(SHELLCODE_BASE, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(!analysis.functions.contains_key(&(SHELLCODE_BASE + 1)));
+        assert!(analysis.functions.contains_key(&SHELLCODE_BASE));
     }
 
     #[test]
@@ -3317,6 +3837,27 @@ mod tests {
     }
 
     #[test]
+    fn later_overlapping_opcodes_replace_the_covered_location() {
+        let mut analysis = analyze_noreturn_test_image(&[0xe9, 0, 0, 0, 0, 0xc3]);
+        let interior = analysis.image.decode_at_compat(0x1002).unwrap();
+        analysis.instructions.insert(0x1002, interior);
+        analysis.instruction_order.insert(0x1002, 0);
+        analysis.instruction_order.insert(0x1000, 1);
+        assert_eq!(
+            instruction_location(&analysis, 0x1002).unwrap().address,
+            0x1000
+        );
+        assert_eq!(
+            instruction_location(&analysis, 0x1004).unwrap().address,
+            0x1000
+        );
+        assert_eq!(
+            instruction_location(&analysis, 0x1005).unwrap().address,
+            0x1005
+        );
+    }
+
+    #[test]
     fn compatibility_blocks_decode_inside_existing_instruction_locations() {
         let code = [
             0x68, 0x00, 0x64, 0xff, 0x30, // push immediate
@@ -3365,11 +3906,11 @@ mod tests {
     }
 
     #[test]
-    fn unwind_entries_contain_fallthrough_but_allow_explicit_shared_tails() {
+    fn compatibility_unwind_entries_preserve_fallthrough_and_shared_tails() {
         for (code, expected) in [
             (
                 vec![0x90, 0x90, 0x90, 0xc3],
-                BTreeSet::from([0x1000, 0x1001]),
+                BTreeSet::from([0x1000, 0x1001, 0x1002, 0x1003]),
             ),
             (
                 vec![0xeb, 0x00, 0x90, 0xc3],
@@ -4000,6 +4541,31 @@ mod tests {
         bytes.resize(0x10, 0xcc);
         bytes.extend_from_slice(&[0xff, 0x25, 0x00, 0x20, 0x00, 0x00]);
         bytes
+    }
+
+    #[test]
+    fn cet_plt_thunks_propagate_no_return_only_in_plt_sections() {
+        for in_plt in [false, true] {
+            let mut code = vec![0xe8, 0x0b, 0, 0, 0, 0x90, 0xc3];
+            code.resize(0x10, 0xcc);
+            code.extend_from_slice(&[0xf3, 0x0f, 0x1e, 0xfb, 0xff, 0x25, 0, 0x20, 0, 0]);
+            let mut image =
+                noreturn_test_image(&code).with_import_location(0x2000, "*.__stack_chk_fail");
+            image.format = ImageFormat::Elf;
+            if in_plt {
+                image.elf_plt_ranges.push((0x1010, 0x1020));
+            }
+            let analysis = analyze_seeded_image(
+                image,
+                RecoveryBackend::VivisectCompat,
+                SeedMap::from([(0x1000, BTreeSet::from([SeedKind::EntryPoint]))]),
+                BTreeMap::new(),
+                Vec::new(),
+            )
+            .unwrap();
+            assert_eq!(analysis.is_noreturn_va(0x1010), in_plt);
+            assert_eq!(analysis.noreturn_calls.contains(&0x1000), in_plt);
+        }
     }
 
     #[test]

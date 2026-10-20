@@ -8,13 +8,15 @@ historical causes so earlier measurements remain interpretable.
 ## Current measured remainder
 
 The latest 2026-10-20 run covers all 377 native x86/x64 and shellcode inputs.
-Original capa rejects one malformed ELF. All 376 comparable inputs now have
+Original capa rejects one malformed ELF. Of the 376 comparable inputs, 374 have
 identical rule-name sets: 11,412 reference rule/sample matches, zero missing,
-and zero extra. Exact rule and match-address sets agree on 251 inputs and
-differ on 125, improved from 177 identical inputs. Match-location and evidence
-tree compatibility are not complete.
+and two extra. Exact rule and match-address sets agree on 321 inputs and
+differ on 55, improved from 251 on the updated main baseline. The extra
+`contain anti-disasm techniques` and `contain pusha popa sequence` matches are
+regressions described in KD-025.
+Match-location and evidence-tree compatibility are not complete.
 
-The [compatibility report](docs/validation/compatibility-2026-10-20.md)
+The [match-address report](docs/validation/match-address-progress-2026-10-20.md)
 records the fixes and links every remaining address difference. The
 [earlier full validation](docs/validation/full-corpus-2026-10-20.md) and
 [complete reference outputs](tests/reference-results/capa-10.0.0/README.md)
@@ -382,14 +384,13 @@ of this project's release contract.
 - **Class:** recovery / function extent
 - **Status:** the documented examples are resolved. This does not claim exact
   function-boundary parity for arbitrary shared code.
-- **Merged extent:** `29a76e413ffe0f78b62926b8455082d6.exe_` previously
-  accumulated code from adjacent functions under `0x1400e1300`, producing
-  `execute shellcode via indirect call`. Function views now stop fallthrough
-  at another independent PE unwind entry. Explicit branches still reach
-  shared tails, and chained unwind fragments remain excluded from the seed
-  set. Ending at this boundary does not itself prove a function never returns.
-  This intentionally follows linker evidence instead of reproducing the
-  reference workspace's overlapping, partially shared extents.
+- **Unwind boundaries:** the native backend stops fallthrough at independent
+  PE unwind entries. Compatibility recovery follows the pinned reference's
+  fallthrough across these entries and preserves the function view when its
+  discovery finishes. This restores the loop match at `0x1400e1300` in
+  `29a76e413ffe0f78b62926b8455082d6.exe_`. Later-discovered instructions must
+  not expand the earlier function's matching scope. Chained unwind fragments
+  remain excluded from the seed set.
 - **Corrected attribution:** on current main, `3fdfb2d5...exe_` already has
   `0x4146a9` inside `0x41467e`, exactly as the pinned reference does. Its
   remaining `link function at runtime on Windows` extra was an import-loader
@@ -652,4 +653,57 @@ of this project's release contract.
 - **Resolution:** derive x86 loop edges from terminal instruction branches;
   retain ELF PLT section ranges and recognize import jumps following ENDBR.
 - **Status:** these mechanisms are implemented and tested. They improve match
-  locations but do not eliminate the remaining 125 differing samples.
+  locations but do not eliminate the remaining 55 differing samples.
+
+
+### KD-024: function completion and evaluated callees
+
+- **Class:** recovery / function extent
+- **Upstream behavior:** `envi/codeflow.py:addCodeFlow` completes branch paths
+  and callees before the function callback. `generic/codeblocks.py` captures
+  the locations available at that point. Later discovery does not rebuild
+  every previous function from the expanded instruction map.
+- **Resolution:** preserve compatibility views at completion, finish switch
+  arms before capturing them, and propagate compatibility no-return decisions
+  as functions complete. Native recovery retains its graph-wide fixed point.
+  Calling traces run before final no-return classification, and changed jump
+  table edges refresh the affected function scopes. Late signatures cannot
+  start inside an existing instruction, matching `generic/funcentries.py`.
+- **Evaluated calls:** `impemu/monitor.py:AnalysisMonitor.apicall` also creates
+  concrete runtime-resolved callees. The bounded calling trace now follows
+  computed jumps into undecoded bytes and records executable callees. Import
+  identities take precedence over raw IAT contents. Newly supported scalar
+  and SSE operations follow `envi/archs/i386/emu.py`; unsupported operations
+  still produce diagnostics. Vector values remain unknown.
+- **Decoder boundary:** operand-size-prefixed relative branches retain their
+  complete 32-bit target in compatibility mode. Typed data locations constrain
+  codeflow, while pointer locations remain eligible for reclassification.
+  WAIT, legacy NOP aliases, and SSE string-register behavior follow the pinned
+  decoder and emulator.
+- **Coverage:** synthetic tests exercise completion order, signature interiors,
+  computed jumps, IAT identities, packed operations, and prefixed LOOP targets.
+  `match_address_parity.rs` compares complete rule/address sets for six inputs
+  with the immutable reference index. The full corpus gains 70 identical
+  samples and preserves every previously identical sample. The remaining
+  55 differing inputs are listed in the current validation report.
+
+### KD-025: extra function scopes expose pusha/popa matches
+
+- **Class:** recovery / callback discovery and function ownership
+- **Direction:** two extra rule-name matches
+- **Sample:** `971e599e6e707349eccea2fd4c8e5f67.exe_`
+- **Affects:** `contain anti-disasm techniques`
+- **Evidence:** callback discovery before function finalization retains extra
+  function scopes matching `contain pusha popa sequence`, crossing the parent
+  rule's threshold. This sample already had address differences on main; the
+  new rule-name match is a regression, not an accepted baseline change.
+- **Upstream mechanism:** `impemu/monitor.py:AnalysisMonitor.apicall` discovers
+  concrete callees while `generic/codeblocks.py` captures function ownership.
+  The timing and ownership of these overlapping scopes remain incompatible.
+- **Additional sample:** `648fc498110b11b4313a47a776e6ba40.exe_` gains
+  `contain pusha popa sequence` at function `0x5fa068`. This was absent from
+  the main baseline. The exact discovery step causing this additional scope
+  still needs isolation; it must not be assumed to share the threshold cause
+  above.
+- **Status:** unresolved. The exact-parity gains do not justify treating the
+  current branch as ready to merge. Expected baselines remain unchanged.

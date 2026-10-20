@@ -1428,10 +1428,10 @@ impl LoadedImage {
         let opcode_offset = compatibility
             .then(|| {
                 bytes.iter().position(|byte| {
-                    !matches!(
+                    !(matches!(
                         byte,
                         0x26 | 0x2e | 0x36 | 0x3e | 0x64 | 0x65 | 0x66 | 0x67 | 0xf0 | 0xf2 | 0xf3
-                    ) && !(self.architecture == Architecture::X64 && (0x40..=0x4f).contains(byte))
+                    ) || (self.architecture == Architecture::X64 && (0x40..=0x4f).contains(byte)))
                 })
             })
             .flatten();
@@ -1449,14 +1449,31 @@ impl LoadedImage {
             });
         }
         let bound_offset = opcode_offset.filter(|offset| bytes.get(*offset) == Some(&0x62));
+        // The pinned opcode86.tbl32_0F leaves A6/A7 undefined, including
+        // VIA PadLock instructions accepted by newer decoders.
+        if opcode_offset.is_some_and(|offset| {
+            bytes.get(offset) == Some(&0x0f) && matches!(bytes.get(offset + 1), Some(0xa6 | 0xa7))
+        }) {
+            return Err(ImageError::InvalidInstruction {
+                address,
+                reason: "opcode is undefined in the reference 0F A6/A7 table".into(),
+            });
+        }
         // The same opcode table gives C6/C7 and 8F direct MOV/POP entries,
         // ignoring the ModRM extension bits that modern decoders validate.
         let alias_offset = opcode_offset.filter(|offset| {
             matches!(bytes.get(*offset), Some(0xc6 | 0xc7 | 0x8f))
                 && bytes.get(offset + 1).is_some_and(|modrm| modrm & 0x38 != 0)
         });
+        // opcode86.tbl32_0F uses one NOP operand for 1C..1F, ignoring the
+        // ModRM extension. This also covers the older decoding of CET pads.
+        let nop_offset = opcode_offset.filter(|offset| {
+            bytes.get(*offset) == Some(&0x0f)
+                && matches!(bytes.get(offset + 1), Some(0x1c..=0x1f))
+                && bytes.get(offset + 2).is_some()
+        });
         let mut legacy_bytes = None;
-        if bound_offset.is_some() || alias_offset.is_some() {
+        if bound_offset.is_some() || alias_offset.is_some() || nop_offset.is_some() {
             let mut adjusted = bytes.to_vec();
             if let Some(opcode) = bound_offset.and_then(|offset| adjusted.get_mut(offset)) {
                 *opcode = 0x8b;
@@ -1464,15 +1481,53 @@ impl LoadedImage {
             if let Some(modrm) = alias_offset.and_then(|offset| adjusted.get_mut(offset + 1)) {
                 *modrm &= !0x38;
             }
+            if let Some(offset) = nop_offset {
+                if let Some(opcode) = adjusted.get_mut(offset + 1) {
+                    *opcode = 0x1f;
+                }
+                if let Some(modrm) = adjusted.get_mut(offset + 2) {
+                    *modrm &= !0x38;
+                }
+            }
             legacy_bytes = Some(adjusted);
         }
         let mut decoder = Decoder::with_ip(
             self.architecture.bitness(),
             legacy_bytes.as_deref().unwrap_or(bytes),
             address,
-            DecoderOptions::NONE,
+            if compatibility {
+                DecoderOptions::NO_PAUSE
+            } else {
+                DecoderOptions::NONE
+            },
         );
         let mut instruction = decoder.decode();
+        if compatibility
+            && self.architecture == Architecture::X86
+            && instruction.op0_kind() == iced_x86::OpKind::NearBranch16
+        {
+            // envi/archs/i386/disasm.py:i386PcRelOper.getOperValue adds the
+            // signed displacement to the full instruction VA. An operand-size
+            // prefix does not truncate relative targets to 16 bits.
+            let offsets = decoder.get_constant_offsets(&instruction);
+            let displacement = bytes
+                .get(
+                    offsets.immediate_offset()
+                        ..offsets.immediate_offset() + offsets.immediate_size(),
+                )
+                .and_then(|raw| match raw {
+                    [byte] => Some(i64::from(*byte as i8)),
+                    [low, high] => Some(i64::from(i16::from_le_bytes([*low, *high]))),
+                    _ => None,
+                })
+                .ok_or_else(|| ImageError::InvalidInstruction {
+                    address,
+                    reason: "missing relative branch displacement".into(),
+                })?;
+            let target = instruction.next_ip().wrapping_add_signed(displacement);
+            instruction.set_op0_kind(iced_x86::OpKind::NearBranch32);
+            instruction.set_near_branch32(target as u32);
+        }
         if bound_offset.is_some() && !instruction.is_invalid() {
             instruction.set_code(if instruction.op0_register().size() == 2 {
                 iced_x86::Code::Bound_r16_m1616
@@ -2614,6 +2669,61 @@ mod tests {
             assert_eq!(
                 image.decode_at_compat(image.image_base).is_err(),
                 architecture == Architecture::X86
+            );
+        }
+    }
+
+    #[test]
+    fn compatibility_decodes_legacy_nop_aliases() {
+        for bytes in [
+            &[0xf3, 0x90][..],
+            &[0x0f, 0x1f, 0x54, 0x54, 0x68],
+            &[0x0f, 0x1c, 0x00],
+            &[0xf3, 0x0f, 0x1e, 0xfb],
+        ] {
+            let image = LoadedImage::from_shellcode(bytes, Architecture::X86);
+            let decoded = image.decode_at_compat(image.image_base).unwrap();
+            assert_eq!(
+                decoded.x86_instruction().mnemonic(),
+                iced_x86::Mnemonic::Nop
+            );
+            assert_eq!(decoded.bytes, bytes);
+            assert_eq!(decoded.next_address, image.image_base + bytes.len() as u64);
+        }
+    }
+
+    #[test]
+    fn compatibility_rejects_undefined_padlock_opcodes() {
+        for bytes in [&[0x0f, 0xa7, 0xc0][..], &[0xf3, 0x0f, 0xa7, 0xc8]] {
+            let image = LoadedImage::from_shellcode(bytes, Architecture::X86);
+            assert!(image.decode_at(image.image_base).is_ok());
+            assert!(matches!(
+                image.decode_at_compat(image.image_base),
+                Err(ImageError::InvalidInstruction { .. })
+            ));
+        }
+    }
+
+    #[test]
+    fn compatibility_keeps_full_addresses_for_operand_size_prefixed_branches() {
+        for bytes in [
+            &[0x66, 0xe0, 0xfd][..], // loopne back to the instruction
+            &[0x66, 0xe1, 0xfd],
+            &[0x66, 0xe2, 0xfd],
+            &[0x66, 0xe8, 0xfc, 0xff],
+            &[0x66, 0xe9, 0xfc, 0xff],
+            &[0x66, 0x0f, 0x85, 0xfb, 0xff],
+        ] {
+            let image = LoadedImage::from_shellcode(bytes, Architecture::X86);
+            let decoded = image.decode_at_compat(image.image_base).unwrap();
+            assert_eq!(decoded.direct_target, Some(image.image_base));
+            assert_eq!(
+                decoded.x86_instruction().near_branch_target(),
+                image.image_base
+            );
+            assert_ne!(
+                image.decode_at(image.image_base).unwrap().direct_target,
+                Some(image.image_base)
             );
         }
     }
