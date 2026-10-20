@@ -11,6 +11,9 @@ tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
 
 ### Fixed
 
+- Preserve reference instruction locations and overlapping block decoding
+  in compatibility mode. Follow legacy decoder aliases and reject invalid
+  function and switch-arm candidates without changing native decoding.
 - Match the compatibility loader's ELF import relocation types and PE
   workspace section names while preserving the separate file-only contract.
   Put file-only PE/ELF format features at file scope.

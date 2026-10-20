@@ -602,14 +602,25 @@ pub(super) fn evaluate(
                     reason: "candidate trace budget exceeded".into(),
                 };
             }
-            let Ok(decoded) = image.decode_at(address) else {
+            if !image.is_executable_address(address) {
                 break;
+            }
+            // runFunction logs a decoder exception as an anomaly; the
+            // watcher's badcode flag rejects the entire candidate, even
+            // when another queued branch could reach a return.
+            let Ok(decoded) = image.decode_at_compat(address) else {
+                return Verdict::NotCode;
             };
             let op = decoded.x86_instruction();
             // `envi.ArchitectureModule.archGetBadOps` decodes all-zero bytes
             // as add [eax/rax], al. `watcher.prehook` stops on that opcode.
-            if decoded.bytes.as_slice() == [0, 0] || op.mnemonic() == Mnemonic::Out {
-                break;
+            if decoded.bytes.as_slice() == [0, 0]
+                || matches!(
+                    op.mnemonic(),
+                    Mnemonic::Out | Mnemonic::Outsb | Mnemonic::Outsw | Mnemonic::Outsd
+                )
+            {
+                return Verdict::NotCode;
             }
             // envi decodes CET landing pads as a prefixed nop.
             let mnemonic = match op.mnemonic() {
@@ -731,6 +742,15 @@ mod tests {
     #[test]
     fn explores_other_branch_when_one_path_is_unsupported() {
         assert_eq!(verdict(&[0x74, 0x01, 0xc3, 0x0f, 0x0b]), Verdict::Code);
+    }
+
+    #[test]
+    fn invalid_instruction_on_taken_path_rejects_candidate_despite_return_path() {
+        // JZ takes the invalid FE /7 path first. The fallthrough RET cannot
+        // undo the watcher's decoder anomaly.
+        assert_eq!(verdict(&[0x74, 0x01, 0xc3, 0xfe, 0xff]), Verdict::NotCode);
+        assert_eq!(verdict(&[0x74, 0x01, 0xc3, 0xe6, 0x80]), Verdict::NotCode);
+        assert_eq!(verdict(&[0x74, 0x01, 0xc3, 0x6e]), Verdict::NotCode);
     }
 
     #[test]

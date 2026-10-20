@@ -1360,6 +1360,18 @@ impl LoadedImage {
     }
 
     pub fn decode_at(&self, address: u64) -> Result<DecodedInstruction, ImageError> {
+        self.decode_with_policy(address, false)
+    }
+
+    pub(crate) fn decode_at_compat(&self, address: u64) -> Result<DecodedInstruction, ImageError> {
+        self.decode_with_policy(address, true)
+    }
+
+    fn decode_with_policy(
+        &self,
+        address: u64,
+        compatibility: bool,
+    ) -> Result<DecodedInstruction, ImageError> {
         let section = self
             .section_containing(address)
             .ok_or(ImageError::AddressNotMapped { address })?;
@@ -1372,13 +1384,52 @@ impl LoadedImage {
         let bytes = self
             .bytes_at(address, MAX_INSN_LEN)
             .ok_or(ImageError::AddressNotMapped { address })?;
+        // Vivisect 1.3.2 envi/archs/i386/opcode86.py maps 0x62 to BOUND,
+        // including in amd64 and with register ModRM operands. Its decoder
+        // has no EVEX prefix. MOV uses the same /r operand layout, so use it
+        // to decode that layout with the selected architecture's addressing.
+        let opcode_offset = compatibility
+            .then(|| {
+                bytes.iter().position(|byte| {
+                    !matches!(
+                        byte,
+                        0x26 | 0x2e | 0x36 | 0x3e | 0x64 | 0x65 | 0x66 | 0x67 | 0xf0 | 0xf2 | 0xf3
+                    ) && !(self.architecture == Architecture::X64 && (0x40..=0x4f).contains(byte))
+                })
+            })
+            .flatten();
+        let bound_offset = opcode_offset.filter(|offset| bytes.get(*offset) == Some(&0x62));
+        // The same opcode table gives C6/C7 and 8F direct MOV/POP entries,
+        // ignoring the ModRM extension bits that modern decoders validate.
+        let alias_offset = opcode_offset.filter(|offset| {
+            matches!(bytes.get(*offset), Some(0xc6 | 0xc7 | 0x8f))
+                && bytes.get(offset + 1).is_some_and(|modrm| modrm & 0x38 != 0)
+        });
+        let mut legacy_bytes = None;
+        if bound_offset.is_some() || alias_offset.is_some() {
+            let mut adjusted = bytes.to_vec();
+            if let Some(opcode) = bound_offset.and_then(|offset| adjusted.get_mut(offset)) {
+                *opcode = 0x8b;
+            }
+            if let Some(modrm) = alias_offset.and_then(|offset| adjusted.get_mut(offset + 1)) {
+                *modrm &= !0x38;
+            }
+            legacy_bytes = Some(adjusted);
+        }
         let mut decoder = Decoder::with_ip(
             self.architecture.bitness(),
-            bytes,
+            legacy_bytes.as_deref().unwrap_or(bytes),
             address,
             DecoderOptions::NONE,
         );
-        let instruction = decoder.decode();
+        let mut instruction = decoder.decode();
+        if bound_offset.is_some() && !instruction.is_invalid() {
+            instruction.set_code(if instruction.op0_register().size() == 2 {
+                iced_x86::Code::Bound_r16_m1616
+            } else {
+                iced_x86::Code::Bound_r32_m3232
+            });
+        }
         let mut mnemonic_override = None;
         let instruction = if instruction.is_invalid() {
             let Some((carrier, mnemonic, _)) = decode_undocumented(address, bytes) else {
@@ -2461,6 +2512,44 @@ mod tests {
             uninitialized: Vec::new(),
             primary_code: vec![(0x1000, 0x1000u64.saturating_add(bytes.len() as u64))],
             mapped_bytes: vec![bytes],
+        }
+    }
+
+    #[test]
+    fn compatibility_decodes_legacy_bound_and_modrm_aliases() {
+        let image = LoadedImage::from_shellcode(
+            &[0x62, 0xf1, 0x7f, 0x48, 0x6f, 0x2d, 0x4a, 0x42, 1, 0],
+            Architecture::X64,
+        );
+        let native = image.decode_at(image.image_base).unwrap();
+        let compat = image.decode_at_compat(image.image_base).unwrap();
+        assert_eq!(
+            native.x86_instruction().mnemonic(),
+            iced_x86::Mnemonic::Vmovdqu8
+        );
+        assert_eq!(
+            compat.x86_instruction().mnemonic(),
+            iced_x86::Mnemonic::Bound
+        );
+        assert_eq!(compat.bytes, [0x62, 0xf1]);
+        assert_eq!(compat.next_address, image.image_base + 2);
+
+        for (bytes, mnemonic) in [
+            (vec![0xc6, 0x64, 0xfd, 0xdd, 0xf3], iced_x86::Mnemonic::Mov),
+            (vec![0x8f, 0xdc], iced_x86::Mnemonic::Pop),
+        ] {
+            let image = LoadedImage::from_shellcode(&bytes, Architecture::X86);
+            assert!(image.decode_at(image.image_base).is_err());
+            let compat = image.decode_at_compat(image.image_base).unwrap();
+            assert_eq!(compat.x86_instruction().mnemonic(), mnemonic);
+            assert_eq!(compat.bytes, bytes);
+        }
+        for bytes in [&[0x62][..], &[0xc6, 0x64, 0xfd], &[0x8f]] {
+            let image = LoadedImage::from_shellcode(bytes, Architecture::X86);
+            assert!(matches!(
+                image.decode_at_compat(image.image_base),
+                Err(ImageError::InvalidInstruction { .. })
+            ));
         }
     }
 

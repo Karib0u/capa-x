@@ -66,6 +66,24 @@ fn resolved(code: &[u8], arch: Architecture, branch: u64) -> Option<Vec<u64>> {
 }
 
 #[test]
+fn compatibility_stops_at_rejected_table_entry_before_selector_remapping() {
+    let (mut code, branch) = x64_code(true);
+    // Entry one divides by a known zero. Although the byte selector skips
+    // it, iterJumpTable scans the RVA table sequentially and stops there.
+    code[0x44..0x48].copy_from_slice(&[0x31, 0xc9, 0xf7, 0xf9]);
+    let mut analysis = analyze_shellcode(&code, Architecture::X64).unwrap();
+    let jump = analysis.instructions[&branch].clone();
+    assert_eq!(
+        targets(&analysis, &jump),
+        Some(vec![SHELLCODE_BASE + 0x40, SHELLCODE_BASE + 0x48])
+    );
+    assert_eq!(
+        targets_compat(&mut analysis, &jump, &BTreeSet::new()),
+        Some(vec![SHELLCODE_BASE + 0x40])
+    );
+}
+
+#[test]
 fn absolute_pointer_tables_do_not_absorb_adjacent_tables() {
     for arch in [Architecture::X86, Architecture::X64] {
         let width = arch.pointer_width();
@@ -302,7 +320,7 @@ fn pinned_switches_recover_the_missing_arms_and_called_functions() {
         (
             "f59035192098e44b86c4648a0de4078edbe80352260276f4755d15d354f5fc58.exe_",
             0x140079a90,
-            0x140079b0c,
+            0x140079bd8,
         ),
     ] {
         let analysis =

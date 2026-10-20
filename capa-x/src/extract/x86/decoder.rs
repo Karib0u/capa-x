@@ -174,8 +174,9 @@ impl DecodedInstruction {
 
     /// x86-only recovery barrier: `Cli`/`Hlt`/string I/O (`Insb`/`Insd`/
     /// `Insw`/`Outsb`/`Outsd`/`Outsw`)/`Sti` are ring-0-only or a
-    /// sandbox/debugger tell, so `discover_direct_flow` stops there rather
-    /// than decoding further. `false` for AArch64 -- there is no analogue
+    /// sandbox/debugger tell, so native recovery stops there rather
+    /// than decoding further. Compatibility codeflow follows the pinned
+    /// reference through these instructions. `false` for AArch64:
     /// yet, and AArch64 recovery is where one would be added if the pinned
     /// corpus needs it.
     pub fn is_privileged_barrier(&self) -> bool {

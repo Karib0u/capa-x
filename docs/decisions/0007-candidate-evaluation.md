@@ -62,6 +62,19 @@ Keep candidate selection separate from evaluation:
   depend on a raw call sweep to compensate for an unsupported operation.
 - For x86/x64 ELF relative relocations, follow the reference's stored-pointer
   semantics instead of substituting a RELA addend.
+- Keep instruction locations separate from function-block decoding.
+  Compatibility codeflow visits direct callees and branch paths in the
+  reference's depth-first order and stops at existing locations, including
+  instruction interiors. Block construction advances by location sizes;
+  extraction decodes each resulting interval from its own start.
+- Use the pinned decoder's legacy BOUND and MOV/POP ModRM aliases in
+  compatibility mode. Native decoding retains modern instruction support.
+  Explicit codeflow may traverse string I/O, while candidate evaluation
+  rejects output instructions and decoder anomalies across queued paths.
+- Evaluate x64 RVA switch entries in consecutive table order, stopping at
+  the first definite candidate rejection as `iterJumpTable` does. Keep
+  inconclusive results visible through diagnostics and retain their
+  statically validated targets. Native switches retain the full guarded table.
 
 Ordered candidate maps and path scheduling preserve reproducible results.
 The native backend keeps its existing heuristic policy.

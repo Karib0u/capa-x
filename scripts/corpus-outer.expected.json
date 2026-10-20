@@ -350,10 +350,8 @@
       "details": []
     },
     "70fd3347786ed7a4a43910e6778ef296.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule missing in capa-x: 'PEB access'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "71a4f9b800d81ff6632b9892a6a502c412c141341e46d697a8c004e2f460913b.exe_": {
       "diffs": 0,
@@ -456,10 +454,8 @@
       "details": []
     },
     "971e599e6e707349eccea2fd4c8e5f67.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule missing in capa-x: 'encode data using XOR'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "98c37c3c23bbfb362dac7754c6ba48e75cf24d73bc963a4cdfca557b9e016909.exe_": {
       "diffs": 0,
@@ -782,16 +778,12 @@
       "details": []
     },
     "f53dfa294d6979145fbb34303cf73bb6.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'decode data using Base64 via VBMI lookup table'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "f59035192098e44b86c4648a0de4078edbe80352260276f4755d15d354f5fc58.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'check for unmoving mouse cursor'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "f9ac6b16273556b3a57bf2c6d7e7db97.exe_": {
       "diffs": 0,

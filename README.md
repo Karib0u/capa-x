@@ -74,7 +74,7 @@ distinction is how a port starts overclaiming.
 | Upstream-parity raw input | PE, ELF, shellcode (x86/x64), .NET/CLR | Python capa 10.0.0 direct comparison, recorded in `docs/BENCHMARKS.md` |
 | Cross-backend parity | AArch64 ELF | No raw-AArch64 Python oracle; pinned Ghidra BinExport2 feature- and rule-level comparison, methodology in [docs/BENCHMARKS.md](docs/BENCHMARKS.md) |
 | capa-x extension | Mach-O (x86_64, AArch64), AArch64 PE | No Python oracle at all -- pinned capa 10.0.0 has no raw Mach-O or AArch64 input; validated against a hand-built structural/feature fixture corpus (see [docs/BENCHMARKS.md](docs/BENCHMARKS.md)), never claimed as upstream parity |
-| Accepted divergence / non-goal | Reference loader and instruction-ownership differences, other ISAs, live dynamic extractors | [`KNOWN_DIVERGENCES.md`](KNOWN_DIVERGENCES.md), including the current remainder and resolved historical causes |
+| Measurement limits / non-goal | Exact binary evidence parity, other ISAs, live dynamic extractors | [`KNOWN_DIVERGENCES.md`](KNOWN_DIVERGENCES.md), including the current measured agreement and resolved historical causes |
 
 ## Install
 
@@ -170,21 +170,21 @@ gets a cheaper linux-only build plus the same schema-validation check.
 
 ## Accuracy and limitations
 
-Measured on 2026-10-20 after loader and import-call ownership updates against
+Measured on 2026-10-20 after instruction-stream and switch compatibility updates against
 Python capa 10.0.0 and capa-rules v10.0.0. Comparisons on binaries measure
 rule names. Shared freeze tests separately check match addresses and JSON
 evidence.
 
 | Metric | Result |
 |---|---:|
-| Rule-name agreement | **99.94%** |
+| Rule-name agreement | **100.00%** |
 | Reference-matched rules | 6,300 |
-| Divergent rules | 4: 2 missing, 2 extra |
-| Samples with identical rule sets | 196/200 (98.0%) |
+| Divergent rules | 0 missing, 0 extra |
+| Samples with identical rule sets | 200/200 (100.0%) |
 
-The fresh 200-sample run has no regressions against main `d660eec`, which
-had 18 differences and 190 identical rule sets. Historical measurements and
-the current comparison are recorded in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+The fresh 200-sample run resolves all four previously documented differences
+without regressions. Historical measurements and the current comparison are
+recorded in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 Rule-level agreement leads because it measures individual capability rules.
 Every measured difference is mapped to a documented root cause. Exact methods,
@@ -199,10 +199,12 @@ speedup of 2.03 times and a worst sample of 1.52 times. These are measurements
 on a MacBook Pro M1 Max with macOS 26.6 and 10 logical CPUs, not universal
 performance claims.
 
-A user migrating from Python capa will occasionally see a rule it matches that
-capa-x does not; every known case is catalogued in
-[KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md). The remaining cases concern
-reference loader behavior and conflicting instruction or function ownership.
+The pinned corpus has no remaining rule-name differences. Resolved causes
+and the boundary of this measurement are catalogued in
+[KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md). Compatibility mode reproduces
+the reference's overlapping instruction streams and legacy decoder behavior;
+native mode retains its broader decoding. Exact locations and evidence on
+arbitrary binaries can still differ.
 capa-x tracks upstream capa releases on a best-effort basis; it is currently
 pinned to 10.0.0, and each supported upstream version is re-verified with the
 full differential suite before the pin moves. This is maintained by one person,

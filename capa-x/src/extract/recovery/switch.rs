@@ -24,13 +24,33 @@ const MAX_CASES: u64 = 256;
 const MAX_DISPATCH_INSNS: usize = 10;
 
 pub(super) fn targets(analysis: &Analysis, branch: &DecodedInstruction) -> Option<Vec<u64>> {
+    targets_with_policy(analysis, branch, None, &mut Vec::new())
+}
+
+pub(super) fn targets_compat(
+    analysis: &mut Analysis,
+    branch: &DecodedInstruction,
+    noreturn: &std::collections::BTreeSet<u64>,
+) -> Option<Vec<u64>> {
+    let mut diagnostics = Vec::new();
+    let targets = targets_with_policy(analysis, branch, Some(noreturn), &mut diagnostics);
+    analysis.diagnostics.extend(diagnostics);
+    targets
+}
+
+fn targets_with_policy(
+    analysis: &Analysis,
+    branch: &DecodedInstruction,
+    noreturn: Option<&std::collections::BTreeSet<u64>>,
+    diagnostics: &mut Vec<super::RecoveryDiagnostic>,
+) -> Option<Vec<u64>> {
     let sequence = guarded_sequence(analysis, branch)?;
     let (compare, rest) = sequence.split_first()?;
     let (guard, body) = rest.split_first()?;
     let mut targets = match analysis.image.architecture {
         Architecture::AArch64 => arm_targets(analysis, compare, guard, body)?,
         Architecture::X64 => absolute_targets(analysis, compare, guard, body)
-            .or_else(|| x64_targets(analysis, compare, guard, body))?,
+            .or_else(|| x64_targets(analysis, compare, guard, body, noreturn, diagnostics))?,
         Architecture::X86 => absolute_targets(analysis, compare, guard, body)?,
     };
     // An arm must not re-enter the guarded computation with an unchecked
@@ -278,6 +298,8 @@ fn x64_targets(
     compare: &DecodedInstruction,
     guard: &DecodedInstruction,
     body: &[&DecodedInstruction],
+    noreturn: Option<&std::collections::BTreeSet<u64>>,
+    diagnostics: &mut Vec<super::RecoveryDiagnostic>,
 ) -> Option<Vec<u64>> {
     let cmp = compare.x86_instruction();
     if cmp.mnemonic() != Mnemonic::Cmp {
@@ -370,6 +392,33 @@ fn x64_targets(
         return None;
     }
     let table = base.checked_add_signed(load.memory_displacement64() as i64)?;
+    // Vivisect 1.3.2 iterJumpTable tests consecutive entries using
+    // isProbablyCode and stops at the first rejected arm. The selector
+    // remap does not allow it to skip that entry. Keep the guard as a
+    // resource bound and reproduce definite candidate rejections.
+    if let Some(noreturn) = noreturn.filter(|_| base == analysis.image.image_base && !signed) {
+        let limit = indexes.iter().copied().max()?.checked_add(1)?;
+        for index in 0..limit {
+            let slot = table.checked_add(index.checked_mul(4)?)?;
+            let target = base.checked_add(u64::from(read_u32(&analysis.image, slot)?))?;
+            match super::emucode::evaluate(&analysis.image, target, noreturn, &[]) {
+                super::emucode::Verdict::NotCode => {
+                    indexes.retain(|value| *value < index);
+                    break;
+                }
+                super::emucode::Verdict::Inconclusive { address, reason } => {
+                    diagnostics.push(super::RecoveryDiagnostic {
+                        address,
+                        message: format!(
+                            "switch {:#x} arm {target:#x} candidate evaluation inconclusive: {reason}",
+                            branch.address
+                        ),
+                    });
+                }
+                super::emucode::Verdict::Code => {}
+            }
+        }
+    }
     indexes
         .into_iter()
         .map(|index| {

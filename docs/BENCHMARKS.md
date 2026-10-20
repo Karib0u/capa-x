@@ -199,6 +199,79 @@ uses the same borrowing optimization and passes its existing workspace tests,
 but no dynamic throughput or memory claim is made. The larger representation
 changes above remain proposals and need their own measurements and parity gates.
 
+## Instruction-stream and switch compatibility (capa 10.0.0)
+
+Measured on 2026-10-20 after updating to main `292b7c5`. The release binary
+was rebuilt and every sample was analyzed with `--no-rust-cache`; the pinned
+Python reference cache was retained. Fresh workspace traces independently
+verified the four former divergences and the two candidate-classification
+regressions found and fixed during development. Rules, signatures, and corpus
+pins are unchanged.
+
+| Corpus | Samples | Reference-matched rules | Missing | Extra | Identical rule sets |
+|---|---:|---:|---:|---:|---:|
+| Outer | 200 | 6,300 | 0 | 0 | 200/200 |
+| Smoke | 23 | 731 | 0 | 0 | 23/23 |
+
+Both corpora have 100.00% matched-rule agreement and zero analysis errors.
+This measures rule names on the pinned binaries. It does not claim identical
+instruction boundaries, match addresses, or complete JSON evidence for
+arbitrary binaries. Freeze-driven tests separately cover matching and result
+construction from shared features.
+
+The implementation has no sample-address or rule-name exceptions:
+
+- Preserve the first opcode location while decoding each function block's
+  byte interval independently. Interior branch entries reproduce KD-014 and
+  KD-015. Codeflow visits callees before caller continuations.
+- Decode the pinned reference's BOUND and MOV/POP ModRM aliases in
+  compatibility mode. Native decoding retains EVEX support.
+- Apply candidate evaluation to consecutive switch-table entries. Definite
+  rejection stops the table, including when a selector skips that entry.
+  Fresh traces identify divide-by-zero anomalies as the cause of KD-008's
+  missing arms, correcting its earlier ownership attribution.
+- Reject decoder anomalies and output instructions across candidate paths.
+  This protects the real XOR loop on `5dd0b130` and prevents data on
+  `648fc498` from becoming a false pusha/popa match.
+
+The outer expected file deliberately removes only the four prior differences.
+The smoke baseline already contained zero differences and stays unchanged.
+Native extraction retains its prior decoding and guarded-switch policy.
+
+Reproduction:
+
+```bash
+cargo build --release
+python3 scripts/difftest.py --mode full --samples scripts/corpus-outer.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-rust-cache
+python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-rust-cache
+cargo test -p capa-x --test features_parity
+cargo test --workspace
+cargo test --workspace -- --ignored
+cargo +1.98.1 clippy --workspace --all-targets -- -D warnings
+python3 -m unittest discover -s scripts -p 'test_*.py'
+scripts/check_env.sh
+```
+
+Validation: 462 ordinary Rust tests and all six separately run slow acceptance
+and robustness gates passed, for 468 Rust tests total. All four feature-parity
+tests passed. Clippy passed on the installed 1.98.1
+toolchain, which recognizes the repository's existing lint attributes.
+All six Python harness tests and the pinned-environment check passed.
+
+Determinism: 72 runs at jobs 1, 2, and 4, with two repetitions per job
+count over 12 samples, match the single-job result byte for byte after the
+harness's standard metadata normalization. The sample list combines
+`corpus-jobs.txt`, the four former divergence samples, `5dd0b130`,
+`648fc498`, and the overlapping relocation-call fixture `749cf36a`.
+The generated list and reports are under `target/compatibility-*`.
+
+```bash
+python3 scripts/determinism.py --samples target/compatibility-determinism.txt \
+  --capa-cli target/release/capa-x --jobs 1,2,4 --repeat 2 --workers 6
+```
+
 ## Loader and import-call ownership compatibility (capa 10.0.0)
 
 Measured on 2026-10-20 against freshly fetched main `d660eec`. Both sides
