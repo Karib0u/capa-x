@@ -46,11 +46,8 @@
       "details": []
     },
     "0cd2b334aede270b14868db28211cde3.exe_": {
-      "diffs": 2,
-      "details": [
-        "  rule missing in capa-x: 'contain loop'",
-        "  rule missing in capa-x: 'packed with generic packer'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "0db010298586f17ee7e46f390d5724be.exe_": {
       "diffs": 0,
@@ -141,10 +138,8 @@
       ]
     },
     "29a76e413ffe0f78b62926b8455082d6.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'execute shellcode via indirect call'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "2a7429d60040465f9bd27bbae2beef88.exe_": {
       "diffs": 0,
@@ -163,11 +158,9 @@
       "details": []
     },
     "2f7f5fb5de175e770d7eae87666f9831.elf_": {
-      "diffs": 3,
+      "diffs": 1,
       "details": [
-        "  rule missing in capa-x: 'decrypt data using AES via x86 extensions'",
-        "  rule missing in capa-x: 'generate random numbers using a Mersenne Twister'",
-        "  rule missing in capa-x: 'parse credit card information'"
+        "  rule missing in capa-x: 'decrypt data using AES via x86 extensions'"
       ]
     },
     "31600ad0d1a7ea615690df111ae36c73.exe_": {
@@ -250,10 +243,8 @@
       "details": []
     },
     "3fdfb2d522e7deecaaaf2f87420f7e75.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'link function at runtime on Windows'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "44461306a604d2cd9883c2bb623af276.dll_": {
       "diffs": 0,
@@ -396,11 +387,10 @@
       "details": []
     },
     "70fd3347786ed7a4a43910e6778ef296.exe_": {
-      "diffs": 7,
+      "diffs": 6,
       "details": [
         "  rule missing in capa-x: 'PEB access'",
         "  rule missing in capa-x: 'delete directory'",
-        "  rule missing in capa-x: 'get OS version'",
         "  rule missing in capa-x: 'modify access privileges'",
         "  rule missing in capa-x: 'shutdown system'",
         "  rule extra in capa-x: 'allocate memory'",
@@ -420,10 +410,12 @@
       "details": []
     },
     "749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2.elf_": {
-      "diffs": 4,
+      "diffs": 6,
       "details": [
-        "  rule missing in capa-x: 'calculate modulo 256 via x86 assembly'",
+        "  rule extra in capa-x: 'change memory permission on Linux'",
         "  rule extra in capa-x: 'create or open file'",
+        "  rule extra in capa-x: 'hook routines via dlsym RTLD_NEXT'",
+        "  rule extra in capa-x: 'link function at runtime on Linux'",
         "  rule extra in capa-x: 'map or unmap memory on Linux'",
         "  rule extra in capa-x: 'write file on Linux'"
       ]

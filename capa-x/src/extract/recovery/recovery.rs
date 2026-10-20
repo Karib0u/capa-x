@@ -321,7 +321,7 @@ fn recover_functions(
             // until that function's flow exists.
             late_waves_done = true;
             run_go_runtime_main_wave(analysis, &direct_flow, &mut pending)?;
-            run_import_call_wave(analysis, &mut direct_flow, &mut pending, noreturn)?;
+            run_import_call_wave(analysis, &mut direct_flow, &mut pending, noreturn);
             // `vivisect.analysis.ms.msvcfunc` is amodlist[9]/[10] -- after
             // the import-call pass, and reading the function set the earlier
             // ones produced.
@@ -376,17 +376,7 @@ fn recover_functions(
         // statement about this backend's guard rail, not about the image.
         // Keep what the walk did discover and record why it stopped, rather
         // than failing the whole image on one runaway start.
-        let calls = match discover_direct_flow(analysis, &mut direct_flow, start, noreturn) {
-            Ok(calls) => calls,
-            Err(RecoveryError::Limit(message)) => {
-                analysis.diagnostics.push(RecoveryDiagnostic {
-                    address: start,
-                    message: format!("abandoned code walk: {message}"),
-                });
-                BTreeSet::new()
-            }
-            Err(error) => return Err(error),
-        };
+        let calls = discover_direct_flow(analysis, &mut direct_flow, start, noreturn);
         for target in calls.into_iter().rev() {
             if !is_executable(&analysis.image, target) {
                 continue;
@@ -609,7 +599,7 @@ fn run_import_call_wave(
     direct_flow: &mut DirectFlowGraph,
     pending: &mut VecDeque<u64>,
     noreturn: &BTreeSet<u64>,
-) -> Result<(), RecoveryError> {
+) {
     let starts = {
         let instructions = &analysis.instructions;
         importcalls::fragment_starts(&analysis.image, &|address| {
@@ -627,20 +617,7 @@ fn run_import_call_wave(
         if direct_flow.successors.contains_key(&start) || !is_executable(&analysis.image, start) {
             continue;
         }
-        let calls = match discover_direct_flow(analysis, direct_flow, start, noreturn) {
-            Ok(calls) => calls,
-            // Upstream has no per-run instruction budget here. A fragment that
-            // blows past capa-x's is loose code either way, so record why
-            // it was abandoned rather than failing the whole image on it.
-            Err(RecoveryError::Limit(message)) => {
-                analysis.diagnostics.push(RecoveryDiagnostic {
-                    address: start,
-                    message: format!("abandoned import-call code fragment: {message}"),
-                });
-                continue;
-            }
-            Err(error) => return Err(error),
-        };
+        let calls = discover_direct_flow(analysis, direct_flow, start, noreturn);
         for target in calls.into_iter().rev() {
             if !is_executable(&analysis.image, target) {
                 continue;
@@ -656,7 +633,6 @@ fn run_import_call_wave(
             }
         }
     }
-    Ok(())
 }
 
 /// AArch64 ELF/PE PLT stubs are `adrp Xn, page; ldr Xn, [Xn, #off]; ...; br
@@ -1767,7 +1743,7 @@ fn discover_direct_flow(
     direct_flow: &mut DirectFlowGraph,
     start: u64,
     noreturn: &BTreeSet<u64>,
-) -> Result<BTreeSet<u64>, RecoveryError> {
+) -> BTreeSet<u64> {
     let mut pending = VecDeque::from([start]);
     let mut calls = BTreeSet::new();
     let mut discovered = 0usize;
@@ -1786,9 +1762,15 @@ fn discover_direct_flow(
                 break;
             }
             if discovered >= MAX_INSNS_PER_FUNCTION {
-                return Err(RecoveryError::Limit(format!(
-                    "direct flow from {start:#x} exceeds {MAX_INSNS_PER_FUNCTION} instructions"
-                )));
+                analysis.diagnostics.push(RecoveryDiagnostic {
+                    address: start,
+                    message: format!(
+                        "abandoned code walk: direct flow from {start:#x} exceeds {MAX_INSNS_PER_FUNCTION} instructions"
+                    ),
+                });
+                // Keep the callees already found. Their no-return status may
+                // cut this oversized walk down on the next recovery pass.
+                return calls;
             }
             let insn = match analysis.image.decode_at(address) {
                 Ok(insn) => insn,
@@ -1948,6 +1930,19 @@ fn discover_direct_flow(
                     }
                     let targets = super::switch::targets(analysis, &insn)
                         .unwrap_or_else(|| jump_table_targets(&analysis.image, &insn));
+                    // codeblocks.py excludes BR_DEREF xrefs from a function's
+                    // extent. A plain pointer jump can discover loose code,
+                    // but does not own the pointed-to function or inherit its
+                    // no-return status. Indexed jump-table arms do belong to
+                    // the dispatching function.
+                    if !targets.is_empty() && is_pointer_jump(&analysis.image, &insn) {
+                        for target in targets {
+                            pending.push_back(target);
+                            push_xref(&mut analysis.code_xrefs, target, address);
+                        }
+                        direct_flow.successors.insert(address, Vec::new());
+                        break;
+                    }
                     if targets.is_empty() {
                         analysis.diagnostics.push(RecoveryDiagnostic {
                             address,
@@ -1978,7 +1973,7 @@ fn discover_direct_flow(
         }
     }
 
-    Ok(calls)
+    calls
 }
 
 fn build_function_view(
@@ -2003,6 +1998,18 @@ fn build_function_view(
                 continue;
             };
             for edge in edges {
+                // A non-chained PE unwind entry is a linker-provided function
+                // start. Falling into it must not merge two function scopes.
+                // Explicit branches may still share tails or chained code.
+                if edge.kind == EdgeKind::Fallthrough
+                    && edge.target != start
+                    && analysis
+                        .seeds
+                        .get(&edge.target)
+                        .is_some_and(|kinds| kinds.contains(&SeedKind::Unwind))
+                {
+                    continue;
+                }
                 pending.push_back(edge.target);
             }
         }
@@ -2156,8 +2163,16 @@ pub(crate) fn jump_table_targets(image: &LoadedImage, insn: &DecodedInstruction)
         return Vec::new();
     };
     let width = image.architecture.pointer_width();
+    // envi/archs/i386/__init__.py distinguishes BR_DEREF from BR_TABLE:
+    // a plain memory jump dereferences one pointer, while an indexed jump
+    // selects among table entries. Adjacent pointers are not its successors.
+    let entries = if is_pointer_jump(image, insn) {
+        1
+    } else {
+        MAX_JUMP_TABLE_ENTRIES
+    };
     let mut targets = Vec::new();
-    for index in 0..MAX_JUMP_TABLE_ENTRIES {
+    for index in 0..entries {
         let Some(slot) = base.checked_add((index.saturating_mul(width)) as u64) else {
             break;
         };
@@ -2183,6 +2198,12 @@ pub(crate) fn jump_table_targets(image: &LoadedImage, insn: &DecodedInstruction)
     targets.sort_unstable();
     targets.dedup();
     targets
+}
+
+fn is_pointer_jump(image: &LoadedImage, insn: &DecodedInstruction) -> bool {
+    image.architecture != Architecture::AArch64
+        && insn.memory_target.is_some()
+        && insn.x86_instruction().memory_index() == iced_x86::Register::None
 }
 
 pub(crate) fn is_executable(image: &LoadedImage, address: u64) -> bool {
@@ -2255,6 +2276,103 @@ mod tests {
             "decoded instructions should be kept, got {}",
             analysis.instructions.len()
         );
+    }
+
+    #[test]
+    fn a_budgeted_walk_keeps_discovered_callees() {
+        let mut bytes = vec![0x90; MAX_INSNS_PER_FUNCTION + 16];
+        let target = bytes.len() - 1;
+        bytes[0] = 0xe8;
+        bytes[1..5].copy_from_slice(&((target - 5) as i32).to_le_bytes());
+        bytes[target] = 0xc3;
+        let analysis = analyze_shellcode(&bytes, Architecture::X86).unwrap();
+        assert!(analysis
+            .functions
+            .contains_key(&(SHELLCODE_BASE + target as u64)));
+        assert!(analysis
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("abandoned code walk")));
+    }
+
+    #[test]
+    fn unwind_entries_contain_fallthrough_but_allow_explicit_shared_tails() {
+        for (code, expected) in [
+            (
+                vec![0x90, 0x90, 0x90, 0xc3],
+                BTreeSet::from([0x1000, 0x1001]),
+            ),
+            (
+                vec![0xeb, 0x00, 0x90, 0xc3],
+                BTreeSet::from([0x1000, 0x1002, 0x1003]),
+            ),
+        ] {
+            let analysis = analyze_seeded_image(
+                noreturn_test_image(&code),
+                RecoveryBackend::VivisectCompat,
+                SeedMap::from([
+                    (0x1000, BTreeSet::from([SeedKind::Unwind])),
+                    (0x1002, BTreeSet::from([SeedKind::Unwind])),
+                ]),
+                BTreeMap::new(),
+                Vec::new(),
+            )
+            .unwrap();
+            assert_eq!(
+                function_instruction_addrs(&analysis.functions[&0x1000]),
+                expected
+            );
+            assert!(!analysis.is_noreturn_va(0x1000));
+            assert_eq!(
+                function_instruction_addrs(&analysis.functions[&0x1002]),
+                BTreeSet::from([0x1002, 0x1003])
+            );
+        }
+    }
+
+    #[test]
+    fn plain_memory_jumps_do_not_absorb_adjacent_pointer_targets() {
+        for (opcode, expected_offsets) in [
+            (vec![0xff, 0x25], vec![]),
+            (vec![0xff, 0x24, 0x85], vec![0x20, 0x21]),
+        ] {
+            let mut bytes = opcode;
+            bytes.extend_from_slice(&((SHELLCODE_BASE + 0x10) as u32).to_le_bytes());
+            bytes.resize(0x10, 0xcc);
+            bytes.extend_from_slice(&((SHELLCODE_BASE + 0x20) as u32).to_le_bytes());
+            bytes.extend_from_slice(&((SHELLCODE_BASE + 0x21) as u32).to_le_bytes());
+            bytes.resize(0x20, 0xcc);
+            bytes.extend_from_slice(&[0xc3, 0xc3]);
+            let analysis = analyze_shellcode(&bytes, Architecture::X86).unwrap();
+            let mut expected = BTreeSet::from([SHELLCODE_BASE]);
+            expected.extend(
+                expected_offsets
+                    .into_iter()
+                    .map(|offset| SHELLCODE_BASE + offset),
+            );
+            assert_eq!(
+                function_instruction_addrs(&analysis.functions[&SHELLCODE_BASE]),
+                expected
+            );
+            assert!(analysis.instructions.contains_key(&(SHELLCODE_BASE + 0x20)));
+            assert_eq!(
+                analysis.instructions.contains_key(&(SHELLCODE_BASE + 0x21)),
+                analysis.instructions[&SHELLCODE_BASE]
+                    .x86_instruction()
+                    .memory_index()
+                    != iced_x86::Register::None
+            );
+            assert!(!analysis.is_noreturn_va(SHELLCODE_BASE));
+        }
+    }
+
+    #[test]
+    fn unresolved_pointer_jump_keeps_a_diagnostic() {
+        let analysis = analyze_noreturn_test_image(&[0xff, 0x25, 0x00, 0x30, 0x00, 0x00]);
+        assert!(!analysis.is_noreturn_va(0x1000));
+        assert!(analysis.diagnostics.iter().any(|diagnostic| {
+            diagnostic.address == 0x1000 && diagnostic.message == "unresolved indirect branch"
+        }));
     }
 
     #[test]
@@ -2924,6 +3042,20 @@ mod tests {
         // The caller's own leaf is now a suppressed call, so it too is
         // no-return -- the propagation that used to stop at the decode gap.
         assert!(analysis.is_noreturn_va(0x1000));
+    }
+
+    #[test]
+    fn conflicting_instruction_stream_does_not_truncate_its_caller() {
+        // An unresolved ELF relocation can point a call into its own operand:
+        // call 0x1001; nop; ret. The alternate stream is cld; invalid ff.
+        // Its decode gap cannot establish that this call never returns.
+        let analysis = analyze_noreturn_test_image(&[0xe8, 0xfc, 0xff, 0xff, 0xff, 0x90, 0xc3]);
+        assert!(!analysis.is_noreturn_va(0x1001));
+        assert!(analysis.noreturn_calls.is_empty());
+        assert_eq!(
+            function_instruction_addrs(&analysis.functions[&0x1000]),
+            BTreeSet::from([0x1000, 0x1005, 0x1006])
+        );
     }
 
     #[test]

@@ -4,6 +4,68 @@ This page records the methodology behind the summary numbers in the project
 README. The measurements are reproducible evidence for a pinned implementation,
 ruleset, corpus, and host. They are not universal rankings.
 
+## Recovery gap verification (capa 10.0.0)
+
+Measured on 2026-10-20 against latest main `b3835e1` and the recovery fixes
+described in KD-010 through KD-012. Both release binaries were run over all
+200 samples with `--no-rust-cache`; the reference cache was checked against
+the pinned capa 10.0.0 version and rules, replacing stale 9.4.0 entries.
+This is a rule-name comparison, not an exact-address or performance claim.
+
+| Outer corpus | Main | With recovery fixes |
+|---|---:|---:|
+| Reference-matched rules | 6,300 | 6,300 |
+| Missing / extra rules | 57 / 31 | 51 / 32 |
+| Total divergences | 88 | 83 |
+| Rule-level agreement | 98.60% | 98.68% |
+| Identical samples | 162/200 | 165/200 |
+| Analysis errors | 0 | 0 |
+
+Only the six investigated samples change:
+
+| Sample prefix | Diffs before / after | Reason |
+|---|---:|---|
+| `0cd2b334` | 2 / 0 | Recover resource-hosted code and preserve callees after a walk budget |
+| `29a76e41` | 1 / 0 | Contain fallthrough at independent unwind starts |
+| `2f7f5fb5` | 3 / 1 | Keep plain pointer-jump targets out of the caller's extent |
+| `3fdfb2d5` | 1 / 0 | Honor the declared empty import lookup table |
+| `70fd3347` | 7 / 6 | Restore caller continuation after a conflicting instruction start |
+| `749cf36a` | 4 / 6 | Restore modulo detection and three valid API detections covered by KD-004 |
+
+The last row deliberately increases the raw difference count: its one missing
+rule is recovered, while the reference cannot name the three newly exposed
+relocation imports. Those API detections are already accepted by KD-004.
+The smoke corpus includes this sample, so its baseline changes from 9 missing
+and 7 extra to 8 missing and 10 extra, with 16/23 samples still identical.
+Both expected files are updated with this change; no other sample regresses.
+
+`PEB access` on `70fd3347` remains a reference-only overlapping-block artifact,
+not a remaining no-return gap. The pinned CLI and extractor were rerun with
+the pinned signatures to verify the offset inside the push operand. KD-014
+records that evidence. The caller itself now contains all 31 instructions.
+
+Validation on the final implementation:
+
+- `cargo test -p capa-x --test features_parity`: 4 passed.
+- `cargo test --workspace`: 415 passed, 6 slow gates ignored.
+- `cargo +1.98.1 clippy --workspace --all-targets -- -D warnings`: passed.
+  The default 1.96 toolchain rejects pre-existing
+  `clippy::chunks_exact_to_as_chunks` annotations as unknown lints.
+- `cargo fmt --all -- --check`, `git diff --check`,
+  `scripts/check_env.sh`, and all 6 Python script tests: passed.
+- Determinism: 66 repeated runs at jobs 1, 2, and 4 over the five existing
+  jobs-corpus samples plus the six samples above were byte-identical to
+  the single-job baseline, including evidence ordering.
+
+Reproduce the rule comparisons against each release binary:
+
+```bash
+python3 scripts/difftest.py --mode full --samples scripts/corpus-outer.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-rust-cache
+python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-rust-cache
+```
+
 ## capa 10.0.0 compatibility
 
 Measured on commit `626f74e`, before static switch recovery, on 2026-10-20
@@ -27,8 +89,8 @@ refer to capa 9.4.0.
 The native `full` mode compares rule names; the freeze modes also check
 match addresses and JSON evidence. All 91 native divergences matched the
 recorded baseline at that commit. Static switch recovery subsequently updates
-two baseline rows as documented below; a full corpus measurement of the
-combined capa 10 branch is pending.
+two baseline rows as documented below. The combined main baseline and the
+subsequent recovery fixes are measured in the preceding section.
 
 The JSON comparison ignores invocation metadata, synthetic rule suffixes,
 and ordering in location sets and spliced match/subscope evidence. Ordinary

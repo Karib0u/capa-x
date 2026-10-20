@@ -58,3 +58,64 @@ fn recovery_populates_code_data_and_call_indexes() {
     assert!(!analysis.callers.is_empty());
     assert!(!analysis.callees.is_empty());
 }
+
+#[test]
+fn recovery_gaps_do_not_cut_off_the_documented_callers() {
+    for (name, function, recovered_instruction) in [
+        ("70fd3347786ed7a4a43910e6778ef296.exe_", 0x407e2c, 0x407e74),
+        (
+            "749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2.elf_",
+            0x200a4b0,
+            0x200a4b0,
+        ),
+        ("2f7f5fb5de175e770d7eae87666f9831.elf_", 0x406e90, 0x406f13),
+    ] {
+        let bytes = std::fs::read(root().join("tests/testfiles").join(name)).unwrap();
+        let analysis = analyze(&bytes).unwrap();
+        assert!(
+            !analysis.is_noreturn_va(function),
+            "{name}: false no-return"
+        );
+        assert!(
+            analysis.functions[&function]
+                .blocks
+                .iter()
+                .flat_map(|block| &block.insns)
+                .any(|insn| insn.address == recovered_instruction),
+            "{name}: missing caller continuation"
+        );
+    }
+}
+
+#[test]
+fn resource_code_recovers_without_absorbing_the_unpacked_region() {
+    let bytes = std::fs::read(root().join("tests/testfiles/0cd2b334aede270b14868db28211cde3.exe_"))
+        .unwrap();
+    let analysis = analyze(&bytes).unwrap();
+    let entry = &analysis.functions[&0x401000];
+    let addresses: Vec<_> = entry
+        .blocks
+        .iter()
+        .flat_map(|block| block.insns.iter().map(|insn| insn.address))
+        .collect();
+    assert!(addresses.contains(&0x531cb3));
+    assert!(!addresses.contains(&0x402fbe));
+    assert_eq!(addresses.len(), 22, "pinned reference entry extent");
+    assert!(analysis.functions.contains_key(&0x531f50));
+    assert!(analysis.functions.contains_key(&0x53413e));
+}
+
+#[test]
+fn unwind_entries_do_not_merge_adjacent_function_scopes() {
+    let bytes = std::fs::read(root().join("tests/testfiles/29a76e413ffe0f78b62926b8455082d6.exe_"))
+        .unwrap();
+    let analysis = analyze(&bytes).unwrap();
+    let first = &analysis.functions[&0x1400e1300];
+    assert!(first
+        .blocks
+        .iter()
+        .flat_map(|block| &block.insns)
+        .all(|insn| insn.address < 0x1400e1360));
+    assert!(analysis.functions.contains_key(&0x1400e1360));
+    assert!(!analysis.is_noreturn_va(0x1400e1300));
+}

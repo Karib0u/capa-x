@@ -11,6 +11,14 @@ tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
 
 ### Fixed
 
+- Preserve caller continuations when conflicting instruction streams cannot
+  establish no-return status. Keep plain pointer jumps separate from indexed
+  jump tables and contain fallthrough at independent PE unwind entries.
+- Map resource-directory sections and retain discovered callees when a code
+  walk reaches its instruction budget, allowing later passes to recover the
+  correct function extent.
+- Honor explicit PE import-lookup terminators instead of inventing API
+  bindings from a fallback IAT.
 - Recover guarded AArch64 relative-offset switch tables and x64
   base-relative switch tables, including byte selector remapping. Validate
   bounds, register relationships, and every target before adding CFG edges.
