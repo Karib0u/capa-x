@@ -126,7 +126,7 @@ def test_jobs_1_matches_cli_rule_names(rules: capa_x.Rules) -> None:
     the same binding parity claim made at difftest scale, here pinned to one
     sample so the binding's own test suite doesn't depend on
     a release build being present in CI."""
-    cli = REPO_ROOT / "target" / "release" / "capa"
+    cli = REPO_ROOT / "target" / "release" / "capa-x"
     if not cli.is_file():
         pytest.skip("target/release/capa-x not built")
     out = subprocess.run(

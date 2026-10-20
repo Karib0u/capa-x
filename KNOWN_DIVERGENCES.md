@@ -7,8 +7,17 @@ historical causes so earlier measurements remain interpretable.
 
 ## Current measured remainder
 
-The 2026-10-20 full-corpus run has **zero rule-name differences across all
-200 samples**, with 6,300 reference-matched rules. The four formerly remaining
+The 2026-10-20 expanded run covers all 377 native x86/x64 and shellcode inputs.
+Original capa rejects one malformed ELF. Among the 376 comparable inputs,
+358 have identical rule sets and 18 differ, with 29 missing and three extra
+rules. Exact rule and match-address sets agree on 177 inputs and differ on
+199. These newly observed cases require root-cause investigation; they are
+listed in the [full validation report](docs/validation/full-corpus-2026-10-20.md),
+with [complete reference outputs](tests/reference-results/capa-10.0.0/README.md)
+preserved for regression work.
+
+The earlier 200-sample regression run has zero rule-name differences,
+with 6,300 reference-matched rules. The four formerly remaining
 differences, KD-008 and KD-014 through KD-016, are resolved in compatibility
 mode. See `docs/BENCHMARKS.md` for commands and validation.
 

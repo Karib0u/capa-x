@@ -1,0 +1,3415 @@
+{
+  "corpus_sha256": "8d8bd6bb547becc9d18541df5647f8647c48ed7d5f35f9468738a4f84a5b1347",
+  "matches_index": {
+    "path": "matches.json.gz",
+    "sha256": "0768ffe8238c097c6bfa6b3f7cc9e0d096ecf30bfb53d344a7f0cbd95920b85e"
+  },
+  "metadata_normalization": "Only sample, rules, and signature invocation paths are repository-relative.",
+  "pins": {
+    "reference/capa": "85813ebc5b99ccdbe43147e46796d0bd6700f30a",
+    "rules": "805f9eaccfb6a4e1ddffc809d71d1e2b5ccc15e5",
+    "tests/testfiles": "44e7363ac3a3fb1ffe1c36957188ad3e7683b57f"
+  },
+  "reference_version": "10.0.0",
+  "samples": [
+    {
+      "matched_rules": 12,
+      "original_json_sha256": "616bdc3f138fffb04fd99d5a8eb61472afc83d2ade36a80a5322dd1fd2c12407",
+      "result": "results/dec27efdc9b6708015c73a03c68cc0359b0573141edee4813896b35e7022524b.json.gz",
+      "result_sha256": "e7087fcbc25d5da53fbf7af581a8c9a636956ea1e0ad9fe1f070865144af08aa",
+      "sample": "009c2377b67997b0da1579f4bbc822c1.exe_",
+      "sha256": "f58c502a1f26f8e754caa1adb73df3714e54b256383becaedc4166aacad15a57",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 5,
+      "original_json_sha256": "154ecb012944f8166a1c59255fcc5805610c0802e9a2c250d1aaa403cf7c0c72",
+      "result": "results/bd134040dc7d0fc9f0033bf1aa3f4e9f292c67351deb91d58906acc846af5c19.json.gz",
+      "result_sha256": "9c2bf9fe0bd989000c6b1a942294d3976487c16f734b836d52e4cfd68986535d",
+      "sample": "02179f3ba93663074740b5c0d283bae2.exe_",
+      "sha256": "39fb2b683dacbaceb78995cd4cedff87ae1514e8aa3678de5deec7ccec187680",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 80,
+      "original_json_sha256": "8d27517619d2e60945661038b3dddf2d45845ab7014d8168fe05121ac5eb3957",
+      "result": "results/9179c040e4d53827c749d8c9e459b086405941131e6a9df6a5bbb1eb58dcc59d.json.gz",
+      "result_sha256": "70068832a12c51140c238aa50f5a99ff7963c0587efe71cd93c4881e57cbe045",
+      "sample": "021f49678cd633dc8cf99c61b3af3dda.exe_",
+      "sha256": "dbef9d81aa5c47e97f966034dacd991039376aeb179a0df12e82a7e4f6179c34",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "df365b258d2f73eddd46856d98c39ff72978b903a8019f0b42c366cf724b6879",
+      "result": "results/7f997e8d381937a63d6a60a0db7424c723e87dbba3033bda4e0952b4f5f36849.json.gz",
+      "result_sha256": "bde687959acbab61a7ad9733040c570b8b130047d4437b8f57708fe8a3f8f0ce",
+      "sample": "034b7231a49387604e81a5a5d2fe7e08f6982c418a28b719d2faace3c312ebb5.exe_",
+      "sha256": "034b7231a49387604e81a5a5d2fe7e08f6982c418a28b719d2faace3c312ebb5",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 53,
+      "original_json_sha256": "da14df4ec744b9c35e964e3debff535ac004e7dd156422c8845d51c76310fd66",
+      "result": "results/88102409d94aed42188e63a9b5e7c39b8cba0d57fd440391582c5c4628baad49.json.gz",
+      "result_sha256": "da17dcd488f6a0c670a39a0cdc8c80e10a3b6b3b32e3398da807b9fb1189316c",
+      "sample": "03b236b23b1ec37c663527c1f53af3fe.dll_",
+      "sha256": "6e730ea7b38ea80f2e852781f0a96e0bb16ebed8793a5ea4902e94c594bb6ae0",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "5ef906bd90a95516707e76909ed1c45252c2bb17192f941ea040a5c85760d903",
+      "result": "results/850f6086af9b701684f9d8fd0d8ce903d52dca7fc7fdf798e27ce8708177f002.json.gz",
+      "result_sha256": "21e71c51a017ca8a4296a9f52c31b0281f2c26ff9ef74febab22b779292dd86a",
+      "sample": "03bb32d43885e83bc56c0b2bcad6f0c5ea40402763b7057056c654990022471b.dll_",
+      "sha256": "03bb32d43885e83bc56c0b2bcad6f0c5ea40402763b7057056c654990022471b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 2,
+      "original_json_sha256": "425d6d084dc1d8a070dab2888479f8f8e361291dcb98dbe9299835fc9f14a845",
+      "result": "results/578052a72d0afa3ae811cb5a9d025aba1c6fb74cf95c0a175ba9d78a5dfebeab.json.gz",
+      "result_sha256": "542c838fbc13171e09e6a2429a0aadaed555c5022692d4c7c54edd626dc084f6",
+      "sample": "055da8e6ccfe5a9380231ea04b850e18.elf_",
+      "sha256": "974cfecf7561cc6983e8c6f882f1c06b95e9134b0f38ec6373a5ad16b20aeaae",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 91,
+      "original_json_sha256": "d27b6f018882e9deefbf4e98c434781d534be2e46f2d5c85da32f859349fcae0",
+      "result": "results/0501264a465dd31f254cad79252fa4650410374868659c2a514b42e7a1c702d8.json.gz",
+      "result_sha256": "266e625f908209d5437a42de1299f1b6d510faaa6e4b477b6213769a5f150052",
+      "sample": "0596c4ea5aa8def47f22c85d75aaca95.exe_",
+      "sha256": "377fdff7fd24bf9257447480a8061e0380902f795ac5f8aac3738663b6503a3d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "afcae7ed6d377642fd611f3ed13bb4eeae60cbf307be286f3a78ebde6d9d8fca",
+      "result": "results/26591d7e5e9caf86d73e2f49a458fb67317c0cbd95a82f493f0eb5961835dbb3.json.gz",
+      "result_sha256": "2667e4ee05801e38aed0fee6d7dd13df9b8b998d3b8d09b413be9b92490b89f4",
+      "sample": "068a76d4823419b376d418cf03215d5c.exe_",
+      "sha256": "39655d8f0d03173bd98de4d6f0c9bde51bc7ea0deed3a644ccd5d7732052e9c6",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 32,
+      "original_json_sha256": "201e94c940ee8476de9c7a9fc08da37265d145668055420b1124dfcf018b0f2d",
+      "result": "results/1b67cfa8979b0f9eb7cb02c2a04416d75022fbbd4ffe879be087fdf6373a84ab.json.gz",
+      "result_sha256": "bba4e4152f7a8a45d904544181a4d54da4e9b222ca9180b9d2a6afd3317d3381",
+      "sample": "071f2d1c4c2201ee95ffe2aa965000f5f615a11a12d345e33b9fb060e5597740.dll_",
+      "sha256": "071f2d1c4c2201ee95ffe2aa965000f5f615a11a12d345e33b9fb060e5597740",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 35,
+      "original_json_sha256": "ab98f4c38ef23256cad0a11a866d6153c07372945af88745829dcf1b1a748071",
+      "result": "results/92cd3c026e65bf72a4629408d3f95c05a81ec3da771035145a83dfc5a7fb8be9.json.gz",
+      "result_sha256": "a9b6c9030758e0fdacfe4f3e0c7030da5276feb7cdb9f20b75c3a6cfabe6826b",
+      "sample": "0731679c5f99e8ee65d8b29a3cabfc6b.exe_",
+      "sha256": "38a41e8128ae3955d541c8a00a93de1cd10a01c58368c8254a35659f8627ba30",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 48,
+      "original_json_sha256": "307bbc1ad47f8517aaed9e7a2853c662a134b3bed3d828a4ffd103d2a9e8eaed",
+      "result": "results/a25de3b6e4048f3696fb1294310699e10371def6f34441d15cbf5f6c9f66adc6.json.gz",
+      "result_sha256": "37cd8ed9f14a6a68052e16305ab8825d8af3efca4e7c7c0102428f0e487dc832",
+      "sample": "0761142efbda6c4b1e801223de723578.dll_",
+      "sha256": "94a9155bed7e9d2752f7d861a608ccfeade029379f734220c5a1bbc1b563ed0e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 70,
+      "original_json_sha256": "aa554f8d3b60371ff9dab4a6468bf8a1c9caf06212b5516421a64071ab37e5f1",
+      "result": "results/8111dd1af250dfbd11aa364b5c320fc2539990b0c00436c3f7300b5d9a6e9abc.json.gz",
+      "result_sha256": "75930bc546e2b0253d5c97a9cc149a08efc5738f506e55f366f1b6a811b742c2",
+      "sample": "0796f1c1ea0a142fc1eb7109a44c86cb.exe_",
+      "sha256": "3400a7df9ec3dc8283d5ac7accb6935691e93feda066cc46c6c04d67f7f87b2b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "dd246e042a54ebcd0ea74826f2df09737922abd5f308ef512c2a8ecd4d16331e",
+      "result": "results/9ac480eee613b6e85202755de816008d10974706707cacafc82bfdade9c2ecbd.json.gz",
+      "result_sha256": "fb1cd6832937fb46a85aad2a184dcfd4aa8388b366ac2eb185256293b09a229d",
+      "sample": "07f7846bbcda782e5639292ad93907eb.exe_",
+      "sha256": "a52c3792d8cef6019ce67203220dc191e207c6ddbdfa51ac385d9493ffe2a83a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 52,
+      "original_json_sha256": "6ce11c9413f46fb42c9fd13e991a082c9b98112f8bece91a0ee383fd075e2d07",
+      "result": "results/0f1282532e5ac86d249c730b16f423a693e0f5ce93380723ba46af1388b53421.json.gz",
+      "result_sha256": "68ec0678e804e5ff0c788b16029685e1637b23728a3d4c46f27197e867474fc9",
+      "sample": "08ac667c65d36d6542917655571e61c8.exe_",
+      "sha256": "a82dd93585094aeba4363c5aeedd1a85ef72c60a03738b25d452a5d895313875",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 23,
+      "original_json_sha256": "0b074cb440e945b767ac22d5dc9682fd84c47b31ced44d9ad3c93708610fa49d",
+      "result": "results/bba066777ca69576cdb6c8692ac8db21515dcad3e5924c71b2216a1112e827e3.json.gz",
+      "result_sha256": "81ee753d0c8790ebd7c3cf99cc1d4b53b5b352116a80b01a06d487d63aca9fa0",
+      "sample": "09bf850be5da44a1c3629a1f62813a83.dll_",
+      "sha256": "21f173a347ed111ce67e4c0f2c0bd4ee34bb7ca765da03635ca5c0df394cd7e6",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 38,
+      "original_json_sha256": "afbaf0fcb13dd49fcfb3b1b614ef6c9d40aff79c3719bd851860605328e62f70",
+      "result": "results/810e9cce12cbd0998d3f69f4273400d256f3329aa170fc7adbbfa4c68fbb94bf.json.gz",
+      "result_sha256": "be63da423f8b3bbf7df0ce276b710b6637d05844bd1c7af120522d2722d3f217",
+      "sample": "0a0882b8da225406cc838991b5f67d11.exe_",
+      "sha256": "aa2316ff30647295efac2c884b30b6e83a8515c2d2ff1df3c5d6091b404c73a9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 11,
+      "original_json_sha256": "18666ff712bd245cde30d373e4c1e9d6b3c3fcb81754a68799468421ffaab2b7",
+      "result": "results/224ee7f2de778c87ee7d210e9b04aeabaaeda614a92e7c553a4cff446161a225.json.gz",
+      "result_sha256": "330f4e815a3f0989fd86e9708f28f80da8fdbe6fcb0ffdee3d717e7b1c2c68d8",
+      "sample": "0a30182ff3a6b67beb0f2cda9d0de678.exe_",
+      "sha256": "f3f585befd991857991d34adb5fccc995aa3c60c2cc1f8c5af63cf0db6295e65",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 6,
+      "original_json_sha256": "babe30076d0a1119ece7116d8f7d044d78a6337c99dbd0b2277a0f0fb47fac73",
+      "result": "results/0a39f04bc98ebeadc72b479cb8be9713ea790c3059b4b5aff5419a678819160b.json.gz",
+      "result_sha256": "7d6abcab8c80fd8d00e22c5c84a9b244e64dddb3b991baed7900d090c9e2a6a5",
+      "sample": "0a942aca9589d10f7b8f127870ca35cdd90d25c0b3449abe0434ffeb9f93f277.exe_",
+      "sha256": "0a942aca9589d10f7b8f127870ca35cdd90d25c0b3449abe0434ffeb9f93f277",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "dfb63153e569308c48665f4ccce3fc75a99b86a55b854e40b361d2e70e8d27a5",
+      "result": "results/0b0f37c1e7697699722121c82d7cc9d25bd681159ec6344b6dc4f2cf8a31eaa6.json.gz",
+      "result_sha256": "ed9d9b25f07ede8b93f389b5b6f5e0d8f1f62a494f7fd3daafaec840591cfa68",
+      "sample": "0cd2b334aede270b14868db28211cde3.exe_",
+      "sha256": "14007b6fb425d03035a2a54dd71e3044c2b9601ff35dd2cc27b7dac8c5b7f63e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 83,
+      "original_json_sha256": "c8e6ed38e0948ba284deaa657abc5b66f99f001ddc6083412ba559b6a0a91af5",
+      "result": "results/7bca4faaddd41a9ab49017ae7ba62ee5a9c36839a738ea92eabc9749cf460307.json.gz",
+      "result_sha256": "537f94a380a35c8ca8b87c03af598a26117df027b56914f89eae5b2db9d7d344",
+      "sample": "0ce3bfa972ced61884ae7c1d77c7d4c45e17c7d767e669610cf2ef72b636b464.exe_",
+      "sha256": "0ce3bfa972ced61884ae7c1d77c7d4c45e17c7d767e669610cf2ef72b636b464",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 14,
+      "original_json_sha256": "326d1349b8a44b573f3bcfc46bea071c048059e6968c30f4aff6c8e40ed334d1",
+      "result": "results/02ed644a2b7419a5d26093d337781a6076ed74c8fb449c1359347d6d8cfb520b.json.gz",
+      "result_sha256": "4a0959e7d9ec6ecc47f223d23e5de533594d279d197ea19cf395d0dc388927fb",
+      "sample": "0da87fccbf7687a6c7ab38087dea8b8f32c2b1fb6546101485b7167d18d9c406.exe_",
+      "sha256": "0da87fccbf7687a6c7ab38087dea8b8f32c2b1fb6546101485b7167d18d9c406",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "d38157c342c73404c4fd41a072568ec31dbbbf94152947850cea7256fd576525",
+      "result": "results/299b961cb15866214d7c577c5fac324c6bb008dd48f2316fd5732815612a771e.json.gz",
+      "result_sha256": "b77c4922483540103c357d92acce14e0b23099864a91f2cc32e436fc1a58022c",
+      "sample": "0db010298586f17ee7e46f390d5724be.exe_",
+      "sha256": "533b88374124845e501e0a83aac9a3c1289afe74f3021d50e07009c6fe3f246c",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 23,
+      "original_json_sha256": "01fc383248aad3be1ec38627be40cfe5524febe718012245723f22a55ed62408",
+      "result": "results/87fcdf31c839e58b66a6174049e531936ea806e7c5f15905f70178155168339b.json.gz",
+      "result_sha256": "33c1aa045eaf806fc96d5b9bc9d247dd4913860e10219f88610083a3b71c39ab",
+      "sample": "0f33c2fec223823f84a732ceb1ad94ed2645e896095144850cf1443aeda67da6.dll_",
+      "sha256": "0f33c2fec223823f84a732ceb1ad94ed2645e896095144850cf1443aeda67da6",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 11,
+      "original_json_sha256": "88e43cc1b1f360abd9caf64fac1a74c47dda5bbdb197f1f59a808950de4c88aa",
+      "result": "results/2f0e5b39c688826e31c89808fff0c723fe63595a14b7a1bb6a5ba7074978922e.json.gz",
+      "result_sha256": "65099f3e5024af85b1dc447008d1aaa9779e03217fc89e7dfdca0f841b91d4b5",
+      "sample": "0fd8330e00aa48676d6d0c4f36e9a80b.exe_",
+      "sha256": "7d7e91a26864d10cf3fb05e371366b2b67954150c2b7d7a33e715c07bcd7e0d4",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "731074d34ac0d8ed069c87b0176625cb6f7a403e4bc79459dfa7442a5d384fdd",
+      "result": "results/6e8eea16607586be1e939df45a2b60aed5e72f4c45373dfd84080a185ded1fc8.json.gz",
+      "result_sha256": "de5ef91e9fc55827a452b4449ceee23124518c5929d99c0d08c17f72d7e84b7f",
+      "sample": "1038a23daad86042c66bfe6c9d052d27048de9653bde5750dc0f240c792d9ac8.elf_",
+      "sha256": "1038a23daad86042c66bfe6c9d052d27048de9653bde5750dc0f240c792d9ac8",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 18,
+      "original_json_sha256": "3954d45dfc2d95a865ad0f7c8020d055ef4903801fb8cb3857e3c448d484637a",
+      "result": "results/15aea6f7b72913eb15259259ec51c864e68b711e2f50c085520f54458ad5b72f.json.gz",
+      "result_sha256": "f7acca2cb0a81d847e6dbb4257004d7fa10be66e40521f22f7d646d3304cc5eb",
+      "sample": "10cd7afd580ee9c222b0a87ff241d306.dll_",
+      "sha256": "cd697ed22e3ece7ef2e203c28c297d7be0b5ef862c2fd1a0c2f9b0fd3cc4e90a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 7,
+      "original_json_sha256": "6cd4d350cf24f85a66127f35f4e5ff139e3b93b2045656efec33cdfadf14187f",
+      "result": "results/5708c807b3ea8bcd78c7e3cd5393d3fe5d1e84412ff11c67e8955f00b4618ede.json.gz",
+      "result_sha256": "ed05bd8be57007c206eddb081197e645d7e7aa4cf81bad0053fbe84348fe40a4",
+      "sample": "10ebcf8c20403457a08762200015b151.exe_",
+      "sha256": "94d5ef0a9339770da3d38a7b6c02aaf3c63f3c95f878bb76c8bc6570ca15057b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 151,
+      "original_json_sha256": "af82c522eb65e04e8e379c00cbcaf4181d4b53d3369910c2a808b2707ffcd7fa",
+      "result": "results/7c89e629120d075434c53e5092b6e22b8e412dc977e74f2a2c94ec691d93b640.json.gz",
+      "result_sha256": "bd51f3675c8a373ddf49f6f02c456e42e0edd9669cd38f43aef3475b9b25f659",
+      "sample": "112f9f0e8d349858a80dd8c14190e620.exe_",
+      "sha256": "7faef4d80d1100c3a233548473d4dd7d5bb570dd83e8d6e5faff509d6726baf2",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 62,
+      "original_json_sha256": "abdc7330727a03112aeba909307dd3a32c76828077ebe945c4193cc5c133a7de",
+      "result": "results/385a174d3c14874b860b7f570f017876751c46ba121afc802e6df320cea36724.json.gz",
+      "result_sha256": "321eeba187fed021060c5c41f9dc1dcf400c609482d6b0bbab140e909af5caa5",
+      "sample": "1195d0d18be9362fb8dd9e1738404c9d.exe_",
+      "sha256": "dd79b2abc21e766fe3076038482ded43e5069a1af9e0ad29e06dce387bfae900",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 35,
+      "original_json_sha256": "c4c544bdeef6337ca1118d4f5714f4ee504ab2febac5ad99cf69060a05e25c88",
+      "result": "results/3b8958f06c8557e77300daf150ac0e5b3e6b03a3382ff7736dde318d0f864cbb.json.gz",
+      "result_sha256": "5f22251d52ad4df00232b2356c92caf00e6fa15ddaf119679b92a92630b2e9cd",
+      "sample": "138c71e94961fe9e31cec5dfba62a639.exe_",
+      "sha256": "f81c70bc3d908f8152e3bfcdabf6538291d6a649fb6957d646fbde54d1ca1caf",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 47,
+      "original_json_sha256": "e8d382d8d66355ee9317300a937924ff4c8c205067896b92dda23c92096aafc2",
+      "result": "results/074389e30bb79ed76a966009eaa116be4f13bcfedcd9a5618ff395fbebe4d87f.json.gz",
+      "result_sha256": "228541392d6815b1dddb40bafb51f82a483ffad6ed5ae130c39819b405823578",
+      "sample": "152d4c9f63efb332ccb134c6953c0104.exe_",
+      "sha256": "a4cbe4f41263b833294d2749de34fc588ca44d9bc5e3a78bbdce515250c220c6",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 25,
+      "original_json_sha256": "d3f5eacfe7e7dd6e72336e4cb81c70e9d9c0651de1c6e4f03c0c4b4c6d477bd1",
+      "result": "results/3b46177ab0c8d8510bedabb23c2af189a042b124b7f630d326f0331cc66e29b8.json.gz",
+      "result_sha256": "bd3676da3a584fbc94f0cbb2e5f1741289f3cd41bb7da4637461af07a7807ffb",
+      "sample": "15835b6dd703e69d22d4ab941ccd5f6e78c3abc22ae123366da5e950eaa62e2b.dll_",
+      "sha256": "15835b6dd703e69d22d4ab941ccd5f6e78c3abc22ae123366da5e950eaa62e2b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 39,
+      "original_json_sha256": "db10a9764bb70acbef68b15ce2e60dcb41de7991bdf21722bd56e8812a7446b5",
+      "result": "results/d6cc300ef46ce6f51e9f24655d1bc12275a41da3144816f5521e1e0613d95ca7.json.gz",
+      "result_sha256": "3e848285c0ded952bb8e38285b7ef0ebfa87285f5e78cbd53c412ac3b8bdd7a5",
+      "sample": "17264e3126a97c319a6a0c61e6da951e.dll_",
+      "sha256": "3242434f9894f1d6e706d21a5e544659cf429b361a28e147b7fef9a08edc56d5",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 25,
+      "original_json_sha256": "2a782867a2082d30152307c3ca108fd6d51a97c2a215b022ae05719f7bc84f91",
+      "result": "results/62ccd4d18fa6859bf638e7b141cdf67d2ee61b60ebc3634269e8a3c4713c6695.json.gz",
+      "result_sha256": "06f5d3968342cf9ee188744877be10f92361ee9afd1f04978c8115cbf8c30a90",
+      "sample": "1d8fd13c890060464019c0f07b928b1a.exe_",
+      "sha256": "6bffe5385dd1321fe5b99dec3f8858be9ff99c8629c1c8d6f414eebaa663a710",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 18,
+      "original_json_sha256": "0ed41039077208e61d394ac252d8cb3d0bb120be3ce3c47bca09287c39c704ed",
+      "result": "results/40a07ebb935b8763bd0119f1d52bbbc33c97467acb3f703954cfbf1c318d03a1.json.gz",
+      "result_sha256": "97a56408687bfda3703a79f0e14b897aeec632d94140d6ca74f728e7a9cffc2f",
+      "sample": "1e2791877da02d49998dea79515a89ca.dll_",
+      "sha256": "3e3d82ea4764b117b71119e7c2eecf46b7c2126617eafccdfc6e96e13da973b1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 24,
+      "original_json_sha256": "4ab51778ed0079287a3ef1d1763a5f0fbb274edfa2057d0e552649013f5f1d4c",
+      "result": "results/1ddadeac6a4d7ea87759cb1f2cc97c23260a32b1ab3440e6046a2009aa0af14b.json.gz",
+      "result_sha256": "ce84d118304dec6b03334030ae0416bac1fce08db9adac14db27ef746c4171c8",
+      "sample": "1e609dffd12a59ea5d5c9b3055939b1f.exe_",
+      "sha256": "57771f6312b091fb5450112864e56413ae2a2a2874289e8245eb3a0d286577e9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 55,
+      "original_json_sha256": "ed3377c54ba1a87d49dd9c545a1446c56902cb23e84db4254e58fef8a42a637b",
+      "result": "results/9bdb8a6470ede7a18d63474dfe500d87b6364a90c23404acff03ae3681ad5c3e.json.gz",
+      "result_sha256": "fc7d4a6feb19c48a7d723bb8834270eeb2c5291ffff3b65ec74436d3ac47fa5b",
+      "sample": "1e9fc7f32bd5522dd0222932eb9f1d8bd0a2e132c7b46cfcc622ad97831e6128.exe_",
+      "sha256": "1e9fc7f32bd5522dd0222932eb9f1d8bd0a2e132c7b46cfcc622ad97831e6128",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "995cec17019f0863de7852b3104c66031d95c6828b6954e1126e0c0605f16f9e",
+      "result": "results/0b9b7f1d1ab104b6849dffe56f13deb2599f09150295f4ddaf1dc159879dbe70.json.gz",
+      "result_sha256": "c21cebe6d8e909d71c24e98b8c9fd8b9d4dc2b513324275bb8f7ba4606caf1e3",
+      "sample": "203bd48bcc18434314ad60f4c8bc21e3d3422eb0624b22b827410f9bc63b4082.exe_",
+      "sha256": "203bd48bcc18434314ad60f4c8bc21e3d3422eb0624b22b827410f9bc63b4082",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "2af9a68cbf2afc3d18a46fd4d109b76a236d5d29003d9fb2e05775bafddca1ad",
+      "result": "results/c002c047fc3117b2aca794d6ea7aa65970fe9da05e7cf7d3b8a1f2e89194106b.json.gz",
+      "result_sha256": "c6fe2525e903f49a7db02f6ea858b184870c120af110d6727bf5eb5074dfe0ee",
+      "sample": "2055994ff75b4309eee3a49c5749d306.exe_",
+      "sha256": "8a6280552c11e62a43b8cb171e3eb95e9c004b0bb217f8ba420f59c94b73c5a2",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "862438b48c6765cefbef316c21f4165d023d90ae857aacf22a61b4f43b4d8d67",
+      "result": "results/747f9dc3b9d828b5a7b90e88140797b52b0073f84b329d5961f809b2f0136bd5.json.gz",
+      "result_sha256": "7731df0618eb43b55245b8ab2537b2c7215cbdb442fd2f053ba9bb044650720a",
+      "sample": "22d0a2e4c9c2163b2bf5f0e41a2e1762.exe_",
+      "sha256": "df77eb7578bdb33d1bdac1e613889e13414eb511f4783e4456e1850de6d5f89b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "d86aa037fa6edf2188edc1e0cf83e8d072ce0e86844ed6db667c75a0264b86a9",
+      "result": "results/dfa294b73ae186af081b558fdec69fce8f46ec090eb74bca7b40a117845ab710.json.gz",
+      "result_sha256": "ae9956e73fd4fcc49b7440c80cbf56e3a221dc0cf199b0e77a7a06ae7e0c454d",
+      "sample": "232b0a8546035d9017fadf68398826edb0a1e055566bc1d356d6c9fdf1d7e485.dll_",
+      "sha256": "232b0a8546035d9017fadf68398826edb0a1e055566bc1d356d6c9fdf1d7e485",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 2,
+      "original_json_sha256": "0d77cec8237123a4a2e2e0b5921978d2f4656a41def86b9133070fdb1b664d85",
+      "result": "results/fca2504640c59260c542e80fd177e30ae3d6f75806d68e0e7d1f3aa7141db2ff.json.gz",
+      "result_sha256": "c11b386875b8d628ecf5631ba3c93a93495dcfc831fa5993b8b20ece7d9a5834",
+      "sample": "23e19068ecba68d4396bc097e0278b8eca7e7dcaa4978e34d683231ad2219ae3.exe_",
+      "sha256": "23e19068ecba68d4396bc097e0278b8eca7e7dcaa4978e34d683231ad2219ae3",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 44,
+      "original_json_sha256": "83f6253d4acfbc638e2c7b0b9a0f21a0ee6e7cff46a5ad9c6f4039c32dc69c2d",
+      "result": "results/1fbca502c55679e4ffe8a672d4aca71b6c77b48e7c28d24a292e7062a92f2cd3.json.gz",
+      "result_sha256": "b4c9aa0a6e4cf7efe415e40167382fe5c1cd4f91c20b2b8aa833f56067a9b65b",
+      "sample": "253309d8b3675d3cc61d4bf23aa15d4b.dll_",
+      "sha256": "72f1c59d95b2d60c47eb42effb97a0b93eb0c82c8c69ae3d3afa05b2dd25396e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 17,
+      "original_json_sha256": "9e6f13aba4653612fe2fc42970b983a81be899851ca9ac76ff07c3d520b0cfc2",
+      "result": "results/2b8d740e4f5cd73ba726c9a81f4dc96555b12640301f2491517fe4b2631040d1.json.gz",
+      "result_sha256": "e2899509ba78015bdb6d48b5a3c4ce1d78fb2da1a5756dd2a6aac789aa2bf393",
+      "sample": "268d61837aa248c1d49a973612a129ce.dll_",
+      "sha256": "966ab1c468e3fc7d8d8b2d73a9ca9a85d352a0db8043c5eab36dd304a5915812",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 18,
+      "original_json_sha256": "b92a318c4c74808b27f88d75dc0bfe0990dae3e5bfb0ce002f0a787bbc590cae",
+      "result": "results/aa90dec9b66a54f022328cb1635349b45a66c8249d3466ead197884375064c18.json.gz",
+      "result_sha256": "676624409f01a4f9ee6507c0649d75d281a1c585b4854c6f17e2f5d77d7d8b7c",
+      "sample": "26beba7352a32b803aa19e0782011a383a1df19549910e7b2f2f244e49678524.dll_",
+      "sha256": "26beba7352a32b803aa19e0782011a383a1df19549910e7b2f2f244e49678524",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 67,
+      "original_json_sha256": "0a29d1fc0b1c0509ad957bcea1dd975ea0495185d383d21dc452e5d1af555187",
+      "result": "results/b0fa5ea10f959c99444d912523bf8b8ccd45651cb02e62c25b2877f95d5feeba.json.gz",
+      "result_sha256": "16743e7d951677d03a47fbe6abc622be546b880c601794ffc9ab7729be167322",
+      "sample": "276f691a3df25481f59d79781799e35f.exe_",
+      "sha256": "283733d6765a164ec326e72b3f98cad9a00e6c771fabab2da419f790fb521de6",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 2,
+      "original_json_sha256": "9d64f2a053958a6232527a513618a99324d1cd5bc5ea3078f5f9084608061802",
+      "result": "results/1150609101a71436253fbed51fb41fd958e8cf41aa298d050ada72a5ecfcb104.json.gz",
+      "result_sha256": "28a867cd30cab2ade1f1d9f5dfdf9a821c95e1402abdc452d76954df692087c3",
+      "sample": "2826b762b9c268601a44974ef469a671b441e798a6c3cbb40070450c6c030ba2.exe_",
+      "sha256": "2826b762b9c268601a44974ef469a671b441e798a6c3cbb40070450c6c030ba2",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 26,
+      "original_json_sha256": "31b29a5a822c27e98017a019cdc58d3167d2f50e5ff807b61cf6e5fd8b3a12be",
+      "result": "results/2c168d34a6ae971a2d878fa935c9b33a60c6fd4ba9432b5211b669f5a3767c96.json.gz",
+      "result_sha256": "0245b246a8fb1555469df92af91f8279a06c037004daa7c77678ea1c28adc638",
+      "sample": "282c32269a9893c5741ca682268369421c43ac21d73b1f6c23386d61c93bf3e9.exe_",
+      "sha256": "282c32269a9893c5741ca682268369421c43ac21d73b1f6c23386d61c93bf3e9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 7,
+      "original_json_sha256": "01517bf052e0efea9d607b468a852f41b9a152102acbe1ff837bfd4c24938104",
+      "result": "results/517c76fe45faf2d887cd54a20f5f56821a4035fc22d3254a8176b58dcabd5064.json.gz",
+      "result_sha256": "a3ade89deb3797bd0f65e00c59b8dbaaa4ed2bb18c066eef44de4c5c0d6662e5",
+      "sample": "2855ba06b90e7c64d9bce888e47baf6d.exe_",
+      "sha256": "d767da58e1f4ec570ece8a6f6e027e32baad2716d3b12f321450d3211a284701",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 31,
+      "original_json_sha256": "4361b4304319e281512ba9a3d412150cf5361f5d20506991a4debce41bd111c9",
+      "result": "results/54f0691043d5c3ec823baf40e44c71e3fd534a611c7d88ea9bb75b021480dea6.json.gz",
+      "result_sha256": "d1bb949bbdae034917bf633428cc97679627e2af6fb7bfcad53a19422643480f",
+      "sample": "294b8db1f2702b60fb2e42fdc50c2cee6a5046112da9a5703a548a4fa50477bc.elf_",
+      "sha256": "294b8db1f2702b60fb2e42fdc50c2cee6a5046112da9a5703a548a4fa50477bc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 48,
+      "original_json_sha256": "3e77517edf153ed8ba88ca7a9359ef21592e34d80a8461ba195bb69036b87c08",
+      "result": "results/19e4da333929ae025834abc214b6bb7671bd3a69be366fed8485dbdc8f23bef7.json.gz",
+      "result_sha256": "1e3095c689cc387c2e3cb7027999eaf11286ed103fcee4caba9b58f6dd5c7967",
+      "sample": "29a76e413ffe0f78b62926b8455082d6.exe_",
+      "sha256": "7b4a5d5d95154c71544c4f0a14ed81b15f75266639155f98d4a9c47e650ac9a7",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 43,
+      "original_json_sha256": "02e427b1703ef955dc1b5fb91a519c9b2be2ba0faaa0bd6738c6065090b08b3f",
+      "result": "results/676f63d1d352b138e4ba081b24abf641d03c5df541d7214ae5f61eeca20c227c.json.gz",
+      "result_sha256": "91ea3d92a93486d7a48af86beb4c716a2d85d03350c62df58d8190cf53154082",
+      "sample": "2a584dfc657348d164274a12bff9bbd8.exe_",
+      "sha256": "ef5f06c2d0518c52be10f97bd567210568611f35a954ff32af04c5bf7180bee1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "aa57c10e9cc472f2c0f1db26f37c7b86a57928e00e4c063c726ce2746dfa8584",
+      "result": "results/5a77163920b535914562a77a0456a38d98994ab0f1026648fa52ba8c13e6e1c4.json.gz",
+      "result_sha256": "86423bc9ff99230f39e5794545759569653f0d4b26ae942af238da44eb3be71c",
+      "sample": "2a7429d60040465f9bd27bbae2beef88.exe_",
+      "sha256": "943998273af79de9689508f66166c6b33cc2af5c06d9e97fd8db15f0e9b5bdc0",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 46,
+      "original_json_sha256": "f9e189bd4d802d4a6d9ed80eee9621d3cecb22538902c87b377fc60e4c92cd08",
+      "result": "results/ef722ad9ad7058f004a4a713a8ff92997f763d476c2cd4b8f3b24428cc02a277.json.gz",
+      "result_sha256": "8b399381f97506dbb11a03772ba73bad7d1ed03dfe6c2b98ca8ab59a84399981",
+      "sample": "2b8bec5bcb1777eaa155d832f7afc797.exe_",
+      "sha256": "782a48821d88060adf0f7ef3e8759fee3ddad49e942daad18c5af8ae0e9eb51e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 34,
+      "original_json_sha256": "e96d8fb085ace38ca31caa371bd7b2f7853be306e0884a996e4218136350de87",
+      "result": "results/e5083e2b1ad27468f9afcedded741f28a0983e62001aa4a8b2ee9f9ded3bd2ac.json.gz",
+      "result_sha256": "117e9bc4aedb42db46681c0f57fe8364bccf75cff4777102acef3b66103fd171",
+      "sample": "2bf18d0403677378adad9001b1243211.elf_",
+      "sha256": "72f1b91327ffda4cf18a2bf64913b673d39ebbff8cbe50c9cd354b1dcd312bcc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 22,
+      "original_json_sha256": "de4380e8e9b51510a0b06a371acbceaab682c2a276139bb62f654a966ab9ef64",
+      "result": "results/9b3b72bb202eb6326f2abfd4f6faddab4d4677db406938616906bd038482fead.json.gz",
+      "result_sha256": "4356c11368672666c3e34a2d30a12cc7adcfc9a61431b5cc0be20badb9d83e10",
+      "sample": "2c83f152e09d0abaa3a3784669e75276784e50e1e202d16ab27e5741eef9ab4f.exe_",
+      "sha256": "2c83f152e09d0abaa3a3784669e75276784e50e1e202d16ab27e5741eef9ab4f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 61,
+      "original_json_sha256": "bbbfbfdc606ecf3a12514a06d0d04d07f14460317dfa763e990a0744aaa6f23b",
+      "result": "results/92b7efbf307045d0412834fb265523f910bc5e35282083b938f98a7cd4cb7c0d.json.gz",
+      "result_sha256": "70bd9b9af6bee7ef0eb2dc534a64352555e92b3d0162c47daeaeabb291effaac",
+      "sample": "2d3edc218a90f03089cc01715a9f047f.exe_",
+      "sha256": "e606530456555bfa92c98365539b16d20bf678fae1ce180d9574a0ea48cc8a9f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 17,
+      "original_json_sha256": "8fc5576aa2943da19e88c8ea905f4cbc52737723680eedf5d48549d0d37ec370",
+      "result": "results/8b5a611a8a63b951758c9cf0cdfd4ca14bbee4d55bfc9fb211fbd9eb884213b3.json.gz",
+      "result_sha256": "35cdbd076a5ca0cfed467f0f75d47daf459631a51b70e33aaaf4c65dd6212f57",
+      "sample": "2ebadd04f0ada89c36c1409b6e96423a68dd77b513db8db3da203c36d3753e5f.exe_",
+      "sha256": "2ebadd04f0ada89c36c1409b6e96423a68dd77b513db8db3da203c36d3753e5f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "d6a6d6cbd3dce7173c151271adcb10790805fdc41eabf1b0a6e970e8e5950ac7",
+      "result": "results/bb79338a0a31ae1b304805c64f801115d7750e4451c255e0975108820c4b959b.json.gz",
+      "result_sha256": "b875196fb99fdba9edf527a3d5086ed71f19e0a1a5882fb1cd7b840efefa4ab7",
+      "sample": "2f43138aa75fb12ac482b486cbc98569.dll_",
+      "sha256": "8a0090a2498cc8449d086e29acf368819cdf9d2854d5fbdbe48de2c039e095cc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 20,
+      "original_json_sha256": "aac2d727ff3857982838e96caf0b11f34ef0655afcb0323b11d61f193b253c5b",
+      "result": "results/6d9e73bc1d464feee311e7d82ba6b3c0a0dae7021fb6ad41ebbb10f24aa59dc2.json.gz",
+      "result_sha256": "7ba88af20baeceaaaf3731db813eed1663c2a33e3106a5a2cf34e048e389209b",
+      "sample": "2f7f5fb5de175e770d7eae87666f9831.elf_",
+      "sha256": "64b9584e5ca7d5c4980bd72e63718b634a8912d4dc123de940db36dd111931ae",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 48,
+      "original_json_sha256": "aeb9c35a60babca3d9d70f8ad1a7061b910f1573174f5ce2ebcfebb938367179",
+      "result": "results/d54f765eedfb7eaba74081b6dd58c9437f4d85efbbc3e781a35186a0fa9e782d.json.gz",
+      "result_sha256": "85b9e1837001fe233269e328dd5859a0e5a9befdc26d1f4358e6f7df39491974",
+      "sample": "2f9ff544d5cc945b453356f9b20c07d8.exe_",
+      "sha256": "ae30f3a83fea592bb2dcc22a0124c8b4ae3534b9a19a5de0da12abf8827e2d4f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "4c9ce0527ad72f265988b9bc5eb9ded13ed6b6ed30109c2cd76feef15e53bbee",
+      "result": "results/58d6f47e5e6ddfc8d48cbee87a96581c30c1de90127a5fe0e6eb27eaec57a1ed.json.gz",
+      "result_sha256": "64616978c7f4f2d064e518be71ec4479f6f689047d02b3b030f45c684b5c6012",
+      "sample": "30ee31a532545d2fb456b6204dc443d5.exe_",
+      "sha256": "9fd3d77085a95115b4c6696ace2b35341c577bbd73d6a039ff7488f02c74cd40",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 24,
+      "original_json_sha256": "bf79b3bd4e6a17cca7b030de4054d59099e7f34ce0a84883a222a463b432c6a6",
+      "result": "results/60a49e0b4bdeb6b5a34c0b072b0d6fbfaf96ba56569cdf3073fb20e14ea53f13.json.gz",
+      "result_sha256": "aa85e327aeb1748086d8240996d212eaa21e65733b298e6d40f9be2f5715c481",
+      "sample": "31600ad0d1a7ea615690df111ae36c73.exe_",
+      "sha256": "69f222da207f6b7fe4bacd3eeb8e7a47e98f5df0a3f8a3b12b96b3c09d5a18b9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 42,
+      "original_json_sha256": "b266f375b78a270af834ea7577064a300fe3661afc6453b0cd61625a8726129c",
+      "result": "results/01abd4092a89e616ea268602536d101f590f377088997239e2ec71fe18f0b7ac.json.gz",
+      "result_sha256": "21558294a0e65a7639ed009a9a014e8c04dd666bc2dc17baa1c6567260ac746b",
+      "sample": "31bd8dd48ac0de3d4da340bf29f4d280.exe_",
+      "sha256": "5b6a85ae5df6333167461cf6784ca5b67d07769b7bcf74278ac686ab84352296",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 50,
+      "original_json_sha256": "4853a1e037a008fab771e5cd6ec65607dd3670ea063164de7813d1f0dea27d5c",
+      "result": "results/2f973196afd8d12b88908cddde42a184614343e2b1b86b5dafb7029b82b428bd.json.gz",
+      "result_sha256": "b68f0663348a140afb5f7185c767ad95669eb92983df78cf742a0de75987a37c",
+      "sample": "31cee4f66cf3b537e3d2d37a71f339f4.exe_",
+      "sha256": "7138968c5cb5e00be50ec68a95186710fc22cbe4145e2e2275de1d749c4d4cc9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 29,
+      "original_json_sha256": "353418358d5d6f8a0a62bf5887477252c3e79a6ceee828c9b44eb7199b7bd301",
+      "result": "results/b49d6982cafb3fc6c60fac5115feea0c1df43a54ee98975d3d0350a59b80d116.json.gz",
+      "result_sha256": "cbb28cdbca9e27e2060751adf2a87236a36f804357c2e3dc4f7b7cf8c2d3e184",
+      "sample": "321338196a46b600ea330fc5d98d0699.exe_",
+      "sha256": "66e51558f8bf9a329f2e9a2feb4592a4a30fd9124e171a8e2f17ba00fb902b0f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 69,
+      "original_json_sha256": "ed616eecb46f1942e7f1024983023a5c00a1344656ec6cce062e08b06b4dd35c",
+      "result": "results/f4c6760a9409492626f529d4720dbd9e6898bb2132674fca494d894684a7ad29.json.gz",
+      "result_sha256": "41b1bcda4963436b05a376ddad0e97e6dc479c140347d6ff7b8f0c01e73d0781",
+      "sample": "3265b2b0afc6d2ad0bdd55af8edb9b37.exe_",
+      "sha256": "a188e147ba147455ce5e3a6eb8ac1a46bdd58588de7af53d4ad542c6986491f4",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 45,
+      "original_json_sha256": "1e18a4ce409ec05398bf482a88cbb0d76c0a3c8a44b398f414af9bcb078b02cf",
+      "result": "results/30eb69e711b6109eeaa27049be79ee71e1d9c73de82c88acd4631b679c161a6a.json.gz",
+      "result_sha256": "bafc305be9c173193eb7e324d6db7d383d8d4730462464995ed53429e7a6e23e",
+      "sample": "32b3678f8c29437e9ea10eab10194f66.exe_",
+      "sha256": "c86d87a84e7bb0115776594ca26880d01655ebbc1b4aad2a577684003bbcb1fc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 34,
+      "original_json_sha256": "62db29458cc2e3d539e2848e7951a76f3865819a934372ac22c91bc8507bbd26",
+      "result": "results/847af1e1e4e9e1701eac60438fd23eaa9b474f5d1f5684a486bfd2a3106b959b.json.gz",
+      "result_sha256": "7d7168a658a558a534a845a82c8caab6d135d29fc500f6114ed88b4d1c086e79",
+      "sample": "32bb43f8847ecf158c1e96891ed9a28c.dll_",
+      "sha256": "f8779b1474e142869110eca76065ecc299d4cad08881637b42cae5d76c5ebbb5",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 31,
+      "original_json_sha256": "2da16cca6ebf095ad7e13fabe9334a640bf14aadfa20d446798c65d392bbb873",
+      "result": "results/476cddf24f6ad92506d8375cb6e6252c5b6d266af566000f7027c5cbe98b9a39.json.gz",
+      "result_sha256": "af9e964861e02c9d86096196719325e3ef4f83b3885b0c768b62dbdd370a102b",
+      "sample": "34404a3fb9804977c6ab86cb991fb130.exe_",
+      "sha256": "c6930e298bba86c01d0fe2c8262c46b4fce97c6c5037a193904cfc634246fbec",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 65,
+      "original_json_sha256": "e161285205e2a683531a8ede75d12f938fe1889045c819cd947844915c8c41cc",
+      "result": "results/a7afd33d12cc2398fddd0035c51d6ea8468973216f3d883806e8f765d11b4e75.json.gz",
+      "result_sha256": "27c301fed671f283da01b0392deb14b3919d7919e963ac524d25fc9b5d81d81b",
+      "sample": "3446b3889a52d81119d8c482a2a282b9.exe_",
+      "sha256": "2625f00158cd00b14d3ee8cc892611e31dbee5883bffc69c3b28e3006b2e588b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 31,
+      "original_json_sha256": "0baf13662d56e9eddc9f5d3e445a6b9304b8ed6bc3a23173973ac24f23954c78",
+      "result": "results/a8b495541a4853ae9051062d08d0d63a5ff94a700ec6f932f21e42a8f82e74d6.json.gz",
+      "result_sha256": "6a026187ccad790c6d9a5f29e5bc8150583e47d35e04d1fcf14e6843896a3f22",
+      "sample": "34dbc85ed0386e024c724c7969e8d0ff0ff0b1882508ea259c458d59657a1971.elf_",
+      "sha256": "34dbc85ed0386e024c724c7969e8d0ff0ff0b1882508ea259c458d59657a1971",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 47,
+      "original_json_sha256": "5839587179051de2230703a735d65f5114b3bdb71077cf484b2fc442eb40c8ce",
+      "result": "results/b69301fffc19f5af749a21daf8d1b89d18d91bbea2052ba3ad154b6ee7172955.json.gz",
+      "result_sha256": "fafbb8aa57ff13248f80638da6ca6b4912464afeb62af8070d0c0fe0fc92e0fe",
+      "sample": "3583f7f97ab207be7ab2ec0a507e2481.dll_",
+      "sha256": "6b46f154b60721302b2978dfe08f6394ed17504186471f3bd479d52b671bee91",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 33,
+      "original_json_sha256": "e0367db7dc297e3967e5669943f5f12a63f42f8868863ce413e6b2bf2fd91815",
+      "result": "results/f449b6ddeee5579b4346185514ecd1f0158f0b2c31701d59d1136dfec802544f.json.gz",
+      "result_sha256": "fc20f88dd3190f2be952659eabd66d412e561ef5b8e0a333b7c3542b751f0bce",
+      "sample": "35f9cfe5110471a82e330d904c97466a.dll_",
+      "sha256": "6dae368eecbcc10266bba32776c40d9ffa5b50d7f6199a9b6c31d40dfe7877d1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 5,
+      "original_json_sha256": "e2b95b40c9c73e662b3fbb039f6eeef063808ed8fbc7c43e9f8bb10acd2d1088",
+      "result": "results/509f825dc566b90061ba51fe4e39a9bc5c77ab88d0107a728240ced372b08c21.json.gz",
+      "result_sha256": "4c8e8e2fd233ca46066fd051a448c5d8c22b7576299dd296544e050c12051080",
+      "sample": "368239d36d221d8877a07ab6799e643a.elf_",
+      "sha256": "fbac0064b2a3563ac9d4335ef053b8a39831203cfdafc39f0906cad08d206dc2",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 6,
+      "original_json_sha256": "af1f627aeb79a16dd2da70ea1a8bfc8030f7e9317dae437f71b819729e409147",
+      "result": "results/a7961a92e9f56c5d61f854bc3515985ccf2b657cffc6c15908f086bda6604f72.json.gz",
+      "result_sha256": "5a1368b851f992ce2800efda53a0805fa6a6dfccefa3acfbb8be87daf2a50b22",
+      "sample": "36cc72c55f572fe02836f25516d18fed1de768e7f29af7bdf469b52a3fe2531f.exe_",
+      "sha256": "36cc72c55f572fe02836f25516d18fed1de768e7f29af7bdf469b52a3fe2531f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 17,
+      "original_json_sha256": "8c868f37fbf3b3f8ea4ad64e4d6e37cf6f9e22dda9e047dbf1a277dbd6f07dde",
+      "result": "results/6be8dab8972fd95a076d690134b0a7ed48617bfacd9744937419d4deeaf92439.json.gz",
+      "result_sha256": "08db8ad30af3ea3dd58117f2752b0832f3f065afda1458fd790fdf970997af31",
+      "sample": "36f506a34b99bf4c199b3c9ec8aa02bd631feafdca20e69e33e714c269ddb8c5.dll_",
+      "sha256": "36f506a34b99bf4c199b3c9ec8aa02bd631feafdca20e69e33e714c269ddb8c5",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "81b1f1099ffcfd94ddd620ed4ff68bbb4ebddc07de0699c09087d8141c9cfb72",
+      "result": "results/e65ce0e7e93aff525eb756094415c24f7f64a8a217c1635b9786940e3c96a5ec.json.gz",
+      "result_sha256": "a7371091f55f3c0cf12706db56fde5234e87cd0f00e0c6cd4d57568e2dd1d0df",
+      "sample": "378ecc1b2e60129c9f06bb6bb8042f2b95feca5f526a4c26a5c39707807fa259.exe_",
+      "sha256": "378ecc1b2e60129c9f06bb6bb8042f2b95feca5f526a4c26a5c39707807fa259",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 55,
+      "original_json_sha256": "65d1db53ead702985238ef60740d32054ccefeff7eaa13ddcb2c3c73b9242b34",
+      "result": "results/50cfb14b824769db8af53963ca0162ca311a6ad14805185e2863e9a7078d9dd0.json.gz",
+      "result_sha256": "153de5e23e46423ea8c769f0a90602f5ebfc1c4f70d91ed4bcd2fa551c5a0ddc",
+      "sample": "3808f21e56dede99bc914d90aeabe47a.exe_",
+      "sha256": "4a5ac3c6f8383cc33c795804ba5f7f5553c029bbb4a6d28f1e4d8fb5107902c1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 47,
+      "original_json_sha256": "d1d3566e5042eeece87ea602cff1f8bf221044c47e2c26f11c86acefd403227d",
+      "result": "results/b0b3492e6557d1da4331fc5956013469063c35a9f1510d90f90469c9eddcd3e8.json.gz",
+      "result_sha256": "c092daa7e2e5c4e699ef36b3a29601fc483427d8c5ffdacfe8971e7626538dd6",
+      "sample": "388021747b85453adff2680c8a0e13e230f4eeada1a1055e3fb8e09800d4fb79.dll_",
+      "sha256": "388021747b85453adff2680c8a0e13e230f4eeada1a1055e3fb8e09800d4fb79",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 24,
+      "original_json_sha256": "84813d9a6556ddbd2df8fcf0e41616eae46f62a17aead1324b2289e05e65405a",
+      "result": "results/89369b78b59843bd7ecc03f5499767e00e1d63e8b1acfa5e42de772fea1d4810.json.gz",
+      "result_sha256": "85bf44b063f855708bc184e1d5e0c4263c1ee20760298e973685b9df7426a912",
+      "sample": "395eb0ddd99d2c9e37b6d0b73485ee9c.exe_",
+      "sha256": "9d483ce0d62d78bf7692608bbcb25026257e6d667273481ca2ffe1641a64a9b4",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 128,
+      "original_json_sha256": "40f10cf34d86cbf67734055275a64064021d649801b26a607e21eff6b60788a6",
+      "result": "results/cc6642c479d5e0a67c9382bf258b568327ab3387730987fa93241f936d8d1481.json.gz",
+      "result_sha256": "77ddb9de2f427064d0d55096f8e0f24ec8671434fd163a57c7a6772b3a7c8e19",
+      "sample": "39c05b15e9834ac93f206bc114d0a00c357c888db567ba8f5345da0529cbed41.dll_",
+      "sha256": "39c05b15e9834ac93f206bc114d0a00c357c888db567ba8f5345da0529cbed41",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 14,
+      "original_json_sha256": "514aa3c7dd2a9569c8db06aa4fbd3c59508c2a24e63ca4c0ae3b090ded6e720d",
+      "result": "results/ad6f12693a8aeac916c2b4aba945570bb7ca5ced7df99c15751d3e25b5a4edff.json.gz",
+      "result_sha256": "20cd398490f7b53454d65ca41a46ddb16e724abee8c913b5ea4f81f8ca85e45d",
+      "sample": "39ce034911a6ebd482af5893f9bdbd95.exe_",
+      "sha256": "e5d4557a9dc417d503fb456d314b9f7985bb3765a2cb712be630d10d0a3d8306",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 11,
+      "original_json_sha256": "8dc9750c514969131281c19df53f783283c5ec90f4fbdc486a89c6739536854b",
+      "result": "results/3425cdb9c390087e8dd3842053329107edb788aae8cad8a76a0fb8a7bf2b9b49.json.gz",
+      "result_sha256": "2b560893234ee6da848e8a2d175c76321c06b20acd9ca8757a890af398478b4b",
+      "sample": "3aa7ee4d67f562933bc998f352b1f319.dll_",
+      "sha256": "03ab39504a0c03581dc9da8c145463e2d5ac0b5c4e3e2b4b5aa704ae68a25094",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 31,
+      "original_json_sha256": "ad9392c9cd571ca5f202a12bc82dd8818ad0e0a9322bf07e5742d51c5b5dc5ba",
+      "result": "results/0e73b7bb30e5b6c7b3149192fab3ad5d6bfece9c432c43aab0d9ec1f4ebe2feb.json.gz",
+      "result_sha256": "543003d099c3e20ffc8b1af248c97cf1d24130b081ac7955ce84f7c9c42a34ca",
+      "sample": "3b13b6f1d7cd14dc4a097a12e2e505c0a4cff495262261e2bfc991df238b9b04.dll_",
+      "sha256": "3b13b6f1d7cd14dc4a097a12e2e505c0a4cff495262261e2bfc991df238b9b04",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 24,
+      "original_json_sha256": "78b01bf726bbe39c80fc57c006ed883020270d0ff836daca64c2ca277d57d896",
+      "result": "results/c5aae3d391fef8609bae4a0e455c0a466bc985c4c16e89652b3ec09e6f9a9957.json.gz",
+      "result_sha256": "b16d85ad39226de1b74f513671cab887bc5b3ea3d2d22868673490875fe0feda",
+      "sample": "3b2eba4789bd4a799fe18476a4d1ce9f37ecc4c202eb406e06425c7e792904ff.exe_",
+      "sha256": "3b2eba4789bd4a799fe18476a4d1ce9f37ecc4c202eb406e06425c7e792904ff",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 65,
+      "original_json_sha256": "4c297327464660adffc75843501a285407a410fb6b25754584768cc9af3c13bb",
+      "result": "results/7f96f256d874451e3800e140102f45162a8211b0e8525e1806aad838216609cd.json.gz",
+      "result_sha256": "5810d269ad91d0c7092b2b228ab3cc4d61fdaef678b48f7409fc5e2f89fd97ae",
+      "sample": "3bbdf04c25fcd9876733eaa9163b3ed64d81396e7414619758d9376edf4c103e.dll_",
+      "sha256": "3bbdf04c25fcd9876733eaa9163b3ed64d81396e7414619758d9376edf4c103e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 57,
+      "original_json_sha256": "0fe6f66b97433bec57a812c51f757dea0da1a7fb1be906173a0fb98e85c1ff73",
+      "result": "results/bdaeb9aabfaecbef539f2452d3437c2760ac46cc9c7fcba0300013a555b15877.json.gz",
+      "result_sha256": "8cac8e57b2e982530d01c8de37029e96f0bf4a9b3baec79c06202893a45fc1f0",
+      "sample": "3ca359f5085bb96a7950d4735b089ffe.exe_",
+      "sha256": "7af61ce420051640c50b0e73e718dd8c55dddfcb58917a3bead9d3ece2f3e929",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 22,
+      "original_json_sha256": "48e55e76f669fa1201653eb5dfbb41959e0ba02145df06604e8a1f7083970087",
+      "result": "results/8de841a888837f165100cb4e08d2df9aba24c4b7b5a4ff64826f608e147a41c3.json.gz",
+      "result_sha256": "0b3fe7310eec6a0da3584a2b64e96698c7dc5271944ac6d7f40cfa9e98f89109",
+      "sample": "3d0d79c4715e5b6dd2f8704e4878d57646d5a92e1116aec2ef81a5679ba45cd8.exe_",
+      "sha256": "3d0d79c4715e5b6dd2f8704e4878d57646d5a92e1116aec2ef81a5679ba45cd8",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 18,
+      "original_json_sha256": "80903db77d7b891f9bb739b6b6ad3375309a48b105e24e76abf6c2a0c286b4d6",
+      "result": "results/99ca0c469adfff1799b55cc49c588a1478c013a59471f86680bdce52c1f2790f.json.gz",
+      "result_sha256": "63d558b4b8d32ac43277da290a05fc79176089faf87dab51753b6b1f6f095c4b",
+      "sample": "3d5a99114b24e4373b77077072e4ed52ffce9e2607ec6fe4ed2f08d3b1c59026.dll_",
+      "sha256": "3d5a99114b24e4373b77077072e4ed52ffce9e2607ec6fe4ed2f08d3b1c59026",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 39,
+      "original_json_sha256": "924dfdfafd625b7fa83be969d9df222d72b6e97f54a9c78ec8e51e0a865ffa22",
+      "result": "results/8118ddf75d68c2f23cc22a55ebcf037bb5efe2b7b1bd91757e8190c1da67d47c.json.gz",
+      "result_sha256": "97577bbba6b70e7278328e2c51b5dc2d40747c45101f6abeaa13579603f531d8",
+      "sample": "3d760b6fc84571c928bed835863fc302.exe_",
+      "sha256": "8ac21275d0db7f3e990551f343e16ac105d6a513810ff71934de4855999cc9c5",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "fdd5dc039288f4c0a16972b98acc51d5a0d8f70d1bd50609dc3fd2096f066d80",
+      "result": "results/b071cf94951db2bcfbb6087d4c5d7ddd4a3e7f0c4867c558a8bed9aa32d30889.json.gz",
+      "result_sha256": "1e5bdd9384e297636348ef8111fbeb68912844f04d9b9a0a0db10843c471c53e",
+      "sample": "3da7c2c70a2d93ac4643f20339d5c7d61388bddd77a4a5fd732311efad78e535.elf_",
+      "sha256": "3da7c2c70a2d93ac4643f20339d5c7d61388bddd77a4a5fd732311efad78e535",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 10,
+      "original_json_sha256": "58126658c882cca768c5fe71b83517260e3373d39f894e3456e2e7651177bfb4",
+      "result": "results/a4aeffa66e9c2b88f1331d7b51daf26404450f0d9200866dd74b3f2db5808db4.json.gz",
+      "result_sha256": "20ffd681e70a3810e0ae83d064de3c59dcaad92bc60d79aa7ba5cf31674fc096",
+      "sample": "3e528207ca374123f63789195a4aedde.sys_",
+      "sha256": "d30f51bfd62695df96ba94cde14a7fae466b29ef45252c6ad19d57b4a87ff44e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 23,
+      "original_json_sha256": "9d87a626e7efabae11f491186493f54e92e5ce7c1c88f665093c791c9c8e13ce",
+      "result": "results/78f95dcf30d4c7d9a6fe9228bf268db9f6ff03430209c8f92d1570d8601762e6.json.gz",
+      "result_sha256": "f4d52349d6c4362c840aec68914279b5d1ec5ca35e39238a0b36f0e9d3872965",
+      "sample": "3f3bbcf8fd90bdcdcdc5494314ed4225.exe_",
+      "sha256": "ebe09a6ef73a572f7a19d2e1eccd8f5d1895ae2730e67a060d008a2703ab3ec2",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 6,
+      "original_json_sha256": "d934c0f70654116b65ec5e8eaeafe3ade285fb3b5bca6b406507de706e428d49",
+      "result": "results/b979d995f18bbdac55809372ed5c6715e2b3599c2b6e42ca8ed2f0216c3f3f62.json.gz",
+      "result_sha256": "8a9425f0410c33b44642cc077a066108c96ee2f4865ac9f9f6213378ccfd33d5",
+      "sample": "3fdfb2d522e7deecaaaf2f87420f7e75.exe_",
+      "sha256": "70445e660358ef905cc01149dd3ffc604822a57a7dc32698f9f799d51ad57b62",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 19,
+      "original_json_sha256": "c537ba824add5c59acb610b5dca2a7ca103c6bb8dfd7c070e5cd5ba6c52fd7b8",
+      "result": "results/6d4ebd4f162863b202a4e5c6e75009f1bd75218a6e7bb5416da7c7d91d45d23e.json.gz",
+      "result_sha256": "5b145d30b459f84f4760d7cbed3fb619b38c61a79856d07f9c445ac7810ee036",
+      "sample": "4122acca2f9ea98fc3f3ad040688e4ce.exe_",
+      "sha256": "c7accaad956bc775f2cd025fe857f8dff1af7ed93b85af84c0a7748a2cd853fc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "d17e95726bcfaa150a3cf4a9e150babbf1091875f69b19561e0c682c103c211d",
+      "result": "results/695f848ebea52bd5724e7c2e7a31d213a9d9ffcc3c209123528166443775fa96.json.gz",
+      "result_sha256": "f7a45661957f6009673289bf99b8efe969c254b6c90f82e1daaa8f8b21d20234",
+      "sample": "42e81cc1145ba3c1936a6cf9b8da0ccd.dll_",
+      "sha256": "80b33de4e7dae85d87dd68df6397935d46601f8c5d8a52019582385f0f1463f7",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 30,
+      "original_json_sha256": "0145a63cfb599e1484a7ee6915bcff2371baed5c0252a3d7a3343632a9e33685",
+      "result": "results/c5c2c2921f6434ba954205cbed864777918a5a072030efc614ef2a5d54b6e14f.json.gz",
+      "result_sha256": "588c6884db272d22b8542c752de309f591a9d8c8bea62a5da9dc2c5f5a67824d",
+      "sample": "44461306a604d2cd9883c2bb623af276.dll_",
+      "sha256": "996493cfdd1d07321bd8b58afcaf9a98ef25acbfc60d0253731e5815bc401929",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 18,
+      "original_json_sha256": "312717081234ceee6fc4feca2f69342740a4502c6549fa04c9f3100e539900fb",
+      "result": "results/8015685044131c1540f99cffd635b998d398e2546eaa78839ad10c97d6481528.json.gz",
+      "result_sha256": "cd9928d45e04af03033c9ad9bd98ba02a39ad83c3909361a8f8ced0efdb4c6ac",
+      "sample": "44bad2e2a9e387b86870f009d01833ea4618d2a7cda5f64fa84a19f3bdf4efaf.exe_",
+      "sha256": "44bad2e2a9e387b86870f009d01833ea4618d2a7cda5f64fa84a19f3bdf4efaf",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 33,
+      "original_json_sha256": "5849c09b19e27185ea715f8ff2ed9e003017cbe5781ab10d5ead8b774fd4d19b",
+      "result": "results/242d9bdc73c213e565020fad515e1209ec5c998b0850ae5b35a54c28f611988e.json.gz",
+      "result_sha256": "bde04d40cc3a2fb89fb4b889affc87e596cb927904d4886cc2f63bd2ee77e8cf",
+      "sample": "44d40faf3f1fe4ed969befab7afcd2f0.exe_",
+      "sha256": "2b8ac117f262c8ac6417d33cdc004daec35e6ad277bd94455b1fb7a5ae94f50e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 29,
+      "original_json_sha256": "7e6b4df7645b1333ec36da4ad120926617563f3363fb509bdc6f17df3fcae414",
+      "result": "results/ae83daac0005fc917a3238472ee8956d7ea91bee5b108bddd7fe6af39eef6caa.json.gz",
+      "result_sha256": "aba9886428cb11d76e264924e76c4dd9a99ea3a42f411a5e86ba587512b6aff4",
+      "sample": "464ef2ca59782ce697bc329713698ccc.exe_",
+      "sha256": "178c7da3356a689d104bcddde9d3fb74a715b18fe27c55f43b207e9829825313",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 31,
+      "original_json_sha256": "0f6c695267e6ea66f70d00b492227a1886e50f70e0261268f64825407dad8a6f",
+      "result": "results/afd0f59365adb76eb10797f9c68354943e44d579bb2f207bc11918a241a6749c.json.gz",
+      "result_sha256": "f8a50c50281f3ab743b3a3aa2a360530a5c775fe9b861b56263379d9c1e8a81a",
+      "sample": "477743976643213d96b66ed5041a3b12.exe_",
+      "sha256": "da5acdec87c3b5e3dcdbde1d82650d5c1e1f1ce420bdbc99347b662c1a71dda3",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 71,
+      "original_json_sha256": "54210af43fcbf4708f4516cafd4c2a965dfece8507b07a4d894f0a8265f6e38e",
+      "result": "results/9f32cec1e023c9b15798431b8c3f448335b498e105ac3a71d4abaae541f53eee.json.gz",
+      "result_sha256": "5bdc394a2cae3ea667f97d46dd1d2d368dd437e101d718bb0a4446f0eac88da4",
+      "sample": "48c7ad2d9d482cb11898f2719638ceed.exe_",
+      "sha256": "8ad736a08711e20b137e7c957d9da711b1614d544244108bedee97d5567672d5",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 29,
+      "original_json_sha256": "c1915108b4e391252038e2c5c326039a3c6f2172a0e3e8caf1acd8862271dd13",
+      "result": "results/bedcc0f6dab9dc16fd9dcdf38f15a5216959a7648e48e5e490e2762d90f7208a.json.gz",
+      "result_sha256": "3840b03c8c9a9388c5fcd05a5bb43fe81cdfe6d525df4dc017b9f34a6ddc8d6f",
+      "sample": "493167e85e45363d09495d0841c30648.sys_",
+      "sha256": "1237c07961310c82e55f7679c79f45863608c21b0c43a79851f7e92954638717",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "0e82e1a524c813d06b1bdbd583605000abcdefe114f13be901aba48fb9ff1ea7",
+      "result": "results/40aeac2dd2451d0f1a1d9a4d02e6e27deded8036c1685728863ee8bea3dba0da.json.gz",
+      "result_sha256": "ec65ca1ebed5b83ca1cd05cd89b5ec79b743cc29bac8ad0a424cb3e9567b4be7",
+      "sample": "499c2a85f6e8142c3f48d4251c9c7cd6.raw32",
+      "sha256": "e8e02191c1b38c808d27a899ac164b3675eb5cadd3a8907b0ffa863714000e72",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 22,
+      "original_json_sha256": "a9a61fe95a1b1ae06240e7f9eee0911d61e3aa61c7833801b95c51aab00d046b",
+      "result": "results/b52b7701120c30e5fd9d056049d7457188288fddcfb176822c7492138d69f6f5.json.gz",
+      "result_sha256": "b58c1ceadfab0da023adc7680a71ce0fcd9531101e4dcba22a94ba8a97c998d6",
+      "sample": "49a34cfbeed733c24392c9217ef46bb6.exe_",
+      "sha256": "f36a0ee7f4ec23765bb28fbfa734e402042278864e246a54b8c4db6f58275662",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "4ad37fa75f3aae48b0c75d023aa66f3319a70f34427067fc5763303493907af3",
+      "result": "results/07643494a3af564dcc5604eb4dcc543971f5a1cc2deeb1405131088648ed8a0e.json.gz",
+      "result_sha256": "d2de0c4ff432b85083dc991c10569670548b1aa86fc6d754fdfda679153f8524",
+      "sample": "4a2992b4c7a1573bf7c74065e3bf5b0d.dll_",
+      "sha256": "b7c7d90d4fd0917f2ed1d60ee334f8077d9b6620bb4b52aab76c67d2db642dc7",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "1efca8c46af46e74054f8ab4fb4e1bbeb68096c5d095fda32e7509569c444e0e",
+      "result": "results/24fdae283a7f5831562d7e114b20c934cf4a95012426f22bc383b6d0ff0a878a.json.gz",
+      "result_sha256": "8f6518b0614c5fa0e44d8f0690d44a5fb1a908ce6d433ef5848288972ed5e1b6",
+      "sample": "4b796a64abe7675254cd6f8a6c9b83949673158840a4a04c36e7c9068ec14cc8.dll_",
+      "sha256": "4b796a64abe7675254cd6f8a6c9b83949673158840a4a04c36e7c9068ec14cc8",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "48c1370c17cae19d20f1b9710309ff2bc919e3ea2e8214ab08238f46676a3880",
+      "result": "results/a8c388e3eeefeb19d959a1394320e21b9c8b5303378f585a601c140ad0ebc14c.json.gz",
+      "result_sha256": "a7b3b5c1c378a0fd6ef7e76e53ad20c7a348908705c946157912b5c3060bbaa9",
+      "sample": "4b9efd882c49ef7525370ffb5197ad86.raw64",
+      "sha256": "6b96ce26f07cb4a75c09f8d821ff7579a513199c90931b10507765ccc1c24b8c",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 18,
+      "original_json_sha256": "45e85c060cbe0621de7fe7671b7cd542ecf3aefb3bfa5b0e6a1807171c7169bb",
+      "result": "results/35cb20c1a3c120a0ee55244f05ebc6a583de63fdccf098ad2d459b22e860576a.json.gz",
+      "result_sha256": "5db74e483517d1cc3499e8f7a298103299364a9703d49b0fcd4064f8f59d655a",
+      "sample": "4bdd67ff852c221112337fecd0681eac.exe_",
+      "sha256": "d33d69b454efba519bffd3ba63c99ffce058e3105745f8a7ae699f72db1e70eb",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "c376d30fa00ca9e9661479634b3fedbddc898575acbe2000677977b39371c489",
+      "result": "results/1c258c7293add9d2cf604328144a18cbc1c847b16beac72d84786b1c4f0a453f.json.gz",
+      "result_sha256": "06d104bc3202e329a06593d57385553f8baeefc851c0e93cdf4bd0b49f8d1010",
+      "sample": "4e9c546a54e40d0da89bb4616dd7f8c4.exe_",
+      "sha256": "66af4bca3df1ee98ec1fdb65b4e5fed4146bd0743ef8318c87368434d3ac50de",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 7,
+      "original_json_sha256": "22a785d70854e5eb05db5d38d329e1bbd0c10c6083a531547189d02b61afa30c",
+      "result": "results/c582125cf04fcb4465b9f95f1024b8b7e93417c8a00aaf9a07336a0c410aaf66.json.gz",
+      "result_sha256": "b4376c3b9034ae306101811b72f345a1a20b7de04cc14d1eaad6656401136a37",
+      "sample": "4f08636da3941f6f1e70ac2bf449b69e2ddbdc23dac58fd7eab9c5fdce6a4960.dll_",
+      "sha256": "4f08636da3941f6f1e70ac2bf449b69e2ddbdc23dac58fd7eab9c5fdce6a4960",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 49,
+      "original_json_sha256": "7c94884be961c895d6bdda05f79ef3ffafda42da7d34efe01eadbd05da799ef9",
+      "result": "results/5fec427bcf08f4f4d1f121b1d11a0ed9212c84b049d4a5717c3be7ff8caf4a77.json.gz",
+      "result_sha256": "e3071d29c1932c21cee3a24d706a2e1054f5350131dfbebbb0ce7ddbeeb5c7a4",
+      "sample": "4f11bdb380dafa2518053c6d20147a05.exe_",
+      "sha256": "9a9012840295bc2c62fd9cbe3d3dda692f43536861a40464f4e073d22bff179f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "f3485143bad4c3b7417422b03f47ccb915ed30e6b52842040b3591b8746feb1d",
+      "result": "results/31ac9b23f2dc4233b2ee9200d97bd62f490da0941b2dd76ef98f3c2271192789.json.gz",
+      "result_sha256": "17e3a5c1f1770c511b82b0b3f0300fda073990ca5773e56de341db5040a14817",
+      "sample": "4f509bdfe5a2fe4320cdc070eedc0a72e12cc08f43d60a7701305b3d1408102b.exe_",
+      "sha256": "4f509bdfe5a2fe4320cdc070eedc0a72e12cc08f43d60a7701305b3d1408102b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 73,
+      "original_json_sha256": "883e2778722df5cd434a9c045b82f8d6318659d8e5af2f2df186038f4b1fa15f",
+      "result": "results/b6cc0431cb99b1ce1ea6514abbeda840fb922afdb95cda12883ef5fcbdddcf0a.json.gz",
+      "result_sha256": "2f82b8b4c66e92cdbe16a4738016a050c39bb8f2cd1f95c47d29a79cc48b94a3",
+      "sample": "50d5ee1ce2ca5e30c6b1019ee64eeec2.exe_",
+      "sha256": "7771c7783116dcb5d028effc5d9874ec48a66348bc8d0761a17da08e9dc69527",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 5,
+      "original_json_sha256": "fa09b0f7c96482cd3411cf0827a2676325671e3e81f9c5b1f8a5b160cea1e8fb",
+      "result": "results/278dcdf272b205330b8c7c2abd67b2c61efd5087fb9d1731cac508180e4250ed.json.gz",
+      "result_sha256": "828962feffab2ea8c4b7ce63792338f993d202d33791fd01232e9bb8104a6b07",
+      "sample": "512a5575ff395389fc952d7925e72be1ca4ba86a5d4f2da50f1cbbde0b208c92.elf_",
+      "sha256": "512a5575ff395389fc952d7925e72be1ca4ba86a5d4f2da50f1cbbde0b208c92",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 1,
+      "original_json_sha256": "02c58791e165cffe0174185fd230c88c1e693c3447222be68ce79920d6ea6cc7",
+      "result": "results/1005760b6991b4f8a1b931fb99248119958003a72bf63d55b696724825129ae6.json.gz",
+      "result_sha256": "895b690332b1c48a0e0355d303297edad04f7765682588037870124eb23c0858",
+      "sample": "51828683dc26bfabd3994494099ae97d.elf_",
+      "sha256": "bd223917958c886b1b4ce23d9fb2e78f79fcad157d0788734f7b901ca73c5fba",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 6,
+      "original_json_sha256": "8cded37c455a15a426422899d3e06ced71b50e74d97d98380189226a68388d77",
+      "result": "results/11fb63a08648965ecee5a893d9a20d968cd4c3b9df479fb03afa14333b58fd1c.json.gz",
+      "result_sha256": "b7d57ae306a83ec31badabe9afe5d2c777056c891b47d436ed1e04360d8fe984",
+      "sample": "52d8e95c9883cd16d7b44e3a7adc22d6.exe_",
+      "sha256": "9b973595dc916f211ac854153a3830e1d6ccd1aa1890c46200234fb6aa0ac676",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 40,
+      "original_json_sha256": "3b908e165250dbb235676f1d34888b69a58c4b96cfa161cc5d1209bba70b8934",
+      "result": "results/584e362e6143626b8c9b941dd7f0fa1b5e5ef0be0e1a357d1928026cc3e3c35d.json.gz",
+      "result_sha256": "5a8566b999cc2ca8d2e8802315c300ee5ec6fdcc190247ef67d7ac54e6add921",
+      "sample": "54390bda109aab7fc006b8b4ead5b6c2.dll_",
+      "sha256": "20c4053b3189093eadb5a419b9616d0b582904bfaec64d46b2ce64f325cb2228",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 23,
+      "original_json_sha256": "8718dff0cd1f666bbcdcf214a7a3b1f351028dbc5f09307953b81e8b6ad3a875",
+      "result": "results/6d36b9497977e44cd79a7a2ef48be148ed93f8d89cbd72f42059dda0bf0fb0fd.json.gz",
+      "result_sha256": "1c611d418541a51c4d6bb1b78d84b38ba2e7cdac4be59f02fe759a232d446ec3",
+      "sample": "54ac78733552a62d1d05ea4ba3fc604bb49fe000d7fc948da45335b726e64d75.dll_",
+      "sha256": "54ac78733552a62d1d05ea4ba3fc604bb49fe000d7fc948da45335b726e64d75",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 12,
+      "original_json_sha256": "cc47d50a5ff7b461f1cd587d9f471678740d67efd8f33813d3409d5efe2023ec",
+      "result": "results/753b3d29a567c4969d5fe5ffe8775dcdb8ec9a50d318750af6fd1ca03a9fef7d.json.gz",
+      "result_sha256": "b92b22b84f022d5b460a4399a865f45975edc05423829e073504151fc7e83595",
+      "sample": "5589857ba6ad8cd0893f4fbba774382222a573d20a2dd71b26b3b4d64f671301.exe_",
+      "sha256": "5589857ba6ad8cd0893f4fbba774382222a573d20a2dd71b26b3b4d64f671301",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "afe7a2d20c14399291d704bde0c7866e4cda4acf2d1989bd27eea9ca9a056929",
+      "result": "results/6947c05d7eb049f693cd5339d54c3786984440574b7d446f7a5968b3b0cccae7.json.gz",
+      "result_sha256": "3cb898cf5072e02397184b9dc4ee006722e5680e511bbb03b16134b9b31cbd6c",
+      "sample": "559efe9f3d4864910d5c5edbaadd3972c6dfc3ba887c48aa6728b0093898563f.dll_",
+      "sha256": "559efe9f3d4864910d5c5edbaadd3972c6dfc3ba887c48aa6728b0093898563f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 116,
+      "original_json_sha256": "b5e7930c06d3f82057d7cd3980c091e2cff313f2bf4b810bb1f95602aee14882",
+      "result": "results/2d890d70b14551b40f1c4c88af18c128de1393393992c1cb2546587d9710ac9e.json.gz",
+      "result_sha256": "ea6f5736ecdf02efb876be31e1f5a5ab02b605d474d967968de7adea66857d4e",
+      "sample": "55d77ab16377a8a314982f723fcc6fae.exe_",
+      "sha256": "fc84d6636a34ad1a11dbaa1daec179e426bdcd9887b3d26dc06b202417c08f95",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 40,
+      "original_json_sha256": "7752be105429ea5d97d44033edae91822284aadfa7bd12aa5bc3751f51406df5",
+      "result": "results/a670a6fb9554ae8dfc979a674e45b8058992e03bd7f2883a6d1d93bea8ae3eba.json.gz",
+      "result_sha256": "339b5d05cf2b8f37ae49757e8b7407a606aa55de08dae01e7416174b4e654bd7",
+      "sample": "563653399b82cd443f120eceff836ea3678d4cf11d9b351bb737573c2d856299.exe_",
+      "sha256": "563653399b82cd443f120eceff836ea3678d4cf11d9b351bb737573c2d856299",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "6a24a0b6e5b81b8911608c1bea4d28ffcdce0735831251fa5696a51819066de9",
+      "result": "results/8870551cbcfaef56c070f9d942bd184ccfdbb5b460a1a9a3d6405ad7c8c5894a.json.gz",
+      "result_sha256": "ef862ecd08c81d1286caee015f7cb860043f0f52cf516fdc85e97898e5447f25",
+      "sample": "573174640974b288d9d161cf4d29387cd7dbf7d80a80f5547df887f9836df8fb.exe_",
+      "sha256": "573174640974b288d9d161cf4d29387cd7dbf7d80a80f5547df887f9836df8fb",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 93,
+      "original_json_sha256": "31761cedf9fbcbc0c1602afb91cbc1fa8f4400aecb2f1f3b14601a8095f74d03",
+      "result": "results/0fe969bc789da58361f109b601280f305be53022b3ae57c33057cb54f5f9a8e9.json.gz",
+      "result_sha256": "784e53e9682419628521e21f10dfdf78bd46d9c99bf6488a80ed3bdfa1ab15be",
+      "sample": "5789181cba467fa940cdce809b88b9bf7e0e9d4e079e32a68d2b911a8cc47da9.exe_",
+      "sha256": "5789181cba467fa940cdce809b88b9bf7e0e9d4e079e32a68d2b911a8cc47da9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "9d1b6b0adb1fa178d3e8b5244f5182eef6ce0e01a3b6f38528620276a30212a9",
+      "result": "results/a6667f65c76ce99496b624afe51eb7527fe3c1bd721ea8618e04dbe11dd1bfd5.json.gz",
+      "result_sha256": "961bd517f9fa2130772ee90de72abd361b6c755dce41ab1ac5ccb524f0aca3be",
+      "sample": "580c37831fe98a254eb6c61c692c70d8.exe_",
+      "sha256": "a3af3d7e825daeffc05e34a784d686bb9f346d48a92c060e1e901c644398d5d7",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "77cb3dc0c021a704bd436cf27c5f64c6d335ad95d4cbf6928805578e5fbe6247",
+      "result": "results/b0a7402b3508668d118e95dd9f5e48abf04ee16cc6f1c26a866008759101fb88.json.gz",
+      "result_sha256": "4e4b96cf3eb8f92a2d61b4de64cc04d65570830dc93b231b9236c58d2a7b5924",
+      "sample": "58adc2e97fbee01b71073ccd7ff1b9a4.exe_",
+      "sha256": "20adfbc9e29353116cc136a78f9e6a9b117d464b32d0004cbe205b482b920d7c",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "90938d15f286f89230a80bea19c430b454d24fc39d0ea2fb636d470713b92059",
+      "result": "results/82b7d60f5f247497f86b0a68e105991e824c2b2c8701fb523773184c23cdfc18.json.gz",
+      "result_sha256": "3b09797f9d208d1505be72d8c317e9dcc68edb35a48c6d9694216f710cfd7823",
+      "sample": "592cfd22bba96ef3aab566fe7bf82aff5e1b4130856d1f7f847d03d4689af7e7.exe_",
+      "sha256": "592cfd22bba96ef3aab566fe7bf82aff5e1b4130856d1f7f847d03d4689af7e7",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "0afead29d10b8fb02ef28d6445f2cf4baa1bccf521414341caebd23b47bc5131",
+      "result": "results/8a5013289770c1c3fd1b02c0b84a928a05251af51e6bf1f6ab4dbcf1ae18eb60.json.gz",
+      "result_sha256": "4865f186076f834ac2f62ef9d22f9064f5ad0c26d13da7195908e5016efabadb",
+      "sample": "59a6c5036241a2f604e755bf523eb084.exe_",
+      "sha256": "0a3081aca136f780970c426d63f075455950444f34540d87d16b84cf4e5542ad",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 98,
+      "original_json_sha256": "4376ccf4f7039f1432e30e542743295e5daa12682e864426410ae40d49159929",
+      "result": "results/580666ad45e85e954250bb9cb545970ca1aed63547a087050f2bb4c190641a70.json.gz",
+      "result_sha256": "eaa5e7d7fbc8d126d18b603d8c00c812788732b6a3e4a959aea35169b2cbc7a7",
+      "sample": "5a2f620f29ca2f44fc22df67b674198f.exe_",
+      "sha256": "a5b123100f35e7b7f8b9e730a960aa6bd7490adeefa7a7dcdede335cafa6c4a1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 18,
+      "original_json_sha256": "df8560145cd11193662ebce28e832409b6288df1a040148274980d87b66611ab",
+      "result": "results/25786deef1e2be58ffd8a833f7dccbe8b70af00c7e27471a54f09ffaa6198f75.json.gz",
+      "result_sha256": "00289c571f29f0a5a87b92432d5dab649e81aac24f10e0b0a3cd02b633fe7de8",
+      "sample": "5b3968b47eb16a1cb88525e3b565eab1.exe_",
+      "sha256": "5f70c76b6771b7c56bc5da34e424eb9a090cedeb807c795795a88c415a2e772c",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 22,
+      "original_json_sha256": "1845d04449723f2e674915a14ab3a38b65438d96eaac4399da6dff2c93ea6ac8",
+      "result": "results/692c22a31543322649083554a14fe022dad2c1adf0880b0e9dd9c57cb52b52e9.json.gz",
+      "result_sha256": "96d1f4a6e85f20e9f8f33750b9f2444d9187523c26e35eb260374a76af21152b",
+      "sample": "5b99fa01c72cebc53a76cc72e9581189.dll_",
+      "sha256": "c2f3295b8b8660166314fb610392325e3ca6e697c8f1010bb57dbd0f25ab3121",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 23,
+      "original_json_sha256": "73fea0da369b009b4c075583fe2d8d16e12c3ed3dced697e28166b93feece68b",
+      "result": "results/37b278dca471e5b0e23880e853e7571c57c4b8531e91c62fce1da039a01a57b5.json.gz",
+      "result_sha256": "d6d16401aee0b6a144074a9a749f5c7e7e3e9f85c9fe467ac2349c9cc1cb8506",
+      "sample": "5d7c34b6854d48d3da4f96b71550a221.exe_",
+      "sha256": "bec31fc132cff00910cb07cf9d66c9fcf5ff511f8182b61622a18843f0fd5841",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 58,
+      "original_json_sha256": "5cc44852c47eb1434b31935669d0effad429ad03f3afa381afc04fdede46258d",
+      "result": "results/7a9447c1a80c1a14a56ad41e65415dfd43fed58024f51dec7a8c282d40d6999d.json.gz",
+      "result_sha256": "003a7d3658cc38199740c7fedbb3cc167f595d64c12073d9b6b32f1dab0d0b76",
+      "sample": "5dd0b130d5c3d40c69e3972f39fd7d62.exe_",
+      "sha256": "708967cad421bb2396017bdd10a42e6799da27e29264f4b5fb095c0e3503e447",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 6,
+      "original_json_sha256": "0c9e68725963d11faeb230ab49518194c781b7b3fbb34109cdb068e121e18fe9",
+      "result": "results/2977c31c11a086803f5500c9dcb523dd31d6df5d9af59fbd00ad4e6d2b7d8701.json.gz",
+      "result_sha256": "cd104e50c2ac32acc7b2e27ff6d167e9fe9ba3058dda333f7f1de6ccc5b0dc7d",
+      "sample": "5e6764534b3a1e4d3abacc4810b6985d.exe_",
+      "sha256": "e7d3181ef643d77bb33fe328d1ea58f512b4f27c8e6ed71935a2e7548f2facc0",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 87,
+      "original_json_sha256": "dd894c2ca311beeaba960cd5850e77a078c23511180fe42e0397fda0a0aec355",
+      "result": "results/63621a4cafd00fc88a01478e12f87b7f8ae2140b596d62e32bc8b9f9b523c24d.json.gz",
+      "result_sha256": "7e86edd18ad9c9fc3dfbcc8a4f4799bfa7f9cf30f8186c7242ceab9c76a6ca14",
+      "sample": "5f66b82558ca92e54e77f216ef4c066c.exe_",
+      "sha256": "131314a6f6d1d263c75b9909586b3e1bd837036329ace5e69241749e861ac01d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 84,
+      "original_json_sha256": "c92266c4d91a2679beced87b2c9dffe5b51915a6c8b44d874385f5f16ed98e07",
+      "result": "results/55ec5ca96bbdbc0bfea44c6645fc19042ae8a8e5ab1ff14c6998862cbb21594f.json.gz",
+      "result_sha256": "54cccc0ba976414aab130e268679bac0727db3e9d33b9b09c5ce252946ef850c",
+      "sample": "5fbbfeed28b258c42e0cfeb16718b31c.exe_",
+      "sha256": "9b721175dcac05edf402c9b7eebe167270603c039310acdb5e609628fd591ad0",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 23,
+      "original_json_sha256": "555136a537800c2a6889a73faa1296455022cb9496c90d528c5f4bc5a0e93862",
+      "result": "results/c32e224679e3e1d971cf14109934fca1bfd1a45e289f24e766c6bae811cb354c.json.gz",
+      "result_sha256": "93f27122a17f7caee3b2495b6ccfe18fed8d695be3163d86878f9794b747924c",
+      "sample": "638dcc3d37b3a574044233c9637d7288.exe_",
+      "sha256": "02843d06feeba114198ee3eb80ba841d1888d5e5b5982e8ea07609a470a43198",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 82,
+      "original_json_sha256": "0b44463f0a9739f06d807d7c77b028bd753c32476f5c15872af4ab38bc27da85",
+      "result": "results/ef4a0a848965098c6562ef89ea0fe9cf6b5a7c353d4cfe276e495ff02776c610.json.gz",
+      "result_sha256": "ac7e1f51fa11a9fda6b3c3367248b982fd02f067bfa963536aeab8f4fe9a021a",
+      "sample": "648fc498110b11b4313a47a776e6ba40.exe_",
+      "sha256": "b483b6f21601752ff800ba52092e358050e4b370117503a9309787fd57935926",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 14,
+      "original_json_sha256": "b8feb0e88b8d1543c30588a7031da88eac63ea9e29fed858ae22e2a532860efd",
+      "result": "results/8b0ab80e0a74ff97f421816ad9da557c722c78d2fac4353a60ce71d8b44eeb73.json.gz",
+      "result_sha256": "89ae2b1e7b7f458d05c5f5d600e70b17af09d5dc686d4b7d3bd792a223f2c283",
+      "sample": "64ce9ab801d9bef5284b408c3373dd30ba2dc6952c0950c8049be067b5f24530.dll_",
+      "sha256": "64ce9ab801d9bef5284b408c3373dd30ba2dc6952c0950c8049be067b5f24530",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "cdf0072f23d237a12d8f1c6b9691d343ae694c7c970120c9ce1ee7f84d43096f",
+      "result": "results/b9c6777f24ea258ac069468e14ce0abecf61704199096c1af48fcbe35ab41325.json.gz",
+      "result_sha256": "23ef6486d79914155cde181519f340d94fc624e81ffef075ca51f3b1f75933cd",
+      "sample": "64d9f7d96b99467f36e22fada623c3bb.dll_",
+      "sha256": "fb33384042a7ee3f988be70a7903ca14613ef4c2be0e25919990c96fe4a3762a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 25,
+      "original_json_sha256": "e1ab135a628efdbdf364e748d09c0fb1d08469ec2aaea32bbc97198a20710113",
+      "result": "results/3fd3ecee305cec18d08848a166a723803cb600601c8713015ec2aa0679bf2b17.json.gz",
+      "result_sha256": "1ecbcea2cfa8c1daf294c124733529b9f834e99579ee46553d01b6999f795ec6",
+      "sample": "64e9f62840db2f65fc717cfaf99081f9.dll_",
+      "sha256": "dd38370ace843862a67ce946c909cc2b5784280a6e8b6ef9724800f834660f6a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "df754f3b76733108413818c222d1202852ba55b40aa9e3916b9fa89435176a0a",
+      "result": "results/4a930c99225fd303c113f0594fe3f98d2e08393e3e4445c99e9b1797b49670de.json.gz",
+      "result_sha256": "07fd334c7494ea7547aece076c549d78a270b284ffdce6934dbcbc171f52b06c",
+      "sample": "658b0502b53f718bd0611a638dfd5969.exe_",
+      "sha256": "4035d977202b44666885f9781ac8755c799350a03838ff782eb730c0d7069958",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 7,
+      "original_json_sha256": "b028f1262a2b85a7cf412e4b2505b266e34002275221df7ee22f8db2310e0e89",
+      "result": "results/fca16446e048f1aab237ddf3875df67699e8dbf4295514aff7c35b33300bc2d7.json.gz",
+      "result_sha256": "9fedcaf96019c0db1c3411f539538ddd32f98db3e4d5e50dde777bf23f83e50a",
+      "sample": "659a539cfff56e5450af76f8696b7122d6a22b1d7dbe5121c7b6308eb6ec1c3a.exe_",
+      "sha256": "659a539cfff56e5450af76f8696b7122d6a22b1d7dbe5121c7b6308eb6ec1c3a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 16,
+      "original_json_sha256": "2eafb5bf9020ff282b0232e79998050a23dd8f0179fafb2da30736be3c759e8f",
+      "result": "results/991fc3cf7de8669f9de2ae4a9d3944c44601b38bd6f347a42248e4a019c689c6.json.gz",
+      "result_sha256": "a631a2b5dd2cf256f0bcb50fad03bcaf44a0d7d9341fc63ac6c8b64d4e8c8c73",
+      "sample": "65b1ea6e5254d458c602504ceeda5e05.exe_",
+      "sha256": "cd655e984f44f4f5e36f1b0e8e436493016f2f970ebf99c80662e9613fff61c9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 19,
+      "original_json_sha256": "757f51f49bbe0e8eadba84ec7400a4937cc24959e00c98221735d7a5f1cdcc75",
+      "result": "results/0cd2da2a11bc7547801a34a4bd356045873a6cbfe3f30e3eb54a4d50e2ff2373.json.gz",
+      "result_sha256": "056ad39547cdb73399ef7dbd9138b34d542f732fd01d65257cb0baf14d77e72c",
+      "sample": "66602b5fab602cb4e6f754748d249542.exe_",
+      "sha256": "c5144dd0a675e0c9d7f7a9cab034a680d99a8e8ae56e3588a1f3e0b2e8d917f3",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 17,
+      "original_json_sha256": "ff06e0daa98b9a87c99c7ef5a0c7779fde117c2b0f23a96a5eb8d9c1cb3bc7c2",
+      "result": "results/98ffcd117018926ff6662c759ce4a0ad367e16f7f2b6c8a4bc3205c3ff83dec6.json.gz",
+      "result_sha256": "ce088c796ab5def417d5ff1de39b2cb4f5e9dde1ea3db4a879f4b3be47ac30b7",
+      "sample": "67f8302a2fd28d15f62d6d20d748bfe350334e5353cbdef112bd1f8231b5599d.exe_",
+      "sha256": "67f8302a2fd28d15f62d6d20d748bfe350334e5353cbdef112bd1f8231b5599d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 30,
+      "original_json_sha256": "023fc0777105a729b21421d794fbe2c079e74a7748c960828acba92c4416712a",
+      "result": "results/84ed2de7f5059aa3c2abaaa5e7a29e7e8e4ad56274fe13a9fb6a9cf7b3c8bb9a.json.gz",
+      "result_sha256": "e4459748eecd1e69a825bc5f8ffff390ba1f315cdbc9bace8443fc1808445f86",
+      "sample": "684cc28e6a7fbd12f23dbc563f06306555ebb870bd727ad60839d4ff26e7f3b2.exe_",
+      "sha256": "684cc28e6a7fbd12f23dbc563f06306555ebb870bd727ad60839d4ff26e7f3b2",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 80,
+      "original_json_sha256": "4979efd2e306a3ec72db2d0272a179ed10e3b100e451f29b0779e3946e8628db",
+      "result": "results/5bbc0373944ea95a9c4312229304b4c3a3cd8fa1386512d8d800af84dcb606e0.json.gz",
+      "result_sha256": "87f3312dd2070e532cf343780875b31987ff53ee4474b1b0ef52b89e1a74b02d",
+      "sample": "6a352c3e55e8ae5ed39dc1be7fb964b1.dll_",
+      "sha256": "c69121a994ea8ff188510f41890208625710870af9a06b005db817934b517bc1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 43,
+      "original_json_sha256": "7212196d7632893f5ba3527f3646a9668af49f20383b4261d293999f47b2bc51",
+      "result": "results/3edcdeba32028899305bb67be0ecdfcac2beb46f3d969979f452fe4dd0c67a9d.json.gz",
+      "result_sha256": "f430e04d795638b3200d9cd901063c18153f61da6ccb4e174b1ab5eeed8d3767",
+      "sample": "6b25f1e754ef486bbb28a66d46bababe.exe_",
+      "sha256": "38749e9c35921ab2fb0b8a80f8e13f89521c58c4d65d18dc4109c816c210e0fe",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "e659f79133509f7baa55a7d26ceb55081d647dde241a23054a2930c5fb40ed94",
+      "result": "results/f29a4246bf110cdfc2385efffd1552ad889c033e47c5657bb2d7bfd729f398b1.json.gz",
+      "result_sha256": "c667512f352f939c2b8bd6cc4096216d1f24a0b84eff1c6648e068571376c2c7",
+      "sample": "6be0ae5cb7c3155f70d608fc7670d2d9.exe_",
+      "sha256": "223afed3106fb9cdde89eac273894e2fbe392f66b87ab8b9408cd6ef1bce8fa4",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 20,
+      "original_json_sha256": "63cdd1ce2ac6053ed6ae54ba6cf51eeb5b7925f77efb2d386f8d3479ca348a26",
+      "result": "results/2601da4e943810539d90ddf096031b08f3687d491f27adb504a474a33ceb9579.json.gz",
+      "result_sha256": "0cf509ebc4273ca713a57cc3024fdd80b085d834e01536553b96b4f930b9cd24",
+      "sample": "6c440a5ce8509984dcc4e703d0e4dd9bffc4efd769dc8543f8d2e0cd86452822.dll_",
+      "sha256": "6c440a5ce8509984dcc4e703d0e4dd9bffc4efd769dc8543f8d2e0cd86452822",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 66,
+      "original_json_sha256": "c911cadb181f77cc56834eacd9a66f3da4619d8abc9d953a8c972076622f240f",
+      "result": "results/b06dd43c044da19e51db3eec76dfd7194c3a196806bbb6d2986abf502e287175.json.gz",
+      "result_sha256": "693ec38542f906eb8438fcf30bc864f538be0f4faa2f6c5e118a80e377e99a5e",
+      "sample": "6cc148363200798a12091b97a17181a1.exe_",
+      "sha256": "dbaf4a8c8431fd80cc5160dfdaca7adb301adc26ab7e3a48be9543edf539ea8d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 6,
+      "original_json_sha256": "ef229d1c572eeec0ad4456be4888c5df65f364c71904a7bafb9170e3109c9bdc",
+      "result": "results/66c1b57f036e83346803bf360b9bcc2bca602f0d274fdb288eba8f74457b6687.json.gz",
+      "result_sha256": "59b5d3165abea3bca456ae891e245708c1ca8c266dbfc2277bf875e03e0216f7",
+      "sample": "6cd1315f6f2fa4f8ee2b98bb3ca0a994.exe_",
+      "sha256": "09ee3a11ce0547603a8ae71d4fe4c85d9465ce6937a00a167be0d9f7fefd7994",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "315372a9d9e72cbcc1e2f8a7e0c61e550c2ec0f3244189efc08ad047279e1e06",
+      "result": "results/278744d10678f8879caefd9c3e3422dd60685fcc48a73549b28331cf12f7a669.json.gz",
+      "result_sha256": "14fedb327a47abf24c52449d909520f4e9a39a2dcc06a10173328dd086c288c9",
+      "sample": "6ee9bb8b897c2d69f797646d5f94de0f.elf_",
+      "sha256": "63ea33b917e3bfe5d7706d0596d5dad4e2335bfc456bb4727b113e6d09c1f958",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 89,
+      "original_json_sha256": "3414800d6ce0b5e39701f05f428cb88ab9c422b874468c2779c85b9dde9cb4ef",
+      "result": "results/96611a4d552960f7eea4a4bac549d14b0e80933815a5ad8df47cb30020d593e0.json.gz",
+      "result_sha256": "1b5f329645db5cdaf03610dd8245c06ecb7cee3742ff620446933004f42e7edc",
+      "sample": "6f99a2c8944cb02ff28c6f9ced59b161.exe_",
+      "sha256": "c4bb8f54e3b4577bb391c0f283d1161d5636764c40f97c799b017ce5db6dbcb3",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 60,
+      "original_json_sha256": "4f93ed5bd0828f08023e5b0a6399c165f57c3622bcfce6d7dabb732cb4973c6a",
+      "result": "results/b3b7ec2234c6e16679330bba8ba95e65c7a8b3b5f3263192b17fc077e7f606a0.json.gz",
+      "result_sha256": "bbf27cb67599de3a063d0da9edcc62b2be15db841896bcf8ac0e054f4a47a86a",
+      "sample": "6f9cb3f56d227fd57f0b75220472d744a6de894e7f74302ae39bbb164a92cdd6.exe_",
+      "sha256": "6f9cb3f56d227fd57f0b75220472d744a6de894e7f74302ae39bbb164a92cdd6",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 26,
+      "original_json_sha256": "d48480bfb8a6d78f9f2c759bd921dab7d224f385abef0414c8b55a5e3e79f760",
+      "result": "results/b1b77a6d5c5fbcc32f1d0d9f150a054140bdb195adca8186391539ab57630366.json.gz",
+      "result_sha256": "ca3c65fd9c5a07cc07b5d0b2d7caf70dc55c8364160d5d4f8430ab33763353dc",
+      "sample": "6fcc13563aad936c7d0f3165351cb453.exe_",
+      "sha256": "093c81f0b234c2aa0363129fdaaaf57551f161915da3d23f43a792b5f3024c1e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 38,
+      "original_json_sha256": "19dfe33d769051c51ac4c0b08bd8d7f4a5dc82db3b2dc16133b9713612175b1f",
+      "result": "results/162db97ca15de0186b1f16e21762a3cad0da334b5b8985cc5a016076178012fe.json.gz",
+      "result_sha256": "952f8141221ee9050723616e213e81515ddb412d19d2dd2263b947ba33ff1cf0",
+      "sample": "70fd3347786ed7a4a43910e6778ef296.exe_",
+      "sha256": "c915db8b14998ed33d7bd1be4aa825f3ed0f190ec5663a4e878ad5115e9a9ca4",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "f6389bf858164e0842551d5ab731e93569804ecacd1e3fd3cca4df3abd8c4cc4",
+      "result": "results/de2f0d41d8afc8682b018b6c117459e6bc0b31f2eb420da79f351c6f127a622d.json.gz",
+      "result_sha256": "f0c028c39b1d8dd6c3ff85fae5524d2fa62a78fd5944f561fe27a90640030f6c",
+      "sample": "71419e4d6f538b8a04ca6786e4d68f0d40204df465fe80bc6b4a0b259103e50f.dll_",
+      "sha256": "71419e4d6f538b8a04ca6786e4d68f0d40204df465fe80bc6b4a0b259103e50f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "5530243714a20ca71a5b03a5868f854f0350638e7c1e9c28e31151163531e290",
+      "result": "results/e60e0ea99266518bf160fc90a66ab6a774658720adf52dfc70c07d8e1f6be1fb.json.gz",
+      "result_sha256": "7b2129504b887f85d79e655f09323a55bfab38773a92115278051981c7f13a7c",
+      "sample": "71a4f9b800d81ff6632b9892a6a502c412c141341e46d697a8c004e2f460913b.exe_",
+      "sha256": "71a4f9b800d81ff6632b9892a6a502c412c141341e46d697a8c004e2f460913b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 65,
+      "original_json_sha256": "fadd8b66bdeba6ce2d34e0233e249600c7784a3f5e0b84a7d85be1abd02cc043",
+      "result": "results/b0fcec781cfa2faaa9b4da3abe6e349d6ef8fb6257e5e2e7bddbf62ebaf70fca.json.gz",
+      "result_sha256": "7d8d8c79c97e9414558a7599b26e5abb87ff479953a3a6b37caf0e86fe4dbaae",
+      "sample": "7204e3efc2434012e13ca939db0d0b02.exe_",
+      "sha256": "fac35865c084a00ce738d9dd774f33c7daa6c281c7228a6ff7f9425a5f90cc39",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 37,
+      "original_json_sha256": "c64fe67bd194a3e7265cc45fad64942c5ddf7ca701239c807427c317ee8f9e98",
+      "result": "results/edfa87ee09f029c7da8aed147cf00cbb220bf62198c34921c137507cf8b2ac0a.json.gz",
+      "result_sha256": "c7671b3696d4a2c396e829cd62c181698da363ec2eaa9dff6468cafb5d861a02",
+      "sample": "72c8e3c8049927fa1dd53b61d9b67b9d74ab5b6c030bc38dfbe9a338a32438c9.dll_",
+      "sha256": "72c8e3c8049927fa1dd53b61d9b67b9d74ab5b6c030bc38dfbe9a338a32438c9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 57,
+      "original_json_sha256": "048ea4085914aca6136ee07759f47307e67756cb12d1371ee3cbaa06f7b096bf",
+      "result": "results/31e0702321793c19d67d471f7bd654381dc3af9f298b22b7a3bd17a055bba9ff.json.gz",
+      "result_sha256": "d8c4c0dae13e49242468a638e49c405e6abcef3b2e41649aba6dbcca8c88f9b8",
+      "sample": "7351f8a40c5450557b24622417fc478d.elf_",
+      "sha256": "0423258b94e8a9af58ad63ea493818618de2d8c60cf75ec7980edcaa34dcc919",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 17,
+      "original_json_sha256": "15e82622f4c8b8bc53f6a7f2c859bd07a287d23b5569abb93357eaadb286379b",
+      "result": "results/013f17b75b22acdc5346a010505a79653cc34043fcef39d56f8d35c836df5d31.json.gz",
+      "result_sha256": "26121aeb089faa4a6d8231fa78e0f3487cd345dd4072d452400c09f9fb5996f8",
+      "sample": "73ce04892e5f39ec82b00c02fc04c70f.exe_",
+      "sha256": "3873160ff11b5eb2024fd94e99e468b862841c60c3ad044cc38fe10035513cd9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "f71a0d01ba4f1819e08497e13f5543e4a71e62abed84fc6b56e1d66fb949ec63",
+      "result": "results/79145c29099de42dddd318374268a9d72c5615498c846632f40c49d24510217a.json.gz",
+      "result_sha256": "9d2f177b51998ab1a1cd9a8bf66445d9345428e0b8b81bf5ff7dd0723bc6cc05",
+      "sample": "749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2.elf_",
+      "sha256": "749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 20,
+      "original_json_sha256": "398fd855555d9adb8bb359948ea92c24c812eb81ef6fcfe6ca3244171be29fee",
+      "result": "results/5cd24deb668fd18c5355a33bacbc2bb3d1fd75bcc9457f73fe81ba3379250322.json.gz",
+      "result_sha256": "82d665fbc9c2f006e3e11cef8e999e0f443b347dfd9ac82cb49ace777364dd9e",
+      "sample": "74e0758e469ab87f38cda7925d696ea41a122364891860e1ae30fc9ff2f68e7d.exe_",
+      "sha256": "74e0758e469ab87f38cda7925d696ea41a122364891860e1ae30fc9ff2f68e7d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 55,
+      "original_json_sha256": "368ebe3e204f4aa783319da738afc99c1c36bb11b2d5b9bdb0454c2e210515a7",
+      "result": "results/6d3fb730d0f2848c2a0e9280833f54f5d58177219871004570862790bc3bc989.json.gz",
+      "result_sha256": "bb7d4ae4f7551c8ee82fa1b8fc320574493e6e6e9b78e43dbd7822497bc56456",
+      "sample": "74fa32d2b277f583010b692a3f91b627.exe_",
+      "sha256": "253e600ad862cb19548676d152c0e62c637bb81ae5debc2139aaf6007e2218db",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 14,
+      "original_json_sha256": "bca985f521ecc0d78f641a5a999d5349c4ca38f281a83fbe6ee605cd9fdb87e3",
+      "result": "results/1d89117678d86239165e8f9e1e0917e1feeb1d1b521861f87c45941ac92f91c1.json.gz",
+      "result_sha256": "767dbda14b4440ec3dbbfbcbeac4e264b46adba1a79ad6d6a896b3c41bbb9c8f",
+      "sample": "757139e76fae876ae50dd2c3ac11d5d8.exe_",
+      "sha256": "9bae897c19f237c22b6bdc024df27455e739be24bed07ef0d409f2df87eeda58",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 20,
+      "original_json_sha256": "4d3e576b19bbab17f80d670303f5db25052a1b402f6ad8fb6a03443dc72bcd5c",
+      "result": "results/071ddaccbbfa90441f2c8fcf57f7d7656106dbb99b5547c4d60fb959aca8a8d6.json.gz",
+      "result_sha256": "ba197a590bec4a6a670f8203ab1bcc851b37cc4d8286e3b5fdc653ec14c62427",
+      "sample": "773290480d5445f11d3dc1b800728966.exe_",
+      "sha256": "7b8c44c6eba0246f755f1700cc71d39ce756f23b5358957b7fe55b7ac6c30dce",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "a60d75b5ae6c5906b73c0fe327b8e13915fa01c0974170e1ee41332edffb0e2a",
+      "result": "results/74fc5cc9206bb85de5f3fefb7b190f5a0b9fc6a1001b270fd821bd3b0f8d44bc.json.gz",
+      "result_sha256": "78d107a3c565f4b369a0c4fd06b364ce3ef83aa2a17b7a879f88f4d40b6082bc",
+      "sample": "77d87e9937546aebc1595039d730352b15fab32c72a76913f04262c6802d098f.exe_",
+      "sha256": "77d87e9937546aebc1595039d730352b15fab32c72a76913f04262c6802d098f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 40,
+      "original_json_sha256": "8dd08bbd9f0aea812936cc70bddd7cb1635f2787f4e6055399c22cb5cc7439b8",
+      "result": "results/602f920dbdfcdb2848fdb660eca6e6bcca639536176e94f9bc9436aeadac37f3.json.gz",
+      "result_sha256": "a0290f348cba4fad24d99e475fdd3daf937428208e5bb0dc453482c019bf24e9",
+      "sample": "787cbc8a6d1bc58ea169e51e1ad029a637f22560660cc129ab8a099a745bd50e.exe_",
+      "sha256": "787cbc8a6d1bc58ea169e51e1ad029a637f22560660cc129ab8a099a745bd50e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 22,
+      "original_json_sha256": "4654d9a7afdac48baf7978a672dd1fd9e6f3a567f258f3022cd43390036ebea5",
+      "result": "results/5e1a919beb5d181f51d51359a03671729f2dbc94ba27d76bbeb228a0a71fdf32.json.gz",
+      "result_sha256": "f4a76cf1478dc24d85ae136bb11c4b8d376feb3259c1224fcd60336d22770e85",
+      "sample": "79252f58d486aee8c08a8a7ebd36ae11ab5798b289e7f88e71eacf8637c340cc.dll_",
+      "sha256": "79252f58d486aee8c08a8a7ebd36ae11ab5798b289e7f88e71eacf8637c340cc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 14,
+      "original_json_sha256": "c4e7101fdbb2db1ccb75fcdf8c6ee78d71148081ec445a20e519578a93b9ffb0",
+      "result": "results/bf8a66f8f0c1f8f34208f95cb3b2f7dddcc6a77991c6e1f8fc2356a70347c6db.json.gz",
+      "result_sha256": "81d644cc30d1fb7eb4c97f4be4e93fc62b3c01c4878d4b0eb73ca816a46f6869",
+      "sample": "79abd17391adc6251ecdc58d13d76baf.dll_",
+      "sha256": "953d574ef0f49e886e270c2887586aab5c0d37616dd99f422838a1257abdbe3b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 31,
+      "original_json_sha256": "f16a3e1854eaa1d5220bbf84721b0fe8161dbf5245b4b688751e0a5103c730f8",
+      "result": "results/5c8b10a4d3158e756671cc0f3f61adaf68fa27ad6a9fbedd59ead8ff560aa74c.json.gz",
+      "result_sha256": "b62c1953ec100eca1d1f691fd763a3ec4bc0ec16b157b485e5fa245ba1773df0",
+      "sample": "79cde1aa711e321b4939805d27e160be.exe_",
+      "sha256": "cdd24a23395a07b2b34832d9e27016a7a729828b6cc566c5ab8c71e76d8ce16c",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 1,
+      "original_json_sha256": "3aefc2f491b07fe381e053aa93ded1dede7fb90948097adf4e88244a60f4b86d",
+      "result": "results/43495a5e81c34822c254d69a1ae37e7e16f7987812eb5bd8c20c8b37b5a1e190.json.gz",
+      "result_sha256": "e77ec3abd39cf1f7f0951fd20f2f56ad0606543b66fdb16c86dfe517b0e2f0ac",
+      "sample": "79f5cabff898d60cd614e7254d409d9c2e05184416e5c54201e2dc216998d28b.raw64",
+      "sha256": "79f5cabff898d60cd614e7254d409d9c2e05184416e5c54201e2dc216998d28b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 74,
+      "original_json_sha256": "bb2dfe1329af168157dcd2d06a89b7c66194d106ad1af1ec9a8c10e7239c7e39",
+      "result": "results/2112e7983c9cdd83065c9b95780634ca0685e95efe26820e87d6793fbe3288ff.json.gz",
+      "result_sha256": "cd5303882c04b2e1695c66945c555b9de36818e97e56247d8c5f666113cb07e9",
+      "sample": "7c843e75d4f02087b932fe280df9c90c.exe_",
+      "sha256": "fc9a32b15d2f0edafff22fa798bcf6598f65fbcb7f4b75922dcb9b46e42846e1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "e6059d909856b03a6866ea58f2fbf603d4ce042fb64147cb97d4ff6d01bcb2c2",
+      "result": "results/3a2f84358a77596117cfe04a7c12e3288c2756e6866e384f77f5d5774b69b88b.json.gz",
+      "result_sha256": "aaa2f2e06b737607413942202cd0b7251e40516db368a900420481ebbea763a9",
+      "sample": "7ca4ce02c9d331c2cfdad7329352664c224f02ccfef826a76321831bee1e2191.dll_",
+      "sha256": "7ca4ce02c9d331c2cfdad7329352664c224f02ccfef826a76321831bee1e2191",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 31,
+      "original_json_sha256": "f5187073c14c3ad18ea64e312eeba276d428ada88af66838fd23103cd1673a08",
+      "result": "results/325a744333858870f11f4209e1acdac6d3c66dd3736f33cfc216c2804a6a8846.json.gz",
+      "result_sha256": "39e71c08088ddc42cb461629977fda964645c5f454fb8cedf149d21244646d7c",
+      "sample": "7cd03db8ed91a66920cc03026baa2df2a8370293b072218b9fbf6d9a21cad66b.dll_",
+      "sha256": "7cd03db8ed91a66920cc03026baa2df2a8370293b072218b9fbf6d9a21cad66b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 12,
+      "original_json_sha256": "9ec23e47a29a079debabc1102acfecb91cbed34fe958ea13a414dbd34efac5a1",
+      "result": "results/90c384ccef7933970c51171efe42610841f628593453ac5dcf5038fc2bd4283c.json.gz",
+      "result_sha256": "cadbce73fe9c6e354e042ef3d2940277feb2460cb236a191173b359111edfae0",
+      "sample": "7d16efd0078f22c17a4bd78b0f0cc468.exe_",
+      "sha256": "1191795a49702e783923202091938e81cf0958d8db86d4bea1dae46003f69728",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 18,
+      "original_json_sha256": "29af484e97b5e08d0843e5914ee869d82a43772fed140378036f1e78d3f355dc",
+      "result": "results/a22863368f51055d24ac90b1bec540bf77f86d575b11aa3ca51864e2d649975c.json.gz",
+      "result_sha256": "2fb2edc4bd2028e1646fc92e569799c87feeb151cd5d92f8f509a8ead5b6260f",
+      "sample": "7d333c9b11b06ef0982b61bfc062631bb6cf9d12d0d4f2cf1b807a25ddf62fbc.exe_",
+      "sha256": "7d333c9b11b06ef0982b61bfc062631bb6cf9d12d0d4f2cf1b807a25ddf62fbc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "838e86b494364459486f0cc7f5b60af1f98cd04c5440ec39b68e8bc5d62d6b45",
+      "result": "results/8815e0ffd52c96d9423508616033deb69790f99a359a2a667f517f59d1cacfb8.json.gz",
+      "result_sha256": "724598ae8cb1da55a655c5ac1db7d823c561054b7fbddf682568845db4e5d664",
+      "sample": "7e17f0f35d50f49407841372f24fbd38.exe_",
+      "sha256": "934c3445fe9d1a3d4cca4d3ec09c9191d8f9067e13e58fa0b288cb520cd40785",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 46,
+      "original_json_sha256": "f2e138ef5b47a13543c963cf5e2c67b2e0edd4a9e3ee480ad16edd75d0a3be98",
+      "result": "results/78dfde3e52b33d4b786f9eedb564de40758e1eee1a9eefbb419f450ee1f90f95.json.gz",
+      "result_sha256": "8b8fa19c123be2a508b0324b96f9afd93e79e2efb1b26cf7d8304476b6c26342",
+      "sample": "7f15b1a47bbe031334e23653879e9661f4b8cde80c307548328fdd3aed87ca46.exe_",
+      "sha256": "7f15b1a47bbe031334e23653879e9661f4b8cde80c307548328fdd3aed87ca46",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 31,
+      "original_json_sha256": "08cc0b1d0d32a452141c42fd4b6acdb5981c2a33562a9e4db33a188ce9497689",
+      "result": "results/599f3c982874c9ca3693c8ffa0fed5e1b3f0f711ae1c7bf1222b273898f8c966.json.gz",
+      "result_sha256": "44965fa17d88471be1105ce7af28384abf9f9c1148a7d6c4ef36a67cfd304e3a",
+      "sample": "7f403f7d643d90c7cbadf3ccfc68bd1badf06f89a35af5fc7811920e820bbcc9.dll_",
+      "sha256": "7f403f7d643d90c7cbadf3ccfc68bd1badf06f89a35af5fc7811920e820bbcc9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 42,
+      "original_json_sha256": "915fa32ee094ca8aff9cca5606933b5c11f2d070ffd2b88e4afe75e57e3d3f04",
+      "result": "results/36b51b1b4c3e1bb28778df698a1042f1e85926ec86ae67bc739d6aec9d45b357.json.gz",
+      "result_sha256": "40409535f9eb36cd52c2d82d919b6a7cd6d0a33308aa55b9bd9246367c0c66b6",
+      "sample": "7fbc17a09cf5320c515fc1c5ba42c8b3.exe_",
+      "sha256": "e30b2b657ad0b050762e66a3f3c8ded2e8834902b456646165a31ceb478a6911",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 33,
+      "original_json_sha256": "30824a9e307b69fb1a8d5c9593f070a492f3f4492e932ca31da19bba27645e52",
+      "result": "results/e2154870a22e52647800a567955e131833416229e6a6cca37019e0f59202bf69.json.gz",
+      "result_sha256": "75f7a62bfd38539c056b5d2c17762067a2035ca26426415c4a1758d5aee2281d",
+      "sample": "7fd2e2e3c88675d877190abaa3002b55.dll_",
+      "sha256": "a77387fff57638ef8773d74950d0d17ff29e10d6a514f698f32af77ec5df2586",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 17,
+      "original_json_sha256": "4240534167befdf679d2d4f1f0bef7b3fa81c2bdb550ef64ebad47f931d9c483",
+      "result": "results/f42c1c39be76cb7de7b445b50b773463ab0ff7d5a1020f1036634c2c0ec01867.json.gz",
+      "result_sha256": "768b3a8c731de16cf7d59516b0775ae1d7def9ed60178d14e0d45ccdc5bd86ad",
+      "sample": "80372de850597bd9e7e021a94f13f0a1.exe_",
+      "sha256": "2520b15068fa108c947db179377c6b462f2c4f47037168bf8c69fcb668cb11a8",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "9dd57077e4ae7fb0f3f96b1223ce76affbf875eac526ee1f0648bc14b7df4e9b",
+      "result": "results/d117b9b50bc0f89066145448270013946cd01a2ff43df4f428b61e527448a990.json.gz",
+      "result_sha256": "e3d6e903de816335dc1eb6802176fe3e45a42db6f3c969ea24d8bdf3bf9ded19",
+      "sample": "80f166e9c0427f055c88c9ee62016a6ba6a938023ff8778f5a0b5f8d7fe7570d.dll_",
+      "sha256": "80f166e9c0427f055c88c9ee62016a6ba6a938023ff8778f5a0b5f8d7fe7570d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 25,
+      "original_json_sha256": "2e60198c95f0e046f76b9580336c85fc06573096844ad79bfb687926a7ac7fec",
+      "result": "results/163fc14dfa320b0e01a7d19e47ddf156041023cba431546f2c55fa6cb2fff2dc.json.gz",
+      "result_sha256": "e62a1359a385866b29f08c69c4c7d790beab7071d6eb2f78fee743cdb58e3117",
+      "sample": "82bf6347acf15e5d883715dc289d8a2b.exe_",
+      "sha256": "919f5697babee376b0abd29a9fbebc98306e5d2fe55b40e14ce9c01a57828506",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 57,
+      "original_json_sha256": "2523fd06e2fb6c06b73a657db077fcd593f7df39dcf5d46b6f89f9207b984d59",
+      "result": "results/0dda919f7a58264ae67dfa18c1fda44c902f99fc5d7501823e635c4380f20c48.json.gz",
+      "result_sha256": "c30cfb80ef18e1f106f2c6273fde4001e6bf4cb5128e2995393132e1b8161ed6",
+      "sample": "8333822ed41d9f2b302cf8e21b126efc.exe_",
+      "sha256": "76d3664a3b7dcc4f14970c0d5f1faf8cbf5ea40eeb1f673fc438bafcc54adb21",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 17,
+      "original_json_sha256": "8a5c4bf0e733ef2ca992f2027617bfd7d998347097d1ee155b0961f655193ad4",
+      "result": "results/264d47fc59f4691be06b38232a6ad6dae81429c87bbcc95fffd151ba441e18b0.json.gz",
+      "result_sha256": "40e7eae24ff65becb87669cddee7f40f917dfa53bc3dceeed0bfb599deca823b",
+      "sample": "84a1212f4a91066babcf594d87a85894.exe_",
+      "sha256": "f3d26873a20dc26128d083f5b0653e139ffb6b29c541d02ec88971e1d5819999",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 59,
+      "original_json_sha256": "4f112619251f304572ff4a1b98132bd8db094c1e93e291d3152fd971a2dffaea",
+      "result": "results/e1145b896bf711fab221d6441c9670867f07c07ac797fae1478df6be9fafaf39.json.gz",
+      "result_sha256": "4b5569e26897bb799681edc07e8e09162b0b5f5728fb968eeb318b9d9b480a58",
+      "sample": "84f1b049fa8962b215a77f51af6714b3.dll_",
+      "sha256": "9c216b944919d51b56b64b5fe22142f085d7abdaa1a7cf0b4935eed31abba9eb",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 36,
+      "original_json_sha256": "735393d14a4cab8696ceb1fa6d5e1244df4b852871be729d61be4eca47cdf3e8",
+      "result": "results/4e8308747ed5435966001a17880f09562a2b3677343e7a60b775e1a977413d3f.json.gz",
+      "result_sha256": "132aa0b89c44f66d4fba18c1f75ebdd593b072978f69ef65962bbace7ba52292",
+      "sample": "86a8f267cf0f51c032f7b1777eb1e51f7cd1badf3f3894e2557a3f571fca9f3d.exe_",
+      "sha256": "86a8f267cf0f51c032f7b1777eb1e51f7cd1badf3f3894e2557a3f571fca9f3d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 14,
+      "original_json_sha256": "9217dcd4de7f17ef9313ecc217a7e7580fe5a86d750028fba4dd7f5cc66b6343",
+      "result": "results/d7fc40d87d385db6e45f5f757c1600dc126a4817c9ed7b086d5a94291d155183.json.gz",
+      "result_sha256": "271f6f0f57361199997c96e6429f22f47747e69e63c356948c8a5553689c4c3b",
+      "sample": "873275ce8bf88ef66e9fa0c74b5c2a1e.exe_",
+      "sha256": "58e71c8e2a2712a6b1526134a8e656ca3f0d520ccd4041c2ffbd28d8030f120a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 64,
+      "original_json_sha256": "2ebae712d8a5af9d2094391c002ca2d2ae350fb176537e3e5b88b2e2c731481f",
+      "result": "results/47a2e693150dacf183a41c5ed3dfaf1656139862761d5afafe86ecf4062b70fc.json.gz",
+      "result_sha256": "10a898b9bc0ba8c39499daaa1c0d2b93984e6033d9dbec6c350d2e4111963307",
+      "sample": "883bf161937f8dc6e766b07000110254.exe_",
+      "sha256": "68c8fa3f5bde60ddb07789c2fab7548b36207734837e07e163c063f563923914",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 5,
+      "original_json_sha256": "c26aff1c281976ea2ed95986cfd8da7d1dfc4f8762b32e126c84cc673ac522e3",
+      "result": "results/4b1bc41f4593e9a06605af0f9aa702bb78f8c5afed4c1bb31c6bdc70eff142d9.json.gz",
+      "result_sha256": "f56463c980156677c1dc0925e1b9a0b314570f66a45ccc3efdc9693986b8bac1",
+      "sample": "8a132663bee5c2f0f5cbfebee1b55ac72934632bf32bc32d6e2dae797c9e6e35.dll_",
+      "sha256": "8a132663bee5c2f0f5cbfebee1b55ac72934632bf32bc32d6e2dae797c9e6e35",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "b4e0987121122b34ed64d6fb2173a2bd51faa3b69d894dd3b3e91dca0123fc44",
+      "result": "results/9142093235278549a6217fd23e06f3e3a57b8d04e81dc86bda357a5897c08f08.json.gz",
+      "result_sha256": "34d753e86aa347f7fa7a72ffb904840f64ead9c411e2dcdf33a28778e42d2f07",
+      "sample": "8b1682c85612db9f62eb3600a90b54e83117bb756a7456c9f82ccdcb0bf4b7e4.exe_",
+      "sha256": "8b1682c85612db9f62eb3600a90b54e83117bb756a7456c9f82ccdcb0bf4b7e4",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 35,
+      "original_json_sha256": "660c3bfa63747cc4121e9b116ed9f9aac20023a731d102ff7d6a389b3ad302e2",
+      "result": "results/29bc0d15f130420548b9571422eeb30a123d8e6c35eb54a58b6efdbb0b5b8f42.json.gz",
+      "result_sha256": "09610e105be715c2e8198159a81a3e66f9fa3c23a10d3d492d38729101b32faa",
+      "sample": "8ba66e4b618ffdc8255f1df01f875dde6fd0561305d9f8307be7bb11d02ae363.exe_",
+      "sha256": "8ba66e4b618ffdc8255f1df01f875dde6fd0561305d9f8307be7bb11d02ae363",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 118,
+      "original_json_sha256": "b8b01f78eff03fffa9720a669c477e4e9c4df8873f300bb31d60cc87f66d45e1",
+      "result": "results/f9db735523cdb35e053fbe1ec4879baa8d762ea641615e81981131314d32529a.json.gz",
+      "result_sha256": "0a8f68f6648480784f5cc7926cfa60e14a64f547000d6687a5dc8a0e1cc6da9a",
+      "sample": "91a12a4cf437589ba70b1687f5acad19.exe_",
+      "sha256": "2d8cd23e33e56ab396960a0d426c232f6d8905e2ac5833f37c412b699135f6ce",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 32,
+      "original_json_sha256": "df09a63e51e7667eeda5af389a2afeaa556dff14325caf092b3b8a8f504fd41b",
+      "result": "results/7c4a755f4086f01eefbe50ae5519f2c66f7b7f024485fe5f8a001a6a6ad7ecc3.json.gz",
+      "result_sha256": "7cd90ae52c1eba684e39a241d54b70233153a000fe36e028d3d747a973cbb20a",
+      "sample": "91b08896fbda9edb8b6f93a6bc811ec6.dll_",
+      "sha256": "1e53559e6be1f941df1a1508bba5bb9763aedba23f946294ce5d92646877b40c",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 95,
+      "original_json_sha256": "c538bacc1604bd68875ebcc7e03b6a7c751cb790f8690ad013cf7df49e16ca5f",
+      "result": "results/b2ac4ecdbc088ffd41bc7cd9546d6d300846a7996c4b20356a906b07b2e6a48c.json.gz",
+      "result_sha256": "9c57aa063f7536ebfc29bcb4fe59059fc80791110843cf54e9a6a66e7908ef62",
+      "sample": "92d8ea10ea30e8b534334a1c9857a455.exe_",
+      "sha256": "558f37a9d7da383bb6c2ff097798cc32676238aab49758d91d3d1a3950f2bf46",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 65,
+      "original_json_sha256": "03663741a853cd48213040e869c75558619617a8bb43ff3b0169697ede5fc2f5",
+      "result": "results/fa165949c61631b1b6a1cbc02f20fe49fc0ea58dbf7745d30dacaa242b11cc5e.json.gz",
+      "result_sha256": "6ff1e8af5c8d84fa431d05b1885e23a1029914eb0a86ff75f5be111a4fe17407",
+      "sample": "9324d1a8ae37a36ae560c37448c9705a.exe_",
+      "sha256": "a3d7bfbdd9e9f72fb9201a8e7f05f524007ed3ac2172c51a49bd361cb39aaf0f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 16,
+      "original_json_sha256": "5090a2d60059515f6462dac92b0b3f6ad8f0ed036001326a0a455e4e191cd2e9",
+      "result": "results/b642af6ffcfbd45b94af5a1fa011802f2c1bf946a5c0e588657b03016c009ffb.json.gz",
+      "result_sha256": "53f804b5011acce100a943684befd168a761511bc09736509cfca5cd4e6f82eb",
+      "sample": "932dab8756ad4ae9a62bde0772d952e4.exe_",
+      "sha256": "fadc8719cc7147d5737b20fc6a8a40928421911030349b5052ee118ca9d252db",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 16,
+      "original_json_sha256": "d730752d5a49296cb2542aacc20d6638efa83f9068e642660756cd844f404944",
+      "result": "results/f5b9358dd8d90c92d53dd92d680f7812f8c43f9cef5d760afb1061a2c58f92bf.json.gz",
+      "result_sha256": "b33ac192cf8ff7b5a85e42c58ea9ff1c342cd66b40a50a66f06c06c9433b4558",
+      "sample": "946a99f36a46d335dec080d9a4371940.dll_",
+      "sha256": "8849070e8a076f717243d7f7a93f952cdbd8394cb7d141383ffff6e845b2d397",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 1,
+      "original_json_sha256": "4266a95da9d75623105bbf9a50759246a38d2c37f8492ebf3641428dc5e44809",
+      "result": "results/12055d0ca871fbedb70fb46c89e610174d34b9941c86c7d6931f2cdfa99cfb25.json.gz",
+      "result_sha256": "2265d4f304cfdf617449897c798cf2b80aa593d5595ddb380b4d1bfbea78d592",
+      "sample": "9486f2c5d514c1f39833b852ab03f4c0297e9e82b456b0dccad1a2d7d15c3385.elf_",
+      "sha256": "9486f2c5d514c1f39833b852ab03f4c0297e9e82b456b0dccad1a2d7d15c3385",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 35,
+      "original_json_sha256": "3a518b1106bbd81d38d369600b6aea49068469c26a5dd1f820eafda899f0adda",
+      "result": "results/11064dcdbb1cc15d86b9ae485d1fcbf4417053e546484f521a124a4fc3002737.json.gz",
+      "result_sha256": "8c446003a6a99599630b60b372ca8d5027fec25539cf59a586dedd2628e1978e",
+      "sample": "94d3c854aadbcfde46b2f82801015c31.exe_",
+      "sha256": "5260ac03e9a0e87ec8a762fb32bc8666bd0dc6deb008212528c1b5ebcff842fd",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "e6529f7c805a2f4e68767c4371bcc6659c80c94e45c33bbe14e59497ab683f51",
+      "result": "results/660b7d502484cbd76402b6ee6e33864893d4497f791900d632e17688eae8ca38.json.gz",
+      "result_sha256": "11258e5c058cf22413ce5eb9c4fe8baec826426b0024f4f3f1eb746dc9516eb6",
+      "sample": "96abcbcb4aec439ac1619b02a44b6f482241dbb7486a15138e3aada5fa01d382.dll_",
+      "sha256": "96abcbcb4aec439ac1619b02a44b6f482241dbb7486a15138e3aada5fa01d382",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "9328484e48d43032e22d3fe8aad3fdc3a4baa681ebeb939c8c9c6b60ed38d87d",
+      "result": "results/409ac00231c31be6af4e4790e8f922bca6bab3e73a7b9565b5eb59571c41f5ae.json.gz",
+      "result_sha256": "d9209fe055568a1d28581f321a6c25509b1bd7bd60c25f78240de993026f1e3e",
+      "sample": "971e599e6e707349eccea2fd4c8e5f67.exe_",
+      "sha256": "7549464f605ba47646f24a3a0e46ba70e8713bf31e900cb0ee12735e9cba4cfe",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 47,
+      "original_json_sha256": "2601be9f915b69948a0f65757d016c859ee8b9ebaaff90e689ad5adf2b3641ac",
+      "result": "results/66b5ba9619021e0503eb49efe9c1605960fb60695658d873cc1585e2c466e556.json.gz",
+      "result_sha256": "3f251ab181faee5e4cce7ac07fb25a18ed9794dd600687dcf3c6370055b3106f",
+      "sample": "9879d201dc5aca863f357184cd1f170e.dll_",
+      "sha256": "4978199d3c29e6183b37ddea689c2389ab68d03686c913db8aeb111560a12ba8",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 37,
+      "original_json_sha256": "8287b0b6f148784e09a7acc5c5dd6d63ef7490b19545d2f107978c64451bce88",
+      "result": "results/e54f90f871d91849cb8bed8697f07c839ca0186caf51e0d06f309f6aaaec0fec.json.gz",
+      "result_sha256": "ff7bbeff9b3a5b45aaa535f6a404ee019bb90fb825b4f11727834d9aa2935739",
+      "sample": "98c37c3c23bbfb362dac7754c6ba48e75cf24d73bc963a4cdfca557b9e016909.exe_",
+      "sha256": "98c37c3c23bbfb362dac7754c6ba48e75cf24d73bc963a4cdfca557b9e016909",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 27,
+      "original_json_sha256": "69ff8433abb68816f37ae8ec16a75f12ccf74bb29c9af60b628deed76d6d5cf4",
+      "result": "results/497bd3b3028acc877fd15fae42549aacbe4501f655316ff9335d37a658a682f9.json.gz",
+      "result_sha256": "455b1fe2ab2de53b410b32b2f18ee915933cac87325774277bfdf9b274fa525c",
+      "sample": "9a00ebe67d833edb70ed6dd0f4652592.dll_",
+      "sha256": "f77a9875dbf1a1807082117d69bdbdd14eaa112996962f613de4204db34faba7",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 52,
+      "original_json_sha256": "05bb18b6ab0350eed4f63de4b2b74a3d752165a724318e823d493caf9c60d994",
+      "result": "results/e3a515dffa3b08084814a9b4a70c93a575c5de1ba9e500848c9d190406cd2c3c.json.gz",
+      "result_sha256": "2061baad33f2fcb40deae0fb6baacad6cf2d5ec64ba9fd73650d685e66cd809a",
+      "sample": "9b7ccaa2ae6a5b96e3110ebcbc4311f6.dll_",
+      "sha256": "c3c50adcc0a5cd2b39677f17fb5f2efca52cc4e47ccd2cdbbf38815d426be9e1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "8ff93c54382486001902869fdc9ea24d55a481eb63c1f0f898fa0c6387ecf92c",
+      "result": "results/43efac36e540963192472cba833c7eebbff43384a074ac61efe08bbbb10d77c9.json.gz",
+      "result_sha256": "de4dba0e4f877158206439e6aec381d343c18b36da3574925e77164798d11b47",
+      "sample": "9bca6b99e7981208af4c7925b96fb9cf.exe_",
+      "sha256": "967c15585844853d517f5d7055f705671a3a5a78929bb5a2a92b917c5539ced2",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 2,
+      "original_json_sha256": "20b36413d271d417e7c1cd754c548041a9d8e725b63d25f0344c3b4d37692ea1",
+      "result": "results/db6c168b9ab12453992ba3743d453439c28c0c504e2a628169ad7b371ee574b5.json.gz",
+      "result_sha256": "8f3cffae5e539a1bfe05929dab774982144044b99731996f8eb48f2d3c36b8d9",
+      "sample": "9d98f8519d9fee8219caca5b31eef0bd.exe_",
+      "sha256": "f6535f1de4599ff33111080f9b8f1ddc9de3de61bf0a43b1b197825b68a1e762",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 31,
+      "original_json_sha256": "0a68f5026c39a113146c7c43f3d53287e218c3cb3c0b55010d3a992ec5903dc7",
+      "result": "results/17bdbacfa57c3d4578fe336df02018607a9aabce03e37b3c68d3c6605ad6bf33.json.gz",
+      "result_sha256": "906fa111104e40430a6473b8ab6aaf8bb3ce52fce6f26c4c5f02b1ca4c26abb2",
+      "sample": "9dc209f66da77858e362e624d0be86b3.exe_",
+      "sha256": "db36fbc490ffb8662d13388cf4a1d5daba1527ac0440fc2eff99ddedc51f4a82",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 41,
+      "original_json_sha256": "e4d8713cc1fc00c859bf4b1ec163a794b1656b8e63a99559d4f85a811a5c30f8",
+      "result": "results/9a23c7f7bfcbf2f1a2464e087ba1ae70eaf57b471b45df91226db6b433cd64d9.json.gz",
+      "result_sha256": "b2794cbd26954cf14dce45eddbb790827a8ddaacc138848e0ecef58a417fbee3",
+      "sample": "9e4d06759f278255073f9ac7b31a115a.dll_",
+      "sha256": "a7d07b92e48876e2195e5d8769a47cf0a237e11ac304e41b14fc36042b0d9484",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 20,
+      "original_json_sha256": "860508994f071a085e9c7b88ddaa5b0205876b7f5f870e4fd3d9fe205f36942c",
+      "result": "results/38d2f8eaafa704509d90d6b0bb17f8f428cdd235d9da4345f6bb4883c5404373.json.gz",
+      "result_sha256": "9f932e5a0a965449b2f3564e47b0c985d67b9351abd5da64e55e86334c12f50b",
+      "sample": "9ed5660c6a442dbba9e2ba795ccc913c1f1517ce89854fe4287c1c8b36b21d52.exe_",
+      "sha256": "9ed5660c6a442dbba9e2ba795ccc913c1f1517ce89854fe4287c1c8b36b21d52",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 45,
+      "original_json_sha256": "998aa5036636295f03e18a027064d0fbad36ba1009a2aef7237ab85274304ac9",
+      "result": "results/2cd0464036ab92b6b716e3700ac33a48cc6d90d00bc067feecf63e719ca94f61.json.gz",
+      "result_sha256": "055a6360e6ce0ed822d426b113dc0721fb4d8279609273bc453eea7e9aaa8a5c",
+      "sample": "9efa86b43b4367bcdc1591aee59bda25.dll_",
+      "sha256": "c4489ba762ce7e207c3c2e5be4f5ecf1868a97b43febb46d333c60c0c0679397",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 18,
+      "original_json_sha256": "05929c2ec95ba6d902fd7f95709e5105f167f95d527cfd8b0963b5580ca1f626",
+      "result": "results/258a06f9c169a02f0b90b9fd5f44a64ffb78623749831c87ae134974fb4e1007.json.gz",
+      "result_sha256": "231fd5b071fa215b55c03254f7eef8e51d7788404e999e9cabacec568cd9221a",
+      "sample": "9f012d7e3ae8f62370278e372691eb73b878fe2280b6083e1be637b278021855.exe_",
+      "sha256": "9f012d7e3ae8f62370278e372691eb73b878fe2280b6083e1be637b278021855",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 137,
+      "original_json_sha256": "5ed0406f1af0d2564303e9324fab13217ec3f7d0e43821de270d864ea03f3d7c",
+      "result": "results/4b12439ea3cccfd143c70797f447bcb33fcde052cc06c30e559b8075a71c750c.json.gz",
+      "result_sha256": "fa7f07c9d2181243455d49e7e46cef3dd39a44dff448a3b05629a47bd4d16b4c",
+      "sample": "9ff8e68343cc29c1036650fc153e69f7.exe_",
+      "sha256": "4729a6b153dfa2ad96bbae68aa2a7cc0b21174013ace970386afb5a087951481",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "278346de80ddc0cbdc7febca18679d242b3633aa9c902f850b83b9539f157554",
+      "result": "results/4d795f021c6758c3fd6112f863cad2ee585dfd12bc92837e8fb4c96b6b21a6b4.json.gz",
+      "result_sha256": "29bc686b3f30819b284806bd28d25fda91c1c36951a82f028b111b5309464756",
+      "sample": "Practical Malware Analysis Lab 01-01.dll_",
+      "sha256": "f50e42c8dfaab649bde0398867e930b86c2a599e8db83b8260393082268f2dba",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "ac5aaac8fc5c4328690c7699e8c1ee5c522be0e8bcd76f52a29f8ce974cf2db7",
+      "result": "results/f62ba46fd120d33b6825f80cd24b9756fab7b780a1665f466487dda07e2ecf7d.json.gz",
+      "result_sha256": "118166138f6472d844410c9db3b5e54dcaccb111653e45b28e3d06d0c580e29b",
+      "sample": "Practical Malware Analysis Lab 01-01.exe_",
+      "sha256": "58898bd42c5bd3bf9b1389f0eee5b39cd59180e8370eb9ea838a0b327bd6fe47",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "7b114940f4b78fd58a055c0886267aef1e29a97b53d065e69be215688bf21d36",
+      "result": "results/9370ed69c1dab2ecb3bf4c4f160e8db0359f6e50c85b680e041ecd34289fa75b.json.gz",
+      "result_sha256": "87d6da796b918d10e1cb72fb1ec707cf0f335f936093d8ce7471439b7296ad81",
+      "sample": "Practical Malware Analysis Lab 01-02.exe_",
+      "sha256": "c876a332d7dd8da331cb8eee7ab7bf32752834d4b2b54eaa362674a2a48f64a6",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 16,
+      "original_json_sha256": "80877a828eb20be465049230b1ad3fdbdfa8aaadeae9e77ecbeece1d47e7af91",
+      "result": "results/cf179ef7bfe38df19bc3689b6eb1e47553075299d158f57da648f83a4110a8ae.json.gz",
+      "result_sha256": "46bdb080c554b8ac3af9044fcdc9f9046b9b9055100c613e88b7ca8d51c0aecc",
+      "sample": "Practical Malware Analysis Lab 01-04.exe_",
+      "sha256": "0fa1498340fca6c562cfa389ad3e93395f44c72fd128d7ba08579a69aaf3b126",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 44,
+      "original_json_sha256": "e9f1173e1c515c0858defb4888edf389a8d9461470deaad8a59c5528d5b44b20",
+      "result": "results/3beb05af0bd2cd9b5616822654189eece4d33ea72688c3b2e5f799928f3a269f.json.gz",
+      "result_sha256": "72adf5141c5e12841715059ff258466ab1f2deada6f7cfe9ed9e6e8cd57ed703",
+      "sample": "Practical Malware Analysis Lab 03-02.dll_",
+      "sha256": "5eced7367ed63354b4ed5c556e2363514293f614c2c2eb187273381b2ef5f0f9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "f3ad03eb0091814f0e63ddf62f3d797d2bb7bcdc4b04c08ec0e38074ef9b8259",
+      "result": "results/f1e63ff4115098df8260c18adce544cef1874a993cccd3d1bc2a8e504cd51798.json.gz",
+      "result_sha256": "1d1ac19228e2958c545aba015f2bd64c3b65b56008f163760d693ebedaa1e450",
+      "sample": "Practical Malware Analysis Lab 03-03.exe_",
+      "sha256": "ae8a1c7eb64c42ea2a04f97523ebf0844c27029eb040d910048b680f884b9dce",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 38,
+      "original_json_sha256": "f80284966d29fda12cfadb76051a2903956fa7cf237dfd34de79cb700720e8ce",
+      "result": "results/98b50614a4c501b411bc997aeb9c05cd08525936f6ce173e64aa0ded94e9dc9d.json.gz",
+      "result_sha256": "630a6e316279e644d8c0e6af6e535ed05e8b566317637b960da00f1e968ddf49",
+      "sample": "Practical Malware Analysis Lab 03-04.exe_",
+      "sha256": "6ac06dfa543dca43327d55a61d0aaed25f3c90cce791e0555e3e306d47107859",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 102,
+      "original_json_sha256": "1110796a72669dcaaa402e7ca195c61087029cc133debc614588ee7a16f98ab9",
+      "result": "results/040275f6f47e4e3b88e7c7576c98ff89ecdc8492d5a60e2ff80b361a1a3b6e7d.json.gz",
+      "result_sha256": "e6507afcfe8edc732b188ef42f60171101a6be00bb1d1d2e59c8a799697db2ad",
+      "sample": "Practical Malware Analysis Lab 05-01.dll_",
+      "sha256": "eb1079bdd96bc9cc19c38b76342113a09666aad47518ff1a7536eebff8aadb4a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "af432898458c7173d676f4834a4a63d10e8fecb78c85ca2030c49410ca214229",
+      "result": "results/ec5603cc7dc2fbe56df9ab6c123d9ee2510801a4e927025ba3fa57d3fb6cb5b3.json.gz",
+      "result_sha256": "f47d23ae41cfa435124a0c83fab581ac2f452259f4ba6e7a61c2739316e1b11c",
+      "sample": "Practical Malware Analysis Lab 06-03.exe_",
+      "sha256": "75eb05679a0a988dddf8badfc6d5996cc7e372c73e1023dde59efbaab6ece655",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "1e2b09c7d59297dfcc4b26b0b0243c074ef5d96504b2c6ecbcacd40eb89a719b",
+      "result": "results/901e28fafee77e50827c5fab9a8ab7c33383e5a2eeb7279434314db34620155c.json.gz",
+      "result_sha256": "58302ca64ba5f76cc4ccd21c5964ed1d0f22d66276a7609852559828bcc3888d",
+      "sample": "Practical Malware Analysis Lab 10-03.exe_",
+      "sha256": "d66e15eea51ebd4bfd13f8c97646253740b1e6a99328d22232fd01ae13ef5d05",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "fa35d0e51215565e6ade149174c7dcdf69a159a5f810829620e92cada55e50f7",
+      "result": "results/df8a3eb67298151b895d4d2bfc86332ebe6077dfe046a9f4165c7df7d135156a.json.gz",
+      "result_sha256": "55a8b0f9b05fdbb79a6db5bae888374e248aa5c8ecab1ea79f55601dc6770a29",
+      "sample": "Practical Malware Analysis Lab 10-03.sys_",
+      "sha256": "59d09b747441ed35e0fc0b5b352b4c66532f1fdd4646457a5ea972f067a55b30",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "c8fd424b8f41774e8d87d092015fe74ef2c5879f7bc152238b9cf2a7f7c8f330",
+      "result": "results/271e03a136ed9cfc70183cb1aff3bcb7809050c9385710aa0cc633f05b1e7d03.json.gz",
+      "result_sha256": "950f360ae167ccd4ca5573fd58399ddae111771dc96a4b6389d832276ddbefcc",
+      "sample": "Practical Malware Analysis Lab 11-01.exe_",
+      "sha256": "57d8d248a8741176348b5d12dcf29f34c8f48ede0ca13c30d12e5ba0384056d7",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "5e7002c5eddf46c63fcb336e717cf5a61df0e6de73cdc0fade88e8b8289b9575",
+      "result": "results/60d9eaffe66dd8a33351dfeacda50c0d5192239671940bc4cd311fe075ba2bcf.json.gz",
+      "result_sha256": "880105b560e0ac081893d18d3e20e19b941e2212aa2e95bb4dea1703b072c3ed",
+      "sample": "Practical Malware Analysis Lab 11-02.dll_",
+      "sha256": "df899256c4a9fc0e550c62b84ab9cb8acd8d18683f0a41c98ba83f0487d4766e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 10,
+      "original_json_sha256": "7e388fc362ac6dbca0c8072063d19ca71989ff6a9b5d05aba9b3bb3da3c73029",
+      "result": "results/44ae26b9ccaf3ab71af2b113206214d29d7674d49f77b430861bf5c3613c9a5c.json.gz",
+      "result_sha256": "ba2200054ec104628e79275129f5cd9cbb39c11f02dc4b90a1a6212eee794adf",
+      "sample": "Practical Malware Analysis Lab 11-03.dll_",
+      "sha256": "f11fa868ac3dee1e5fbd985fe15ba6d34c7ec0abb47babe0d34a35514c49c86a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "d2382b53859e711ae9aa39da24644389256b9a167a671ee73bc52e23beb52476",
+      "result": "results/b3513c32337970e568d5807f3d46e574c299c11c3407b3fae932bb4e8a31b009.json.gz",
+      "result_sha256": "4e938710776262f478ad24b6fbbf55f8c1c220c05dd556b600bb38cd4cd67f26",
+      "sample": "Practical Malware Analysis Lab 11-03.exe_",
+      "sha256": "bf023ff344efe2db0e0a963869368f0ef352764666bc368ad61b7a4c1d9f5975",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "eb73382eb7c53d7dac68c141d02cd4d0681431f56d226de42ed218fced31c30f",
+      "result": "results/6a36d98bc72ddc6ab1281f93203fe655bd89b5b8e7e0c5ba223989fc1da916d4.json.gz",
+      "result_sha256": "189b51e3c8c74a2ad38ff12550c2446c6a5e36104897582e81b775b058ac04cb",
+      "sample": "Practical Malware Analysis Lab 12-01.dll_",
+      "sha256": "0ea89a83b84b8d20e259bacb6b0d1b176c8327f097c54749ae832981f2a0095a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 10,
+      "original_json_sha256": "a5195f814423a6a2d3beafc68081c669873aefde4c596664a95ed56eacd6c3f8",
+      "result": "results/d1874db07696fe0a3aa11d0a4b961ceeb2fc4b8dca74176ee0c0eb716fbb5e58.json.gz",
+      "result_sha256": "b0fd25f614bde1a1dd66f90131a30d1463ec6edd2698823d4de14116e1dabeec",
+      "sample": "Practical Malware Analysis Lab 12-01.exe_",
+      "sha256": "1fb3c4a9109ef171fa67bdf90e67f09ef25b5a1d401dc20dc45cfccf1e4fbd99",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "f3ad03eb0091814f0e63ddf62f3d797d2bb7bcdc4b04c08ec0e38074ef9b8259",
+      "result": "results/3c3d5a359ddd4f0758bd33999e05b065547530298ce5c57c4ac16a92e5f44407.json.gz",
+      "result_sha256": "52ddabae0df6ffd82c7fd5ebd730f77c0bb1268832881a2a71ba8259839b88bd",
+      "sample": "Practical Malware Analysis Lab 12-02.exe_",
+      "sha256": "ae8a1c7eb64c42ea2a04f97523ebf0844c27029eb040d910048b680f884b9dce",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "5089f23a2f30d073dc1d015075c87d40b9c60d6fcbe7f98fccbe35da43cd394f",
+      "result": "results/40d78df656c73c58e1aa4b48b11cd2f3ce072f8fb43a7fe7a28e1d7155b209e2.json.gz",
+      "result_sha256": "8061f08f90fd9d5f8cdb0a8139557f04d2e0097b304f9a8c9c4bf9f9cf511278",
+      "sample": "Practical Malware Analysis Lab 12-03.exe_",
+      "sha256": "9b683d2fda7ca7adcc043e4412271009a0e115ca55f9a718c385a3f46b57ae6b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 16,
+      "original_json_sha256": "b0e75beb1d23180c68aa153e8a9594bcf38da1529b28adf767234270f5abb751",
+      "result": "results/d45504eabc9898b438bfe85e4f30f930cee36b4f6499e708b49a68e01a16e059.json.gz",
+      "result_sha256": "152ee428d19102c943e848442a7c6314d033f4b579a0541076f3773b005f794b",
+      "sample": "Practical Malware Analysis Lab 12-04.exe_",
+      "sha256": "e2aed4398e0178670d9678961ca89a0f15a3eac20f396bdf29de8ac66cb853fa",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "2834ce5dfa13132d0b33f590cf77ea6befe2a488dc6018b0a515238f7374dfc7",
+      "result": "results/161d594a7971af2ac523dcbd5762147671b7aba422b5d21956e2c6ab4f5a7bcf.json.gz",
+      "result_sha256": "f1403661e33484625e38cd38073905a263712dd00091b6b4947b3599870ec421",
+      "sample": "Practical Malware Analysis Lab 14-01.exe_",
+      "sha256": "6767fd66f28a1d39cb84f59e8a86b3ea99e22d204d2aac821e0d01ac232fba56",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 23,
+      "original_json_sha256": "ebc99ba49257f0021c8cb55909360e984cb18a4e1eaac0144b7252dd92236fd3",
+      "result": "results/540d445c967ca98d8381d13925c9339137bace81ec758859db1c01c265f76f33.json.gz",
+      "result_sha256": "d6decc3b555bdbaf1a893514a24039110321af533111dc4c9f85a728596bee60",
+      "sample": "Practical Malware Analysis Lab 14-02.exe_",
+      "sha256": "435be1c6e904836ad65f97f3eac4cbe19ee7ba0da48178fc7f00206270469165",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 41,
+      "original_json_sha256": "4e6fd7efe170ead2ac946e37f81fd42a4d338822d44984112d3be702d80fef76",
+      "result": "results/8ad30b470c7833d4ac85ed1ec4522993e00d04a97bc32be5f0ae3493c3c2081a.json.gz",
+      "result_sha256": "dd3fbdbbde0fc154899621951ebecfe55f0af854f4fdf8d93a305ce857aed3f2",
+      "sample": "Practical Malware Analysis Lab 16-01.exe_",
+      "sha256": "309217d8088871e09a7a03ee68ee46f60583a73945006f95021ec85fc1ec959e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 12,
+      "original_json_sha256": "36091c0fd8311a5020dd259dcb02267ee9f9503803e4f1ce928390d177677b0f",
+      "result": "results/e4ac9e65f16df3bfaffacdd95e872cea0d33ed4accc9432d56fcbc0b017e0856.json.gz",
+      "result_sha256": "bcff27689ede7c952d644d1712618a90cf83a1cd9dc6bd609d0f68174c027860",
+      "sample": "Practical Malware Analysis Lab 16-02.exe_",
+      "sha256": "0c3031f630adc6cdd7b877fa1c2982909cde01dff612db5dd7df58cc778dd919",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "6847b8a2b92678fe7d0bbf4453918a726e4c6904640e73e2324197ce4bc03e48",
+      "result": "results/da466b8e9f38fc4365d11f368934a727a9f83babb03daa17029275af67d86542.json.gz",
+      "result_sha256": "c4fc460281e8017a687563e470d37a4a1bb279a01deac64a4f243823ae43b5d0",
+      "sample": "Practical Malware Analysis Lab 16-03.exe_",
+      "sha256": "f36de55cf09c24045f241d50519a2ff1e5578336d0e8426eeabe5b39162d9006",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 101,
+      "original_json_sha256": "c1de14cced8d2d4541373664cb866837454b7d647dd97586e6a8cff9c4ac6a58",
+      "result": "results/5973aa50e5022155094f9f561d50e8b55e6409014a93cc2f26a1272b3630bbc9.json.gz",
+      "result_sha256": "35d53de3cb24eb23bde446e367b836f59ec922b0b3c01db215ad201b43eb71a4",
+      "sample": "Practical Malware Analysis Lab 17-02.dll_",
+      "sha256": "7f26bcad404867f92ee0f3de9257758132b2ea06884f436e7900e820ddd6646a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 27,
+      "original_json_sha256": "f1df8e1b50f52668cad476d63a35c92ebaf0cd8c625e1a807391a80f63a8a7e6",
+      "result": "results/b15f9e109577866cf1a395fe4980bc21cf138a1886df165400dce22345c0cbe8.json.gz",
+      "result_sha256": "310b7bb838b16680621bfffe31e251166b02bc8ae72a17d06e8fce58a3951535",
+      "sample": "Practical Malware Analysis Lab 17-03.exe_",
+      "sha256": "b3b4c065849c81d856558e9cf91e8cef5d481648fd8aa88cdda534ab6b75e988",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "d02260a8ad79488a4a607a30c915f7661fa3302216b249c1572f5185479f0e0a",
+      "result": "results/59ed9997eceed0365532fd77ed57c23941738cdcd62cccc86dad5a2c63bd6ce6.json.gz",
+      "result_sha256": "f5f21d803b3e760bae62bb81ec6db4e0b50cadc96b8518a6c748e68224b7b033",
+      "sample": "Practical Malware Analysis Lab 18-01.exe_",
+      "sha256": "2ac6635a26049d354c0c46243f6451e6594b130745a08c5a99e96a64fbbbec0f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 2,
+      "original_json_sha256": "c3861c7934dd26116f8d934bbcff5de902d8ebf6b1df6aba7c04065abb885fa1",
+      "result": "results/4f7844556df90e5ba0dd1e00bcc3a2b2c87311f68f432c8a1cf2b63eab6ae486.json.gz",
+      "result_sha256": "7b8716e458b791f8fbd33f2fd450a2c322c10e23d026b3b1e0566e2734e491fd",
+      "sample": "Practical Malware Analysis Lab 18-03.exe_",
+      "sha256": "b756a02776b6b33394b255ba99f4cc0379cccbe080f36fd80034a5a6e2ffaa3e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "28e8828c75a2b5e2cb3d6821ab3acad4a70e27b148ea979cce34ee776ffb385f",
+      "result": "results/aa81faa24d592b55db998fc31affb44e65018aa3f0b8cd442e59bb5f37b4fc05.json.gz",
+      "result_sha256": "310cc1f8f2c034f5984d7adede019a5f1a6e787dc3a424b343d4d6a8d74d2d42",
+      "sample": "Practical Malware Analysis Lab 19-02.exe_",
+      "sha256": "3ba837e827a5a20cf51ec82972b5e5fe028708932bfe1e58fd1224ef2fe5bb75",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 10,
+      "original_json_sha256": "5edfb07c3a5c247d2401e4ae22e88a17acf54dba097e8a4752334c42da7eb04c",
+      "result": "results/f4959d49f35491e9cf36047a6bf362bf3fbe7ca10d1a81a46e7b48d0dc6bcc20.json.gz",
+      "result_sha256": "ebbd391f6bd2c23f1cf4b94c83b16ccdc5b6058e8d9ccea544ab2d8ddb7e3f36",
+      "sample": "Practical Malware Analysis Lab 20-02.exe_",
+      "sha256": "49d5cc85b8f66cdb238ed1d4bb46709b975f1627acfc934385271ed3be6f77d1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "11ecaa8e66cf4683d88aa78e0631d566ed56468fd045845f5d4b14fed3e7f6a0",
+      "result": "results/fafec679451a158228520e826b9d60d77b2e725b91fddf07b9e03489fbdfed8b.json.gz",
+      "result_sha256": "2af183cd6bb89f67bf502f137c4e7e418114f0b456343865bc37f3941a278c00",
+      "sample": "Practical Malware Analysis Lab 21-01.exe_",
+      "sha256": "42b610e7f4f0a0275ec3ede3895287e673c7cdad11fc352f86b1f2f7ed050fa0",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 20,
+      "original_json_sha256": "d3ab12a753800075e2473825a5830155f2eae194a09e43e65d4737af089274b9",
+      "result": "results/53ae1ca7d88624bbd108dbb9277927cabd3debac01608a333574972f4917ba15.json.gz",
+      "result_sha256": "aad221db3d41d4b12321573c55a3b2b292220fbde264f07a7fba5f1a89bcf3a7",
+      "sample": "a0fb20bc9aa944c3a0a6c4545c195818.exe_",
+      "sha256": "000286df4376dc71b1f5d8367b2da929bc016c441651365268077a08548d0e67",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 65,
+      "original_json_sha256": "9e3fe7e9d78dfd7a69b5bd9a423bfa2f40bea3fad82f8a29b952bfaa1fa8c5f5",
+      "result": "results/454bde8b9f3d26212bc34258ccd7325e2aebcf9f20738f4c2ebfe7d60e5df7b3.json.gz",
+      "result_sha256": "0533530a70f2e8e0cbb8fe6ce0171ae482e97c95619d85c6e9abddbb3e8891a0",
+      "sample": "a1451e3108e85769302ad25c74757180.exe_",
+      "sha256": "8a388f4808ce7a2c67ce4bd959863a7a18650a3335f2fabec693eaa95e50112b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 6,
+      "original_json_sha256": "aa1cfe1bb870d52660cda7e0b9b05a13c62988d1303005b2f3de731ce939e756",
+      "result": "results/caf8635a855e6b53c8cd9881287d773ff65291de2f1501894491afa68bc45180.json.gz",
+      "result_sha256": "bd10b3bad132b78896875fba88adc28722ceae024c94e43c67f69725c793e4d0",
+      "sample": "a198216798ca38f280dc413f8c57f2c2.exe_",
+      "sha256": "16a7d90a578215fb1796caf1c2ad99126bfd7022f49bd6b8051e925384910712",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 30,
+      "original_json_sha256": "eccc7b83d7721416066ccaa63b1122d5164bf19601bd4deb384e44706da44559",
+      "result": "results/ffd076120f939ddf8d91e4b800be5d63c4ab09c6ad1f2553898d101a32e74719.json.gz",
+      "result_sha256": "cf4d424608903624512f2fb074d81ad91bd73483e2b866562a1bd02e6f17934e",
+      "sample": "a210a5daaf487fe6c8bbaf906abce749042f15890d60b09c6cb333e54958663b.dll_",
+      "sha256": "a210a5daaf487fe6c8bbaf906abce749042f15890d60b09c6cb333e54958663b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 71,
+      "original_json_sha256": "5ceb63cd23d68c2a5c432d3e4203aaa4867cdbd1b2c43d00065a1d61fa27055c",
+      "result": "results/f276ce080c14bfefa7064d6cba0bc9137b2ad5cbbb2d9c0b8dd7405b55d90f33.json.gz",
+      "result_sha256": "4d5901b40244234fdbda23b671e6cbf4d26d1ffd2f916c0b3b7bc94f8877b0b2",
+      "sample": "a30101595f6f28ab2f4b0b2cd177c3c4d2ab34a355ab7761a3795d0887c24ada.exe_",
+      "sha256": "a30101595f6f28ab2f4b0b2cd177c3c4d2ab34a355ab7761a3795d0887c24ada",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "56c690a3156555b5a93e38ccbedb73a0585c7e22692a0fceb5db674770677c1d",
+      "result": "results/6d0898af9217b4d8d5cd51b4e11a23e1f8d0fda70bf2fd6d2cfef980a9ebf8e5.json.gz",
+      "result_sha256": "1a1d15ba7316fae533d5de8104075db0c76e35d90cd3038ff5d93234e015bcb0",
+      "sample": "a3c0a2425ea84103adde03a92176424c.exe_",
+      "sha256": "00810bdd871f076d99ea3ec7eb08cee68c1af27f73c345c00cade86074369373",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 39,
+      "original_json_sha256": "89d04a67451d31b2d4d643af3a6dee4b59c73eda8fb8fef60d80526fb2f1c7ff",
+      "result": "results/72dd0cae0a2fd2e95d57b80b818f3952e3bf507b3270d49ed01c12203d68fb8c.json.gz",
+      "result_sha256": "175341cc3312fc61588842b36395973f803227cd10853e0771990d15c12d6923",
+      "sample": "a45e377dbb98a6b44fd4034bc3fff9b0.exe_",
+      "sha256": "cc0b39c7495e1b2cba0661496c9414fd5c91a16652272bed5acabed51a986629",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "9b262a4fa0cfd19d421aa7a4c6bb75ee9d99a9f8f31c998387c4bbfb89684f08",
+      "result": "results/0fd679d32fb56c12424a955bb900f6c573fb2792c43dc5a9ce33c1bd6f9e6aee.json.gz",
+      "result_sha256": "bbda6ffed91951095496adf73baacec6541a3c953275afad6dcfc5b9a6c12e5f",
+      "sample": "a4f1f09a2b9bc87de90891da6c0fca28e2f88fd67034648060cef9862af9a3bf.dll_",
+      "sha256": "a4f1f09a2b9bc87de90891da6c0fca28e2f88fd67034648060cef9862af9a3bf",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 23,
+      "original_json_sha256": "bcd35702888a1ab40de84bba197b07ae2327aafaaf8e428d15807147f150d1f8",
+      "result": "results/89c60d64d39486d1e7d1448d02a1f65a135c67b9bc13d426f76fa9d78d88502c.json.gz",
+      "result_sha256": "c39b7b1d890fdaff2242f43aa845a1969f24d29cdbe832c7da708f651d47eaab",
+      "sample": "a563c50c5fa0fd541248acaf72cc4e7d.exe_",
+      "sha256": "180f82bbedb03dc29328e32e054069870a1e65078b78b2120a84c96aaed7d843",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "ab34e53d18131c8ffddf494a936ec8fadf4e5cf366b4c1023af4d3c10ed5a72f",
+      "result": "results/bba34295e6923a048cbdc2017c81a335ac4daec5d880de559d475552fb5b74a8.json.gz",
+      "result_sha256": "9ba78735e1fe964b33101836e0f6a22fc92bd53dd6fcbcf15f57b775899e439a",
+      "sample": "a5c70086b3bc4fe64f4e7a0aa452e620.exe_",
+      "sha256": "2ec5256a7edb90b1c05c92f79e8a48c205b29e1ac910a535aa83c30b8dbbeff8",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 17,
+      "original_json_sha256": "6afaa687051498f1d28372a60132e2b88dc58150ad290ccd9634637e6c735702",
+      "result": "results/d8ffdaa3cab8c314a5e05fb78c44f16829c6ca62d80abf0504008b8cb4bdd5aa.json.gz",
+      "result_sha256": "d36947e3db8ea5fc26a11815303f6f514074d2a41f61e6a854d347f7077ae595",
+      "sample": "a5d66324daaee5672b913aa461d4bd3a.exe_",
+      "sha256": "0e9d5b57db6d9d75bfa5837b62bd8402688433a998bf3d6ee9430898a7686025",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 88,
+      "original_json_sha256": "0ec02790112f390389af56665a0f6a9f0e7d495ae35a3bc38428beca39a886bd",
+      "result": "results/eb2fd26ba0a42d6900865326e0663bdc1e319c81d2b9d2892304f7a8f028dc37.json.gz",
+      "result_sha256": "5240fcd2009bbbf2c39abb92cf7ae39b79e24dac94dd6611b94d7fa27fe242a6",
+      "sample": "a6594d9550d56ddeaac8b3140821e698eefb7163ba29f0119c2ef19beb6040b0.exe_",
+      "sha256": "a6594d9550d56ddeaac8b3140821e698eefb7163ba29f0119c2ef19beb6040b0",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 16,
+      "original_json_sha256": "856a71b8e9131ca59bc3055143464cb76701754c9e92dac087b84d4134d1cac7",
+      "result": "results/65c1893f5b6279e37502713ed4b0f3e1c0e3145edc3cfba9e970e97858842f14.json.gz",
+      "result_sha256": "2e2ba4756bd2953c6c852b222fecde43cdd5467b9427982d0d29e991cdc14237",
+      "sample": "a6e9d94e286984b9e44c58df5eeb20cf5c08b9acff4af341ddecdfbe3ea9249d.elf_",
+      "sha256": "a6e9d94e286984b9e44c58df5eeb20cf5c08b9acff4af341ddecdfbe3ea9249d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 63,
+      "original_json_sha256": "59b1ff119aa1bdee7a3ca93bca8851a339c2bbd71cad9e365c9ccedf9fb7459e",
+      "result": "results/21c5a891076ae457c749d67956eb8a07de6782b16d7a0625c322730c81abf1bd.json.gz",
+      "result_sha256": "453540d4950fbeffd749d4cc27d21a75e1ed1af13164c7319ad6b42bf059efdc",
+      "sample": "a70052c45e907820187c7e6bcdc7ecca.exe_",
+      "sha256": "8aec186d533ab9acf93965808e61ec9a8df4b7de250395f1c4bb9b7653ed6d1a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 0,
+      "original_json_sha256": "3fe86f3e63c15207da0cde50427f9d4903d26aeb56e72a5abe95a9502ff0cf81",
+      "result": "results/ae877e588c95d98fc957b7e6bf70f958e3c80f8ac73c4dbb56928d938e9210c8.json.gz",
+      "result_sha256": "6c2658d2dd9fb194dbd41e2845e44df8ba95c7d968b8c572aae5b590b8e833a1",
+      "sample": "a72ac9f1cf6cc01103765f866aae2dd85ea48208fb180c01076ca982684a4032.elf_",
+      "sha256": "a72ac9f1cf6cc01103765f866aae2dd85ea48208fb180c01076ca982684a4032",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 42,
+      "original_json_sha256": "389e75a88fcb4ae2906562bbfc211f936ae299ef81391e3d5d5c9e2bdc3580f8",
+      "result": "results/aa0fc279a7417039eaaeb5b0d7733c8493ef5fb6ea1d8dbb4522f87238210380.json.gz",
+      "result_sha256": "c2796bfd45b5fd9294a7a716050fb7439dc134d367b235c1021e1c53f83394cd",
+      "sample": "a74ee8200aace7d19dee79871bbf2ed3.exe_",
+      "sha256": "807424fa3c4e03471d4acc5d35fdd8923a3689f44599f23999879abf5a74dd85",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 70,
+      "original_json_sha256": "efcb5858fdbe9795f6ba4c0b7a89eb9b12a0bea54104f6b76d20728bb0e7087d",
+      "result": "results/b511944bf37f384088f7fc8f371b7399d9306a94a8ba79eeb53b9e6a799b01f9.json.gz",
+      "result_sha256": "603a6ffb6e7b564cb97a882072516dd0201af7997ae4d512c1e9e2cc1a531094",
+      "sample": "a90e5b3454aa71d9700b2ea54615f44b.exe_",
+      "sha256": "1d5000f4219e15f242b2fdd96f4e529ae96c1da650c0043e590e8eb834c5a499",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 22,
+      "original_json_sha256": "0e89feebcf676ebf2b1139020d4fa5a9727d6c5c7267ddb7db30f20c5a930e9c",
+      "result": "results/dc1747c498ad70416186d9f2c50d61e2012855ed630651f371500133d5f0f38f.json.gz",
+      "result_sha256": "a49e1f67e5845e34832cbd6c171d340a0ea76c9e24bda23c1bc835ec9e8bc081",
+      "sample": "a933a1a402775cfa94b6bee0963f4b46.dll_",
+      "sha256": "146581f0b3fbe00026ee3ebe68797b0e57f39d1d8aecc99fdc3290e9cfadc4fc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 45,
+      "original_json_sha256": "3af46db1d8ca6a7c304bb93d41dd72b8ccd7332252045cfd1c63362c7dd34f14",
+      "result": "results/0832551e2bc9d144e895fda62043a649108c1cd967fed160e08aa32fc78423d2.json.gz",
+      "result_sha256": "a9066219c8a066fb54bb07edee78e9e796eac45cce765620eddf6f134b8599f9",
+      "sample": "ac742739cae0d411dfcb78ae99a7baee.exe_",
+      "sha256": "d026b31eb18e5dd719f4d608d4790cb389467192b6c57d47b60f3758c0e24cc0",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 6,
+      "original_json_sha256": "c37e34b550c7775645b6372f712104493cab1b27f063edfceb119bad7e82253f",
+      "result": "results/206737ccf801cf3a479439d4807a03fea1e255b6a7a955c86e99f495a55107d4.json.gz",
+      "result_sha256": "b4918ea80f6e31b5f8d025f0afb37803cf8af72007214a8940907a46e7f936b4",
+      "sample": "acd2d663799e8919b09e188adbb55ac655e5409bcd073e6a4b6576163e6e65d5.exe_",
+      "sha256": "acd2d663799e8919b09e188adbb55ac655e5409bcd073e6a4b6576163e6e65d5",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 48,
+      "original_json_sha256": "70f2abbacf03f0f2963612043fa649a3ea803455fc30f52df95fbd7297186ccc",
+      "result": "results/e6ec1bfc23461357bc9f488c31ca37dfa11c60d861de211e0110223797cd1d7c.json.gz",
+      "result_sha256": "e680c6e1df2ceb34087d90086a410191f1b2172bac2163b2e045373e1c546319",
+      "sample": "ad4229879180e267f431ac6666b6a0a2.exe_",
+      "sha256": "aa52dcaf6df43c6aa872fe0f73725f61e082d32c33fc976741d4eca17679533d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 37,
+      "original_json_sha256": "5e80870f2e8e40c2aab787ee24d7d44aabd0cf093eb3f521e15244c2d20b5258",
+      "result": "results/d5a799b2d70b1fc97f7a74b093aa2bfd3015016ae77fec15e132c2f0f8be7073.json.gz",
+      "result_sha256": "ec7a4ac36753dcd5f4a42bcb7cec8cc9c960c5ee54320a7d2270fb9939c2d858",
+      "sample": "af13e7583ed1b27c4ae219e344a37e2b.exe_",
+      "sha256": "686dbe5eb148db706e48a74eba627270055ed1ba534a98d5d00690577eb42e49",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 42,
+      "original_json_sha256": "2b925a37f65331ff9ad3444e86c4c7e84cf11e55f574a07a205c8d43eaa3af94",
+      "result": "results/e6e7d83e8f20ed66b412f882d2321598ab0a78b488bcb1e0f7b336b6b6529576.json.gz",
+      "result_sha256": "7a368d398c58986ce1c586157da95e1efcfbc6e8ea78fd513a3999395d76e3da",
+      "sample": "af2f4142463f42548b8650a3adf5ceb2.dll_",
+      "sha256": "8773aeb53d9034dc8de339651e61d8d6ae0a895c4c89b670d501db8dc60cd2d0",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "bd4d5d43c0d3ab6492e4b3ac5c9a8cff94c7f0b8a6140aebf8d77e1f19734797",
+      "result": "results/f0bdd6186c005c702536a5027252dd710af31a97692482834005ea2735287cb2.json.gz",
+      "result_sha256": "92fa23cf28de2df5710234ce36b8992c4d94f1eafb542341d2e87c559f558d09",
+      "sample": "af60700383b75727f5256a0000c1476f.sys_",
+      "sha256": "aae469316c7c95341e30454efc268662d1d1f2e0d547020db7b9d5886be7ee46",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 82,
+      "original_json_sha256": "9119f16436a3b75b4dbe588d96138f140bf6f5cb129240736d3c3c0e9cbd226f",
+      "result": "results/26cdda7a81f24b233eace0411ee771c26e7ad50a5074813af09c5201942e4ba4.json.gz",
+      "result_sha256": "f6487607d2ea23a781083ecb1852b678200b9995a7050136f61284270f49f631",
+      "sample": "al-khaser_x64.exe_",
+      "sha256": "c2c49f2592f78b7a70fd984dbbb25f7251dd1c851caa884f39ff1c8075f0b228",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 90,
+      "original_json_sha256": "b792256224e4cb303709df65286cd8dcf86a1d7f7171b04d86dc824f9796dd98",
+      "result": "results/6fb0a66b029eae73fbcb2f41ac47108c8e8d42dda7bc178e66b754433ce1c468.json.gz",
+      "result_sha256": "48cb74773523c7412c5601475956b5e5349d1ad16476bcb886aa7a02d793083a",
+      "sample": "al-khaser_x86.exe_",
+      "sha256": "faf351db4072395ca1e2855a379b120cdbccdb09131c48463e30dccf4245f4bb",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 5,
+      "original_json_sha256": "6862551995b555838c34c02a3d73535cb14364d129d183f5db257773ed631f26",
+      "result": "results/33601cd34ba455217811dcb90047abd9346560e1225cd935d20ab62b6988f876.json.gz",
+      "result_sha256": "12e5787641871136947c74c15ca47790a406b2e603950c34b0764025ba615ff3",
+      "sample": "b1133d7e5599beefe992a127f6e9704176a13b7e86b4db45c3b61cf25a60d414.exe_",
+      "sha256": "b1133d7e5599beefe992a127f6e9704176a13b7e86b4db45c3b61cf25a60d414",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "151db011ce41e113fc24cc193d035ff0b8154053c0bdc50e46b6ae138c6c753d",
+      "result": "results/9abca40f877ad413cd0a9bfd05345b6fc6accced3c88c57b1ef6c0f2afeb6383.json.gz",
+      "result_sha256": "ed2a53800d1a4bf4f7eddf9fac12e545c391be70767522e021ec47e21059e2b2",
+      "sample": "b283415c9df06f0e53b7d452d3e5c840c5bd7a6ce734a30bae4a869a57974a0e.dll_",
+      "sha256": "b283415c9df06f0e53b7d452d3e5c840c5bd7a6ce734a30bae4a869a57974a0e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 25,
+      "original_json_sha256": "4bc202bb1d55449f1de7c01cce799dda324d889926a15b4cbd7cc967d9f76456",
+      "result": "results/25bcf671a63ee9306c4c3b3d63c8ad0d359a81fb649c492648c1f4e18907540e.json.gz",
+      "result_sha256": "9d7968647da0f9003dfe4423d2e5a11b8847fd33acfb1844d8e75118ae3e7bf7",
+      "sample": "b2ad4409323147b63e370745e5209996.exe_",
+      "sha256": "867991ade335186baa19a227e3a044c8321a6cef96c23c98eef21fe6b87edf6a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 6,
+      "original_json_sha256": "4460258b2b550b985e634078ff79bc053750199ea80da89d379d157f8f8ada4a",
+      "result": "results/7f4085eff149f58c4f316b10d7b42f42c53ff1b1c68a4f71ca51271e34a3a43c.json.gz",
+      "result_sha256": "55f78b4c05372b3aa4c8eff9ca91198e40887d1114cf71c32f52ea650e2773b0",
+      "sample": "b43fca5283bfc7022553eff663683834.raw32",
+      "sha256": "8572470dc6ecd6d6d9c6068004421802adc7ff14826335b607c42901836475a8",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "37dc47af6545e21d9c2dcafda144e860772d702be1b05e6de24e9fefe1fa194b",
+      "result": "results/3f6dcd9fe3999338098b53bc3387581dc1770e88ea8fdfdd6fa571829c26841b.json.gz",
+      "result_sha256": "0d311f82822998d8019403dfe734bfa4e6dd71b4d62eeabc7d84fc35702e95c4",
+      "sample": "b5f0524e69b3a3cf636c7ac366ca57bf5e3a8fdc8a9f01caf196c611a7918a87.elf_",
+      "sha256": "b5f0524e69b3a3cf636c7ac366ca57bf5e3a8fdc8a9f01caf196c611a7918a87",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 28,
+      "original_json_sha256": "329250630799fbdf4e5765988b60858d94cc291d14804c685069797e6bb9cc59",
+      "result": "results/e602c8896f8cd925951e44fd0dd99b993047dfc2c242eaf04a372b9792035e83.json.gz",
+      "result_sha256": "85294b0b4e1cae669d63748982a2f203c2abf5ee8d8d07af64a65155c6ba7cac",
+      "sample": "b5f85c26d7aa5a1fb4af5821b6b5ab9b.sys_",
+      "sha256": "b3b5fff57040c801a4392da2af83f4bf6200c575aa4a64ab9a135b58aa516080",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 7,
+      "original_json_sha256": "8fa3116b9d7527b8096edc089c17f7cba1fd2161d175edd3d3bfb1ced63e0cdf",
+      "result": "results/8751577ecb466d68847d687e9633496efccc8ed600e1436c37e950c565f0510f.json.gz",
+      "result_sha256": "eb0d62edd5b91064a547aae3dd07bd75afb82fcb75a549f8adda76b05e745e5e",
+      "sample": "b761e060c7114448d6a5fe276d4ca882c4bd702c12c4d73f6ad79b8dfac33448.exe_",
+      "sha256": "b761e060c7114448d6a5fe276d4ca882c4bd702c12c4d73f6ad79b8dfac33448",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 67,
+      "original_json_sha256": "3dd378f3c63f525c951cbd511e3d0d3ed9a1c76bbced8bfae129e3a5ff4c79bb",
+      "result": "results/0485889066853039fddf27c72e4eb73d7de406e1fb4b713c0f64e707d149242e.json.gz",
+      "result_sha256": "43a4c10307ae7944417fdb5cf069f29904001543b19fc8facfa617242e1d44be",
+      "sample": "b766cc43d649d30e9f27aff8f7ee7de0.exe_",
+      "sha256": "e15d509ae7b77989f885edb22b6c9cccec3f6a4c4805936756af7a01f2388b03",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 128,
+      "original_json_sha256": "40f10cf34d86cbf67734055275a64064021d649801b26a607e21eff6b60788a6",
+      "result": "results/cf90beb70e52bad91ddab1a376219fd827e29f9c76cc5f9a1c45d08489a581ae.json.gz",
+      "result_sha256": "a265ec92b92da9549697575dc5ffa4a33ace3c9009f15971ea06751afbb78aa9",
+      "sample": "b7841b9d5dc1f511a93cc7576672ec0c.dll_",
+      "sha256": "39c05b15e9834ac93f206bc114d0a00c357c888db567ba8f5345da0529cbed41",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "2eeff1c225872234ed076d14d441f6c5aab31416d40764c8f6cb73fcfced48fa",
+      "result": "results/ae4a901e929a4e37f7d1c40eb91b1bd980f4c27f75f7adcc6b559f1f71e719cd.json.gz",
+      "result_sha256": "834e8f427124756d08e0b81bcc2e19265b06a52254cf876417784a7e8e0245c8",
+      "sample": "b7b5e1253710d8927cbe07d52d2d2e10.exe_",
+      "sha256": "eae876886f19ba384f55778634a35a1d975414e83f22f6111e3e792f706301fe",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 18,
+      "original_json_sha256": "e6a12caf723e897527814ccaca0137417cbcb7a41cc0dfbcddc340491f7ad2e6",
+      "result": "results/6ddeaee4040448ef9b4ae9a12b0bc1f8a393c2f80a9a36c619178859a17a3705.json.gz",
+      "result_sha256": "0bef887c5070c6433ae80b590624612600b0809cccba036736654171c72bdd61",
+      "sample": "b83480162ede09d4aa6d4850f9faa0a4c3834152752fd04cfdb22d647aa1f825.exe_",
+      "sha256": "b83480162ede09d4aa6d4850f9faa0a4c3834152752fd04cfdb22d647aa1f825",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "b0c6a5d954eb1a067a4b57deb54beb3f2189569909ac5c15d9054b7ef119b883",
+      "result": "results/c3ada7db19bdea9f8521aa3cb3821dd21152956cf83d2d4eb32710dbd49d6121.json.gz",
+      "result_sha256": "d696f759e2ec71359aa41e103c14e046f599dc113eee130e42bcdc27bab1d9d3",
+      "sample": "b87b8637121d5e213ca02b45cbaca496bdf1fcc4bfddce48eea6e41637ffedd4.exe_",
+      "sha256": "b87b8637121d5e213ca02b45cbaca496bdf1fcc4bfddce48eea6e41637ffedd4",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 30,
+      "original_json_sha256": "91b04a9e5118a841d89c9f73249527184ed5173a9acb8b347a1797b94a029983",
+      "result": "results/1a70ab011c8e86df10ac9dd5821877be97f04368332ea38c7c46a29cbc36f1c5.json.gz",
+      "result_sha256": "b2fa8c3a5ba34ade077313be1e4142e5d3af2f052f5b16dd58f504cda493f954",
+      "sample": "b87e9dd18a5533a09d3e48a7a1efbcf6.exe_",
+      "sha256": "fd28106da79d2948865ba105fe5d342515c49a6fb216028fa52ac7d058f14684",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 32,
+      "original_json_sha256": "7533389b9d7d86a3494b771cc9c9a01864b45457c6e60ef2f9e147ca5a4fc927",
+      "result": "results/4df331aa1778c8426ebfb9195cff187a89cbddff1c2650f729ba7a7253dc922c.json.gz",
+      "result_sha256": "224b65b1fe62d7460f4211662e0cc02594d2aa19aca91a817a010dc15105c63d",
+      "sample": "ba947eb07d8c823949316a97364d060f.exe_",
+      "sha256": "547c396ad518ed087962182c01608c53d08ad61fcfaf63390cddea1d175b1a33",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 1,
+      "original_json_sha256": "5a51ebcc75ab94de3b6b13e9f7785440235841a96d5c62e623bc764180c70bb3",
+      "result": "results/5605d33a8e8fa9eee48756561252097a7d8eef788684b202f942a52ce7f60cc8.json.gz",
+      "result_sha256": "9c55894a2e7b5028258490ae6d4453fd9cadb0b02bb7316b85ab4a79b4610d2e",
+      "sample": "bb38149ff4b5c95722b83f24ca27a42b.elf_",
+      "sha256": "a881dd981034d225cc2a298358fccccc9792df478c81d7e678d12b6658fe266a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "f9135ccf7af57719306c3042232a9de79e6561a3df91590be8f025996ae90210",
+      "result": "results/597596aa0bd019ebacd5923faeb7e6e6455e113b720e272569dcd9ee1299c582.json.gz",
+      "result_sha256": "09bbe8d9a86f149a94b3ff20613f03b70d0f874bef23f5e4c845d344e199c3ae",
+      "sample": "bb7922d368a9a9c8d981837b5ad988f1.exe_",
+      "sha256": "16b061de843d79b686a1b4e7d2bf601fb9fa7df12b843f83e2a01546df9558ec",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 42,
+      "original_json_sha256": "1519ea64f1dfd3515a7f800a601f0be77245b72628b6d856f93669cf76913f6a",
+      "result": "results/e54096606d61530879af92addc8fe9c9d2ed881668d6534511124916f3d18a16.json.gz",
+      "result_sha256": "e515ce186008520781c687f1fee17aef7d0ea37c7703bfa4052a75513b256a49",
+      "sample": "bc452cc1128ccf7fa9f76d83cda79132740414973600fed14509749fe946816e.exe_",
+      "sha256": "bc452cc1128ccf7fa9f76d83cda79132740414973600fed14509749fe946816e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 35,
+      "original_json_sha256": "79b954c4396dc3d1352d09a87576a2b03d4d162c388300f79dedb3d3b0c8ed8d",
+      "result": "results/71a40c1435bb31713829f93f01af59808fb6dd8c92b77a910d0d00811fe5bf12.json.gz",
+      "result_sha256": "0e881f89baa69328e6159d936c786504914a03e7de2ecb57b0799a07df248571",
+      "sample": "bc577119d1a5b7da489e7b5817d3cc38.dll_",
+      "sha256": "90be219fbc8c174b53cc9c38d25700a9f0429946148211b05d5f3eb0ba527290",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "a4cdea324798c829fd221006ff1cfb15fc3ac08427b5c9d4988788bde0b6e26c",
+      "result": "results/74e29172f56cc4b6a680c8ece640b6580bd1e71f7a9e4166469ae968c939a2d9.json.gz",
+      "result_sha256": "65485370d1bea0357d3615e7a1d1c7b83a127357fef8bbb676a481214e1c4cff",
+      "sample": "bf7a9c8bdfa6d47e01ad2b056264acc3fd90cf43fe0ed8deec93ab46b47d76cb.elf_",
+      "sha256": "bf7a9c8bdfa6d47e01ad2b056264acc3fd90cf43fe0ed8deec93ab46b47d76cb",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "af777d1486a07e2f36ca0b378ed052d10afb531f38f7e3336cd3d48b3e222b95",
+      "result": "results/4680c35ff19a3f46cb35e49ddab70cafea150a5cc52443bbe8ea92e90b4721a6.json.gz",
+      "result_sha256": "e52836742716f63775f31bc48ba645ee9c1400fe990e4d8eb35872831cf1a17e",
+      "sample": "bf88e1bd4a3bde10b419a622278f1ff7.exe_",
+      "sha256": "96a88d26a58abfa04d16b81214a87af5dd98d541e7985440f20e59a8ae29a996",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 20,
+      "original_json_sha256": "f60c30ff9d8cae741445044e1453c66dc595f95032acb0d7c1ce0061a3198788",
+      "result": "results/66ffdb9f49ca677316715357eb843bc356b0ba9e99a1484dcdbdedd37f3ec4c2.json.gz",
+      "result_sha256": "b8bd03282d67b124e1fd5f765d38362162d859a77d99e7f7864c17144e30252e",
+      "sample": "bf9a888e226d8396e84e042732daf32b8c1df8fd675eb128e8da3f0d7768bea5.exe_",
+      "sha256": "bf9a888e226d8396e84e042732daf32b8c1df8fd675eb128e8da3f0d7768bea5",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 55,
+      "original_json_sha256": "5fa508c6bc224da8abcf5c079900cb2792c5672a1ae5d925eee90231bebfaa35",
+      "result": "results/9c324a813315453944019920dcff9538591c6bd0bbcea07c5dc10216628d5857.json.gz",
+      "result_sha256": "8bb69900db2d5d1726d3353e1212d566acce7bb80f40d611ed1d4584b72bd113",
+      "sample": "bfb9b5391a13d0afd787e87ab90f14f5.dll_",
+      "sha256": "278307e2061d4721f10aaed970278a9f600fbaf6bddb8ce8e317e2180a70c933",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 64,
+      "original_json_sha256": "d9dc92cc9a797318f7b01afe370ff1f8001a20013c70f89f342eadd15bd2be7a",
+      "result": "results/5c0c8e3d7b2ccae6aeec80562b7e80bca46a63209f166487121ec1dada3d83b3.json.gz",
+      "result_sha256": "c5b7f7a8fa8524122746ad70f3519c089b22ef0ac4b5305c9eab02a64f68fc51",
+      "sample": "c05ec67e75693127e5556eee229b88f93c7cef926cfe905dfd5464be9d305c94.exe_",
+      "sha256": "c05ec67e75693127e5556eee229b88f93c7cef926cfe905dfd5464be9d305c94",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "f3c14ebf2b0cb4be041539c39c0b37d10c5912ac6628fc8d4168e5eaf45c620f",
+      "result": "results/359f8862ebb43643f34c07b43919cff34327e7d3d598c77de331c610b0c7f48b.json.gz",
+      "result_sha256": "f74b9a414a5c4ce6f9093c63d9171677cf4e4d8c637fb2a287f0050612ceb164",
+      "sample": "c1969efd1e2be79909b880f4dbb8725e52efca82236f8a2165c5a8245393fcd6.exe_",
+      "sha256": "c1969efd1e2be79909b880f4dbb8725e52efca82236f8a2165c5a8245393fcd6",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 3,
+      "original_json_sha256": "faf34acd685642c68586f7e6a6f0b19f086a86e46ee44cdc7c2dcc120176fe60",
+      "result": "results/2a502aa0f1a8dcd842e1aa3885585d09174b63d7ca909bc667ab55789617d074.json.gz",
+      "result_sha256": "d5415dd4d0b9fb07136f69f0c889df75ace11df6e24b058b6aa27985d27436a4",
+      "sample": "c29513e5a51dd24ca840f7628b872cba921976cba89dcbffd5028ba15481108c.dll_",
+      "sha256": "c29513e5a51dd24ca840f7628b872cba921976cba89dcbffd5028ba15481108c",
+      "status": "ok"
+    },
+    {
+      "error": "Original capa exits 13 without a result document. ERROR    capa: Input file                                            main.py:778\n         'tests/testfiles/c2b2d7cea94179e6c2b6913205e37c45b67ccc0156            \n         d8f266548f7f1f95144285.elf_' is not a valid ELF file:                  \n         Reading section 0 at offset 25489984 past EOF 65536",
+      "sample": "c2b2d7cea94179e6c2b6913205e37c45b67ccc0156d8f266548f7f1f95144285.elf_",
+      "sha256": "c2b2d7cea94179e6c2b6913205e37c45b67ccc0156d8f266548f7f1f95144285",
+      "status": "reference-error"
+    },
+    {
+      "matched_rules": 50,
+      "original_json_sha256": "7be9f5c180fbe9b65f9d7968a2a19c52c160b0709f120326603e36d94f114cc7",
+      "result": "results/acdf3533408e714e98d9408adabc5aebbeab5cd0e2031c2ae7c178e001a1c786.json.gz",
+      "result_sha256": "8a9ffb1e38c122c0750103fc011c68911d22d8e78ef9f0ec9618d3c1f08c9fb8",
+      "sample": "c2ba065654f13612ae63bca7f972ea91c6fe97291caeaaa3a28a180fb1912b3a.dll_",
+      "sha256": "c2ba065654f13612ae63bca7f972ea91c6fe97291caeaaa3a28a180fb1912b3a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "5902564aa55a7fa2fc534ff3386a33b69a977f76104e2e6ca438a78a5125c59a",
+      "result": "results/99fa2d7c8ea00394a159e800eb9443155e4d3f530714167fd289db561e0a8848.json.gz",
+      "result_sha256": "457f81f37eb57365713f66f895c76d62fd3d1d2e91646ce82e411bf9bdcf30b4",
+      "sample": "c2bb17c12975ea61ff43a71afd9c3ff111d018af161859abae0bdb0b3dae98f9.exe_",
+      "sha256": "c2bb17c12975ea61ff43a71afd9c3ff111d018af161859abae0bdb0b3dae98f9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "8b0b8a96fa77ed6d6e4d9275d9d3e0061218ad2cf00a7f63852cc77fa9dc4a49",
+      "result": "results/9fd0836952aeffc56e30e142b975647e5a8fef08c100baf96349a739d22e8bde.json.gz",
+      "result_sha256": "7331b9c091fee0d2b5737cefdb72a373bc0b1e5c2cc591b1c8b8ed0e53495ace",
+      "sample": "c2c3b3eea177b9411bc92a8800b40529fcd2d5c3696e71cbb2f4025429b314ee.elf_",
+      "sha256": "c2c3b3eea177b9411bc92a8800b40529fcd2d5c3696e71cbb2f4025429b314ee",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "948a7a9133f8a1bddd302d0b19b8667aacf7ef9ff2785b9ebeca71a533340ca3",
+      "result": "results/5ca8600726d3a9c97de584255164fe29bbcb497a927013e4b41eea29bc3fb844.json.gz",
+      "result_sha256": "74488a3c452fd82691407cd92acea04bc6a012e589f8fc1231e64a287ae4e10c",
+      "sample": "c2d46d256b8f9490c9599eea11ecef19fde7d4fdd2dea93604cee3cea8e172ac.exe_",
+      "sha256": "c2d46d256b8f9490c9599eea11ecef19fde7d4fdd2dea93604cee3cea8e172ac",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 37,
+      "original_json_sha256": "700517b60a3a3d07b3101023c1e7c7f39e789799751d6e383eba5bbe0f110446",
+      "result": "results/feb95a3b3800109b89fa810e180762e8ca891f54cde4798ef3ba3d600baafdd2.json.gz",
+      "result_sha256": "22c9f6915c61f6ea34eff2f0dd6e88e23e937df09167af9ad9dceb893e74fd30",
+      "sample": "c3341b7dfbb9d43bca8c812e07b4299f.exe_",
+      "sha256": "17e53dc9559040773a1a3537f7d1c0ebe38929b905cb998f5c4cd9a2e435627f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 49,
+      "original_json_sha256": "e21f7f8f42df0bfc02cbf666c80c362205e48188fdadb45f2c123a923cf51dc0",
+      "result": "results/a6fa71b5ec9676e301c8de42160044b8979a2cf9e28b7e87b0dd59301c03cda3.json.gz",
+      "result_sha256": "9c918fd4f9e52c8a1dc1e517b081ec8582459aaeebbfa81395b78ad2656513eb",
+      "sample": "c335a9d41185a32ad918c5389ee54235.exe_",
+      "sha256": "77003a5710a7c95df61ea015b6e4c204daee7f54cbf69e95f3fdbdda69e05403",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 83,
+      "original_json_sha256": "3c279ea57bf8cd4bda4c43b6f57c6044a003576a4729ba716491b75091565faf",
+      "result": "results/a15c19f8c5749f4557ecd2d2161354a45d508b9d27f43b2ec4219e36d0e0c481.json.gz",
+      "result_sha256": "13e7bd903a2c10f6488ba261e447a7b4558aabd2a282fefea7bd04616d240444",
+      "sample": "c3699d0c7bd1276184249a487c1f0d7f.exe_",
+      "sha256": "7c39dec0fed2e57af66bf66b41f704b1a6d6785d38cb2ef032280af9f3512581",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 14,
+      "original_json_sha256": "5957f4ebb81d9613a1ed22ec762e72e2894f854b86fa9fd9e2e8f2409c035f10",
+      "result": "results/68c2987c81d5773e8dc0bff304fd2b62d6d16ae5c5b50e60dcd42e8e6951e20e.json.gz",
+      "result_sha256": "61e5ef17ead189c108118096141972d03829fb33288916653ee56ddbb89b67de",
+      "sample": "c3ef997d330e65be1e22ba4d2622ece23391c6cfc78b2ee515f3d0c7a3083a79.exe_",
+      "sha256": "c3ef997d330e65be1e22ba4d2622ece23391c6cfc78b2ee515f3d0c7a3083a79",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 17,
+      "original_json_sha256": "58324a296a7057e7d8cc4080bff75e57b610103a8bf9095301c2bfd55557d0f8",
+      "result": "results/1c05684fe443b0a831935656f53083577c0279ef5a0838e8f38f31b065ef14d5.json.gz",
+      "result_sha256": "edc8f434d2f841bb71d1043e9bde86f3d3e139700464e4d9032d94e1a768f619",
+      "sample": "c40db0438a906eb0bec55093f1a0f2cc4cdc38104af0b4b4b3f18200a635c443.exe_",
+      "sha256": "c40db0438a906eb0bec55093f1a0f2cc4cdc38104af0b4b4b3f18200a635c443",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 38,
+      "original_json_sha256": "fae7537d74c95426e39c48c8d42b3e47592cc1bf9f38e11f1a05506d13e149ee",
+      "result": "results/9439d08bb98c39226b8d5f64fa2eafc438b8032ac2d3c7e36506ece48113f12d.json.gz",
+      "result_sha256": "e025dbad5f8ad551d13e4bc1cdf1222919c98cb5cf6445cde6f443511413bcdd",
+      "sample": "c56af5561e3f20bed435fb4355cffc29.exe_",
+      "sha256": "70aaf2b367b97fa35d599a6db4d08875206ef18c99d8c8c5b5f25e4f5509931a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 20,
+      "original_json_sha256": "c6e7607abc25374b04634fe1bf9060ceafb55047052712d1efdc057cc7085ded",
+      "result": "results/63fdd974b410d3ada84c56a87affa97b60e9d986e6d91147e4ea92da86b01967.json.gz",
+      "result_sha256": "9b0913677909cd1fa0bacf55f462e486a3bf153a302fdd731659231f11ef6619",
+      "sample": "c66172b12971a329f8d5ff01665f204b.exe_",
+      "sha256": "901adb9bb95e46cb595a5c0c54334f74cee390924858265a3142820eb31c6b21",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 46,
+      "original_json_sha256": "f27402bbd1880423c283961c3658731418f6fe9bea1d67bab23cbab8fe49a6b2",
+      "result": "results/fd2f8364198c53997b57a7b00b787a9892aa9528182bec73a5aada181d0a0328.json.gz",
+      "result_sha256": "c21e24ea8dbf3c29dc9a03f142298a61c7552e7dce989309b87a377455152294",
+      "sample": "c91887d861d9bd4a5872249b641bc9f9.exe_",
+      "sha256": "c74df42cfc7c7221f7f28c67bd726a1caad8453fc35daddfb094aaeede2e8e1e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 25,
+      "original_json_sha256": "9682f1420efd26dd9c9ef903119a6489c331f371d24b241f181e35775c1659f3",
+      "result": "results/8455da270c4afb900b618b3cc9ebcaf837b565ce5eac7953479ef4097b5a9963.json.gz",
+      "result_sha256": "6aca8f9f4909b206f72cb87e13ba039a006b17e3bbc7d75263dbadf1c438299a",
+      "sample": "cb0ce85efef94a4f7eacb4571ebf71b12ebbf9fb9faba96e853552822668aa22.exe_",
+      "sha256": "cb0ce85efef94a4f7eacb4571ebf71b12ebbf9fb9faba96e853552822668aa22",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 14,
+      "original_json_sha256": "842be303030a71e8949af7bee3c56300c49ec50ca6021d4438bfece9c05f6645",
+      "result": "results/ae89e609d4a1bac908c19bb203d627e27f0fde7870ef0a24c695f969aade86b8.json.gz",
+      "result_sha256": "a0d65cbefeacee067c8b730438d4bded6dc8af2262d61135fafae48f1412605b",
+      "sample": "cb948b13a5046a692ec3ed8cc16a9566.exe_",
+      "sha256": "86d8257ae56e5d8220a4e3f8396d944b5e9e41732b58ad7472276d78aea232fa",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 5,
+      "original_json_sha256": "afeac22687fd03b453cbfe7915a90d1b4b36d8918f685348a112247a40746321",
+      "result": "results/904034220d559d6f58639949be0ded8f1e4680c079c028a4d92c9c40649c8e0e.json.gz",
+      "result_sha256": "20e1960511cb1c055f179d34319b0aee3c9c2e759dd837b50171f7c4d357507d",
+      "sample": "cc870a35c6840987dcb8c2dd46bc230a.exe_",
+      "sha256": "9ebf3dbdcb9eb39f5da3738132379480d728e8219afd656995fd5d5c1bec0b18",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 109,
+      "original_json_sha256": "ce3a3ea1666d48dcc6efc783e13a142d82977bb83f14b6b2e87d4282e28e5f8d",
+      "result": "results/a31b11949b4f96775ef80e03f7546b94cd5cf006463414e4c4f9f881bf99bb33.json.gz",
+      "result_sha256": "5fe8018a7db7b9eeeb1940441ea4688620cc6b4032d35f4cbbe68b68f9860d7c",
+      "sample": "ccbf7cba35bab56563c0fbe4237fdc41.exe_",
+      "sha256": "9036d04ac3075bc18251c03a5fd1665a28e8a3a484e7ed77fae800a5015a153d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "be8d4dd3a9b949cf06051c8708aa2294bcb604bb74b519e05e4c52f66311e1dc",
+      "result": "results/234cbdf30211fd786069ff9c5ae97760848d2d3e775be37dd7460ea39253e5ee.json.gz",
+      "result_sha256": "edd085af4951fe7ad12b35618f8d656f3c08c1be4a9a81f4374e1a1cac6f745f",
+      "sample": "cd2cba9e6313e8df2c1273593e649682.exe_",
+      "sha256": "ad918c67ca49bf1e87618ce98ac3b9a9c95087086a536c65020bc393074c741e",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 19,
+      "original_json_sha256": "487d3627a1ff8d4ec5168560faadc8d42cd3f4154a215e4d8ad2890cd8c5f5fc",
+      "result": "results/b8f2e1e98e00f18e8d021ed2c40ab851b28a316d8c191202446cec4d6a601fcb.json.gz",
+      "result_sha256": "a04270644c1362b87770bfad0d30478ec962de5dcf7929d8a9db080aaae993a0",
+      "sample": "ce8d7590182db2e51372a4a04d6a0927a65b2640739f9ec01cfd6c143b1110da.exe_",
+      "sha256": "ce8d7590182db2e51372a4a04d6a0927a65b2640739f9ec01cfd6c143b1110da",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 68,
+      "original_json_sha256": "253c6cffb553a6286a4c875a7e69462ea60fe3ddc37b8c725db9fb71578e98b6",
+      "result": "results/b5f20c6d39f60ca99476e1f9e686e8bc2ad3d938d2be7ab6580d9dd07cc84d87.json.gz",
+      "result_sha256": "086c6eb96dccb1e265a2fcbb26f487e68b3bd092f1d7aed7e61e0d317f88f581",
+      "sample": "d063b1804e8d2bb26bd2e097141c1bbc.exe_",
+      "sha256": "5565b5026f3b996abd1fc6f7e48b84056748cf0be9ae2fed52523cf6e09a7639",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 6,
+      "original_json_sha256": "c74906e80c307ae910ec25c075f1c5a8af3a54430cab65532f0539d3c1df42ff",
+      "result": "results/3c1642850339dd9bdccc932b9369678550da45e2f5105ef209e3a59ed2297480.json.gz",
+      "result_sha256": "fe9a6962d189c9486a33d8efef46fb1e95c249be9bf78cecf9c2e3ac28f8400e",
+      "sample": "d68ce802ef22a1bafc00c2e6675959f177ce8aed91003a053ac0c888bec42c54.dll_",
+      "sha256": "d68ce802ef22a1bafc00c2e6675959f177ce8aed91003a053ac0c888bec42c54",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 25,
+      "original_json_sha256": "a4f9f6e9e91b696ac163a6bbf28321c8963863fe14d2e781ce82a6926bb1b6b2",
+      "result": "results/22b340eb1cde6a81861f6cdf02ff660689f7ed55986909f54e82f984f364fb24.json.gz",
+      "result_sha256": "1e4689adf4448b725d4af4e3fee9f3583f48bd2b8fd7cfe38af70ad71d376e70",
+      "sample": "d7ff81ff775d4ab50d31ac1e962c8c4dea7ff9f280aa2b42ddd06760a5665002.exe_",
+      "sha256": "d7ff81ff775d4ab50d31ac1e962c8c4dea7ff9f280aa2b42ddd06760a5665002",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 26,
+      "original_json_sha256": "143a2cda54334459b5ea5d2fa65e61b38bab9702836ae99cea73ae9b47a9427c",
+      "result": "results/89f94200867249c5d32f34a8d5b70d3771a6ca6ae82dcd2e680c9260e43b12bb.json.gz",
+      "result_sha256": "7cf07c51d27edfc3aaf72c9620de590e3f8076e401b78ca7fcbbc9dc4370d69d",
+      "sample": "d87ba0bfce1cdb17fd243b8b1d247e88.exe_",
+      "sha256": "a8a88dde42ab96300854a803685db61c1e237633f0a6e51fbdb42aa39fa5abd9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 7,
+      "original_json_sha256": "301c62924808a7659d9ecc060775cc56e92c0ebdb314df48ced11c42f267d7d2",
+      "result": "results/7f643a66b63e5c395883f554bb173ac15318be79fc2a490ac8b08e323826cfaa.json.gz",
+      "result_sha256": "89cc196aa7e8770ffd7fc999f71c3c8b4063626a7331ab36e797d1a4d66c0884",
+      "sample": "d890c1c67d83f1131c065b5eb5f263cbf54559dbcdb4562c3bde3dc30d1a3205.raw64",
+      "sha256": "d890c1c67d83f1131c065b5eb5f263cbf54559dbcdb4562c3bde3dc30d1a3205",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 66,
+      "original_json_sha256": "5a19738edfa20569caf6910529b39fe794b0ff63af1e530a31b2506dd045b8b7",
+      "result": "results/c25aa7938e56b07ad3167d292e32256f2aff051d73d139bf6a5b79bb55e44f2e.json.gz",
+      "result_sha256": "0db696f7230d5806240401b566e7c2279c5e05985d5dbe936f201b888a364013",
+      "sample": "d8d2ed4a5f13e4bda8edf89d0dd1ef57cec8b18c01fcccdb89fb745a1a2be05f.exe_",
+      "sha256": "d8d2ed4a5f13e4bda8edf89d0dd1ef57cec8b18c01fcccdb89fb745a1a2be05f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 86,
+      "original_json_sha256": "12f2710c89b19097b8b751ad4c18cd13b3e44d90986cbcd9063bd62c5379abee",
+      "result": "results/0e9f01b7e43cd7563475a7e11188c331afbdff57de28cd9a361cd8e9335c1510.json.gz",
+      "result_sha256": "e3f8f5cd6e58bcd39b8b1ae6bddcab285d97dd08e56ecdd6f4cc8bcba8b04236",
+      "sample": "d9531e53036c5d04fbe7d1aeae2988c3bf0fdec63774690c5df70cc121af8de4.dll_",
+      "sha256": "d9531e53036c5d04fbe7d1aeae2988c3bf0fdec63774690c5df70cc121af8de4",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 74,
+      "original_json_sha256": "ac4e4bde1f626f1687d4a8f47f141a06d97cab8b824934e65bc8416a1f00897a",
+      "result": "results/e72a0bb5e86ba78b7a1044464eb320c4d89980011f4d65a319b3d5caee312426.json.gz",
+      "result_sha256": "83af01b5551dc53743761098b78046466af3103c1cd618a4a2f1ebb7eed04773",
+      "sample": "d9630c174b8ff5c0aa26168df523e63e.exe_",
+      "sha256": "600b6da5ea47aab014f775698183d73e571323bf64a577deb013ccc21d24da6c",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 30,
+      "original_json_sha256": "8cd44894cbbc8eedd49d4be116c4f817467aac57a25085c06e118d415c32016a",
+      "result": "results/d6fa6642bda706405ef0e838dbe1a7e528dbd675159731579ad9c7012ae6cceb.json.gz",
+      "result_sha256": "98686b10ec88589a2df3f71dd378dc4064ae48742c06e21665ec6e4c2ddf038c",
+      "sample": "daa13ae302fe8b618ddbf590537443ef.exe_",
+      "sha256": "0a56d2b98fa1b4fc96833e58b1d9b8c3a04b0336cff2919f5af91ef5f3ca2580",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 4,
+      "original_json_sha256": "d4bb4ce3fb6dc16af32f41ea4bc2b22fb6c1ef4c03ec9cde159447b079bcb852",
+      "result": "results/5742c0973ef238c877714ad56289eeb23359f8160200a37c379721f217ec5f77.json.gz",
+      "result_sha256": "c65efafb03811244e3aef7dada6f37ff4d65ded2807082e2dddffe0d2992938e",
+      "sample": "db9fe790b4e18abf55df31aa0b81e558.exe_",
+      "sha256": "d7dbe8d8a68c26bf5d00adb957a4dbf5bd6415a81b50a823a4b872a6d2f494cf",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "720dcf95119b6a370678ebf7dcdaf3267249da9b3e27b26e75aeef47c34eb42d",
+      "result": "results/f1f8b5bb42b2a5afdd0d92c93587833b71ddef3c5956c0004c500657bb530d58.json.gz",
+      "result_sha256": "484182271a53c5c717b08b674908be73709291efe6d6558300f9c2b21b398d56",
+      "sample": "dc4dc746d8a14060fb5fc7edd4ef5282.exe_",
+      "sha256": "3cf53c1ad414913e4d57a4d6f319938cafa6edb62a5e3f7b797658f90c0ceea9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "b66ec543e6a34ab5d4104431aab601f7ba54b22ad7d4c197d1316e3c9b802138",
+      "result": "results/c84827a15dc3af7df06e3d372dc422d1e431cbbd7501a56b3c2ab0ccd93888ce.json.gz",
+      "result_sha256": "67a755161709ac8cf51bcd85e3f8fb7e724672e16fcb30c70fd02430666c3cb8",
+      "sample": "dc7cb53c5dc2e756822328a7144c29318cb871890727eff9c8da64a01e8e782d.dll_",
+      "sha256": "dc7cb53c5dc2e756822328a7144c29318cb871890727eff9c8da64a01e8e782d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 14,
+      "original_json_sha256": "ab948b3d89840e1046f3a610fe3db15592fbdda41706b8abe574a5876d2984e0",
+      "result": "results/66d95c88c05f2a82ff08e56a1a14ea31ec4cd0aba047f3e512d022657ddec050.json.gz",
+      "result_sha256": "d9358ee7c73ad660653434f915029efdc45c09c96be32af8b6ec7c62f7cb1d21",
+      "sample": "dc9eb40429d6fa2f15cd34479cb320c8.exe_",
+      "sha256": "9f8a7828d833ed7f28f9f5ceaf1c073c6de0645172b8316d86edc16c84b61c4f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 5,
+      "original_json_sha256": "49f5e3b9251b3dc7ba29b51a24687e83b83e9e6b53c7202acadc7ba37a65a577",
+      "result": "results/7ea7d70fa5c73c36e367812d6ca32d79e9eaa31515837d67f603726d88659bc8.json.gz",
+      "result_sha256": "cb3545a3ff65bdc5ef171ff86e38f87eee5f3fd39be0cdf2dcb554b538590e09",
+      "sample": "de07bd6e3ade9e4d8a36032a23de11a372bd93d39a6ef95d849e3f6f7ebac6e5.exe_",
+      "sha256": "de07bd6e3ade9e4d8a36032a23de11a372bd93d39a6ef95d849e3f6f7ebac6e5",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "bd92be872da15cf78cedf6b823f7c210e96525c09d7bfa2daffcdf849b38d93b",
+      "result": "results/cf2fe113c2d9cf5182535e15a87d4710433201dc36c434bff9d2c4571a85dea2.json.gz",
+      "result_sha256": "d6513015e395ba5ec6a169cb64054c75aac74b82aadaf6e8872c1dd6520ad740",
+      "sample": "df814d4b55912e4ba404c62080b3a7eda70a3c6283ea740f8a14a9116d803259.dll_",
+      "sha256": "df814d4b55912e4ba404c62080b3a7eda70a3c6283ea740f8a14a9116d803259",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 5,
+      "original_json_sha256": "9a7eea98a935806e5ea1d385f3ba1d1a87b98d3889ba7e165a76816723bde2ff",
+      "result": "results/2dc983333729fb569e5970acc8876700cccc85e07c6f53598f69b54d91e4d76b.json.gz",
+      "result_sha256": "d20db201d221196912b57785b10fd9b5affc06ae0443bb714775a45e41a56cdb",
+      "sample": "e17e6a79ed614f5468d0eed758629697.elf_",
+      "sha256": "6770cbb0a9d38c6debf28a061b1e0f96e1b04b7036b93fa79cb1150fd79c1197",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "2dc889008bd99fa13d73858c7b6dafa982b8dc68eb3ee243ea773a8faaf7d2f2",
+      "result": "results/fd53b001f9b46a318f74efeede6b07b0045b2c8b3d2b939eb08dd894067f27b1.json.gz",
+      "result_sha256": "e9e9a4b4fae42ae8e2a233c98dc05d4344a310e998d2fda8379593dd76b530c7",
+      "sample": "e353d3fbfb5c3738a77a622adff9a416.exe_",
+      "sha256": "cb73bb7630febc2f49f6e812d7b50fb67cbafec65d57ae4711299114cf794f52",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 37,
+      "original_json_sha256": "00b468c3b584de8881764cae8074fd0087b8dad1b14924cddc5c93def1fd7e96",
+      "result": "results/798fdbcf3ce409e09bbc7dd86ccf9a3bcd7c5a41bb7ea37d1c65b291ac33002e.json.gz",
+      "result_sha256": "d36566d17b6fb8e15b4013700db03e31e270047db2c5c4fcd30608cb179e8fa8",
+      "sample": "e365e3e3febb8a71267b5cd64457744a00e2d61edafb7c98b205b729315e97de.dll_",
+      "sha256": "e365e3e3febb8a71267b5cd64457744a00e2d61edafb7c98b205b729315e97de",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 14,
+      "original_json_sha256": "c5336169f357e04620a2a0c8b213bab179f8a393504bbbf25a0256b7697b4811",
+      "result": "results/be63d34a3f58aa5f5c1b1e39d22340b53178c4eaed23abfec0dae2e955d6eb8b.json.gz",
+      "result_sha256": "471cd7a778f4a0ff410421a014499782512659693fe309bce1741bee278fa3b9",
+      "sample": "e3a6fbbc9b315141da37e5abbae05bf20aa9f48d5f569c6353360f59a0315245.exe_",
+      "sha256": "e3a6fbbc9b315141da37e5abbae05bf20aa9f48d5f569c6353360f59a0315245",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 26,
+      "original_json_sha256": "49c524fc4faa556953bfe8798de87c709867dd4fba92214706f3699862a4d995",
+      "result": "results/1426ee1f5ac63b295b7fcf3b14efd563ae23ca22030f3e3526454deabf009d5b.json.gz",
+      "result_sha256": "e673cc3a6ffee959cf23f3f2776b787cba9c9cb0f8a9ed59aa72628537cb2590",
+      "sample": "e4c33ac3638eef68311f8ac0d72483c7.exe_",
+      "sha256": "033f4cb193b78f18f70c36e53ab46b21b81449c59e9fe302e1778a6898a5479a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 61,
+      "original_json_sha256": "930b74dc4a5be10ceb8c6993f6c665679315cc9d56f63c9ba2ed93e22df756f1",
+      "result": "results/1e039de8528fba311aac82a5bfa42e291bb7dcd6affca018276d808fb2cd745e.json.gz",
+      "result_sha256": "cdd1892196eb5f30f682ab490130e05ec1f02eb182e32c3e5074fc13bcb8f2f4",
+      "sample": "e5369ac309f1be6d77afeeb3edab0ed8.exe_",
+      "sha256": "478383fb588665c254d416b7c50a124f82291124b002d9bad9fd758a59fd728f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 33,
+      "original_json_sha256": "3b661afa73c6f170e7d8c1f16e6de2eb73766d2169fce29833d0d9dcb161d2b0",
+      "result": "results/621744a98fa88b82a3da83b2fede0f0bdd7f52277b58c03238c114a330795417.json.gz",
+      "result_sha256": "38d40c2e46ea97cc40ac6f72f34d8cfe4bc8ac606a8c79289cab7ab11938184c",
+      "sample": "e544a4d616b60147d9774b48c2b65ef2.exe_",
+      "sha256": "db921a575fa7fd4b0c1b405a54f77d10c73eb1cb1384a27d584d7323e72938b6",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 49,
+      "original_json_sha256": "abd496e89214eb01addd493b7adca8c1c95bf9e3a71943bcf11bac9316dbdbb1",
+      "result": "results/b35bb7a8a9caf13c4d9deee7dfc6d414ecbbcb18f458667680896016616b428e.json.gz",
+      "result_sha256": "50777915f6f9567a4d0dbb4ec2b3f1d99f073c9067ecfd5a7f9cccaee8452e93",
+      "sample": "e59ffeaf7acb0c326e452fa30bb71a36.exe_",
+      "sha256": "a91491f45b851a07f91ba5a200967921bf796d38677786de51a4a8fe5ddeafd2",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 2,
+      "original_json_sha256": "41b74dcb8772e36be2d44792f838a0f2be1c8dab4ec04b04a4ce5ad8007b75fb",
+      "result": "results/a536010306361ebe47ad04876f89e1c8f430dd5c6e9cbb9405f1afa4548400f9.json.gz",
+      "result_sha256": "772c0852b74c13aa6c6a155b07fd097d0bfa30a84f8fc5fc90058030a5fd34b5",
+      "sample": "e5e8c139772efe47f738f4788ae9b3dc97960b1c006bc6a406715cab69f27cfc.elf_",
+      "sha256": "e5e8c139772efe47f738f4788ae9b3dc97960b1c006bc6a406715cab69f27cfc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 20,
+      "original_json_sha256": "1fbe32c723b0d029700b222cdcddf1f1b01d0d74c9a03f9e0854e77a73d4695d",
+      "result": "results/9bf7be1c1f428736ecbc0201d5c18d06a38c4023c8be5df0589817abbee661df.json.gz",
+      "result_sha256": "936add68f3008affb96356a957eca584decd94284dc182edc9f704d8ae73d9a7",
+      "sample": "e69a8eb94f65480980deaf1ff5a431a6.exe_",
+      "sha256": "fc611f9d09f645f31c4a77a27b6e6b1aec74db916d0712bef5bce052d12c971f",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 9,
+      "original_json_sha256": "5a40feceb76e47158db0dee68b1c448a54aebfa0364551b54e37e67e6057e765",
+      "result": "results/ab362db832cc254787ce6703c56e3f8170951d47d278265d227449e6e6c05208.json.gz",
+      "result_sha256": "7c93be6c65a3e693b915fab48eadc19ef822cc94c8db328593eaf2fd2477aad4",
+      "sample": "e87076a1182ba40758e1d7258442c1ee23bf71ac77fad9f3babc707dce11c144.exe_",
+      "sha256": "e87076a1182ba40758e1d7258442c1ee23bf71ac77fad9f3babc707dce11c144",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 30,
+      "original_json_sha256": "f2b1d2f1036a73b12c93a706eca43d32d16f4c18f64e0169a70a2008ac61863f",
+      "result": "results/bf2e1791d95e29aeadca34772fe3ebe6517e7f984e36a76ac1c938475a4f12f7.json.gz",
+      "result_sha256": "222fc5203dc6b35e503547b81268ae213424340f7e637684fb76c29e9cf86ac9",
+      "sample": "e999b36d5f9783178f0a4efa35a25d158f8d94325c3d6794f4153235c0aee60b.exe_",
+      "sha256": "e999b36d5f9783178f0a4efa35a25d158f8d94325c3d6794f4153235c0aee60b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 16,
+      "original_json_sha256": "e3a6f403495faa869ae73a70ad5b8c5a4dd966dc05096977c7f989698f55a7dc",
+      "result": "results/a8878d0660e8867bb1a1d4c5497b9900026874c5704f4e7a794c81bc2afe0289.json.gz",
+      "result_sha256": "2895e681ff2b85e563547a6754de40c2c802fc5e6757e3d10489efda5b98b1cb",
+      "sample": "ea2876e9175410b6f6719f80ee44b9553960758c7d0f7bed73c0fe9a78d8e669.dll_",
+      "sha256": "ea2876e9175410b6f6719f80ee44b9553960758c7d0f7bed73c0fe9a78d8e669",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 16,
+      "original_json_sha256": "75aa43ae3db6ab0b0df5254665cfffc4f0885ee52a3c955c9f67b0be7f3b2a5d",
+      "result": "results/cf5ced42f8a067b2ba17a079f3a234f23b75b8172fec571ab573fa438aee6dc5.json.gz",
+      "result_sha256": "4d5e8f8e63e8bbff445ae09bfaada423d179424dc665fae7e08dc0e8df9cd504",
+      "sample": "ea7bb99e03606702c1cbe543bb32b27e.dll_",
+      "sha256": "fb71eaae22e6d93286d10228fc08229b1edf805e5817f698accfe2ec18968458",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 50,
+      "original_json_sha256": "75aa0214b69a9229b78c0bf6ea1865f7db002f3e93c80c08b72036e130fc65f9",
+      "result": "results/a87dc6d7ac716daa4da45d711f8ef73f829465e65d0f67f9201dd3e867f2e52c.json.gz",
+      "result_sha256": "ea0ae9f511c17d454cbc1f3a072dc4c35af4cccbed6245457e2bccaca0af90e0",
+      "sample": "eaad7dfc78304b977d3844cc63577152.exe_",
+      "sha256": "00184988d2cd2619f6d77915e49521a35a686552ada2d378848decb6578d4dcc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 46,
+      "original_json_sha256": "6759025941c9b8647682b8d34a73a64149929613981d9a558326fe54ad12d2d3",
+      "result": "results/72da2991841d274476e16a106b24be69b2541a91bda179c6014608a26eaedfdd.json.gz",
+      "result_sha256": "5c59024434754e02f3061c5dc2ecb4e0d8531a398f1ee995709987e15ace9eda",
+      "sample": "eb355bd63bddce02955792b4cd6539fb.dll_",
+      "sha256": "d55b244d6c8ffa47b64ca56800ef0881dfef94370f8ceeace4d449d847e62529",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "20b791542e96cdadf6a8f24897d92881146bd23553fb25c425e678b46317b720",
+      "result": "results/587238a364f4bd1f8fdb59d273679ff22b9092a1eb5ad4b44f7078a471739cfe.json.gz",
+      "result_sha256": "b3f4b91157a16ea6317d5b5d2e01bcad84cbe4691e7971627b379c32500918b7",
+      "sample": "ed888dc2f04f5eac83d6d14088d002de.exe_",
+      "sha256": "c78dae3e6ef91539408d1def9724f89b1aae44e4003f464d21f20e28abc8310a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 11,
+      "original_json_sha256": "3ec6e403970c33ed596afeefcb82328d6aefad85c67b94001258e9e578e0851b",
+      "result": "results/4da3e0db248fd41298f9d4ff9a16b1b2b36ff870ff14d1245ff1452da810bba7.json.gz",
+      "result_sha256": "301f23a41847b9bb9dadaa2b7d7c3adab66d1df9bd2fea8ffd4e6c8ff05321a6",
+      "sample": "edb92795c06a2bde47e652639327253a1148ee675ba2f0d1d9ac8690ef1820b1.exe_",
+      "sha256": "edb92795c06a2bde47e652639327253a1148ee675ba2f0d1d9ac8690ef1820b1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 15,
+      "original_json_sha256": "7ce8cb9c9d548a525a52470608219c9325ce7da643979f45a30907749b79f8c6",
+      "result": "results/01d1bc8ca73e00d469469a714b45aead71901e70efdb36eaae17bcec8c6c995f.json.gz",
+      "result_sha256": "a3119f0bfb0074936c38723f72f85df65e442bdeff8e81a843abfed7ed828548",
+      "sample": "ee3b869b668abec332d07c66d1a39f6dbf3a598cc1325b57a0504f8d24ac2e28.dll_",
+      "sha256": "ee3b869b668abec332d07c66d1a39f6dbf3a598cc1325b57a0504f8d24ac2e28",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 29,
+      "original_json_sha256": "bcd8cca5324a49af26bc3f6eaa0e548eddbc0cbd18dd02d7c67abc68303540cd",
+      "result": "results/e34fcf4de806b3d889374111ea06832fd944d55aebb0c7f36401f36a077a96aa.json.gz",
+      "result_sha256": "da97bd19de838cc5c7c26f6973b59a38e92ca3dfea5e3236e1e3ec0a9ba1e66f",
+      "sample": "efd1a86330cecba5d8d038fba65ac8e76955ed724986aa87cd6ca9f72f6941c7.dll_",
+      "sha256": "efd1a86330cecba5d8d038fba65ac8e76955ed724986aa87cd6ca9f72f6941c7",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 13,
+      "original_json_sha256": "7c1405f664830df0788399cee2e108044e95f1325eb09bf2148e74cdda2a32ff",
+      "result": "results/d66779315f1005af6e97c7fbae5ec6ebc4a31d4e872f6ac0baac07765e08e9c7.json.gz",
+      "result_sha256": "f949ca5a867614780564d46224b08a32a9506b5bbd65d53ac787dc344b45c0f5",
+      "sample": "f03bdb9fa52f7b61ef03141fefff1498ad2612740b1fdbf6941f1c5af5eee70a.exe_",
+      "sha256": "f03bdb9fa52f7b61ef03141fefff1498ad2612740b1fdbf6941f1c5af5eee70a",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 2,
+      "original_json_sha256": "64bf3bd18a386edab320286345911d310969449ae099c42489b2ddd3dfec70dd",
+      "result": "results/e52affb3823b435bdc96cb2a7396752008ff3c5034cbfa5a8bdd7710b38a6d71.json.gz",
+      "result_sha256": "36e6ea2e1202f29a53e65c38c06d6a108af41348409348f3982cc0a3b3519904",
+      "sample": "f0a6a1bd6d760497623611e8297a81df.exe_",
+      "sha256": "e50aaa300d13af1aeb4e5f06e89fe14d02300c6e27932f0c296e6706a4170963",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 17,
+      "original_json_sha256": "d341bba14562f036cd26324de8c4d6d82e4ef721ada8c2b6809d405e50b37f73",
+      "result": "results/2e35f53bfe93910a63a343bc73e58e9a1b9554bf1e6737be0d61645eb3a35cf6.json.gz",
+      "result_sha256": "8f9941e52d8aa27af7b6cb7c1c30aa94bc922427e7980af0e4a8cb8e2fe72c8e",
+      "sample": "f4584aed97469c461826ea17ca9b3c1d.exe_",
+      "sha256": "c4e4ba1df696daaaa6675d93199a1a94e6cc7729fe44042fe24713e2f6ce7c9d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 21,
+      "original_json_sha256": "d310ab19636d7cb8d7f63dcb7cad9776f3fe2dd023589b20406ac3071208e809",
+      "result": "results/3a53529377d176c56b4f3b846d262b18a9ad529b966541e19b8ea044b096b236.json.gz",
+      "result_sha256": "a3917b73360457ee2c6a157862c5e6f9cb777fe43ed29425208d1ebbe47ae7bb",
+      "sample": "f53dfa294d6979145fbb34303cf73bb6.exe_",
+      "sha256": "4764eec6f4ed43996e6dc7cadde8ea4cc09e08f4708d95c39f36bf1badecffd1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 26,
+      "original_json_sha256": "41758ae808d3aa397402d6f4c81c6c668d3c32b349194a3b7d5cf7ab62d23d41",
+      "result": "results/eccbb7fb0b38f5ede5a6476eb0a718e8b4be28b6a5910346c5f868e6522d21d9.json.gz",
+      "result_sha256": "e8f365ad4a021eb0ed7274c3b12602a0aa6304dbfd67d8f7a739d079da997a49",
+      "sample": "f5449806ad50242a4df9186455434b5957f3fc2044d85a9f1d9135a542b678cc.dll_",
+      "sha256": "f5449806ad50242a4df9186455434b5957f3fc2044d85a9f1d9135a542b678cc",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 74,
+      "original_json_sha256": "f9d10bf2b280b485342abd42dec710463d28e5feb71827f61f7ed0d0fd041445",
+      "result": "results/3fff39d35c6240405ae81119084c6872ed090dbbcd871f160efee26792970db7.json.gz",
+      "result_sha256": "30c9613f3f4a1e0d5fcc0a9f6e58873bdd2850e20f343cae793de2c14655502d",
+      "sample": "f59035192098e44b86c4648a0de4078edbe80352260276f4755d15d354f5fc58.exe_",
+      "sha256": "f59035192098e44b86c4648a0de4078edbe80352260276f4755d15d354f5fc58",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 39,
+      "original_json_sha256": "08e1374bdedf6bcaf519daa7cd9427321717458c45ed7dd6444a2db716e4e340",
+      "result": "results/665c1903abb905f2f728fbafd17169c9916893efca0cae238d1623abbd39eac8.json.gz",
+      "result_sha256": "d282e317c94529a2a4c72c7cd23b4d35584f9bc2084b5b182550e0b4e5598d08",
+      "sample": "f5c93ac768c8206e87544ddd76b3277c.dll_",
+      "sha256": "915a6f525afe55898c680bc0d37ca87d0f0512d11ae7c304e736fcb038220975",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 2,
+      "original_json_sha256": "dbf786ac7f43356621d7d43cfe63e125ea5dafb274221db1a8cb66023754e812",
+      "result": "results/cb80e44a2a330b725b29f554e863cedfc0866085b9cf7cbd7589e619350fd141.json.gz",
+      "result_sha256": "8aa785cc8458d62e87f47777ded7b182cf515959a35f1deff8a67cd2667397c9",
+      "sample": "f9ac6b16273556b3a57bf2c6d7e7db97.exe_",
+      "sha256": "74e9a296d1b1c7ec27dcca35961d3563779c48cd8163a6ec00fa19aff17a6ed0",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 70,
+      "original_json_sha256": "e502aa05718b83294801cbf561852bfcedab5dc82e53f95c64f706afe8d4514d",
+      "result": "results/397024b56b54617daf146c92f3b578f688963ebef86994f8a5c8455816dc795b.json.gz",
+      "result_sha256": "37dc12a037d095e6a3d9dbf8522a8cf398dade1d29b2d20a7490c13f38e1b410",
+      "sample": "fb690a23b66d4f90dac83f1b4d6dec0074aff68d6ef62c2613120bd4d17cfbdd.exe_",
+      "sha256": "fb690a23b66d4f90dac83f1b4d6dec0074aff68d6ef62c2613120bd4d17cfbdd",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 54,
+      "original_json_sha256": "f8ca43cf94aee7dc1187ad41bd7fccbb58e15d7392fbe3754f75390921f557db",
+      "result": "results/dddcc1ec2c9a9e22cb383b7ad40ca50f7c6c7def1759363a5e14dea9384eec86.json.gz",
+      "result_sha256": "143b9e5192ec151c9dab35645d5b282566f55f2b03389acf1eee60a1fd444880",
+      "sample": "fbbaaf569b63f6398503e4f1979cabef.exe_",
+      "sha256": "0a5de60f8d242caa0bd01cb811358ce2fc9f2f8530013ab650d8ac1950cff5e1",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 1,
+      "original_json_sha256": "db71509ab3dfdf5f47375d6ef935eedfc06e25e745af1cda005df18282e0be8a",
+      "result": "results/db6286ff2d95ac8827ad1864660968ad4e750a4660f27a2fd470c71a7b7ec806.json.gz",
+      "result_sha256": "33e69d535d1f1c82b3fc9b65a21251db031d2ac904674b215eb53e5d2762ec04",
+      "sample": "ffa48ed4b7b48897f6756c4222b2606399de0bca627cedfddf61e69986580430.elf_",
+      "sha256": "ffa48ed4b7b48897f6756c4222b2606399de0bca627cedfddf61e69986580430",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 8,
+      "original_json_sha256": "f063ad47bc75613990725ddc08df705b30596bb50b34ca7011497fe5ba299cf9",
+      "result": "results/db66ea6a1a1b521c070e75d18b311a83bed9152f0f4c647bd36d194f99611593.json.gz",
+      "result_sha256": "cf5e81e264b6f4b241894458a4cabd80f768fda87b345775a3a05e9b5bffea67",
+      "sample": "ffcf88ead82bdfc159376026f5a9a7da49e593497674bdb6fa7f7d03dd9398d9.exe_",
+      "sha256": "ffcf88ead82bdfc159376026f5a9a7da49e593497674bdb6fa7f7d03dd9398d9",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 65,
+      "original_json_sha256": "c412b4c2562aed17a4f4b81b3377a9f00acb50c1867446cc9b3225380707f5e3",
+      "result": "results/d6a9baad889fa883729edb1058a90610e869e6029ce1b7b6aa0807052c90b8d3.json.gz",
+      "result_sha256": "252d260da686e2d6d3d9dee0035051e79636ba34fd2a6e0eb1ef4363acfe8d84",
+      "sample": "ffeae4a391a1d5203bd04b4161557227.exe_",
+      "sha256": "81fc45c95bdb421257645b4ff91a6afc82201d3ffe570c059994d79ff1484f90",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 68,
+      "original_json_sha256": "b4fd04f67aa446ffcbefdaf8e845f14a5a0367a5a6c0430ab329354139983050",
+      "result": "results/90397c7a16bda1c3e8e137765bfea7a57f366966ddcad82cfbf571c9084a252c.json.gz",
+      "result_sha256": "a6e05a1bd9e1ce2abbe810d3a5d8e1f3170e56de5bcc94aa93ebca2501941acf",
+      "sample": "kernel32-64.dll_",
+      "sha256": "7d148e220040de2fae1439fbc0e783ef344dceaea4757611722d8378a4938d0b",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 93,
+      "original_json_sha256": "e4c2bf36593492b450f61dae3b245878cc609532c7a44af104fd40a2e84ea7b2",
+      "result": "results/eb33f9f97596520578f04e95311581a42707e643843b052cf43f51dfe7354ea9.json.gz",
+      "result_sha256": "26b28261e8c20c17b5e7024e37e3dd20bdb32c96d744a217c64ea30bbfb8a951",
+      "sample": "kernel32.dll_",
+      "sha256": "3f94f8630c7603f9da79bf021cb56ac5357502badf6cb12f6ce11e5b2b244153",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 10,
+      "original_json_sha256": "6e6bde0db7abe35af8932410e954e54b95db007ef56e03e9d68910545066b4fa",
+      "result": "results/b129e33c16e4013ff4f8d4b8b30037d7e6f8a3b214c74ef3e880d2713d792f1f.json.gz",
+      "result_sha256": "a69e1757934bb7e0233cbcbf41487d60d083b838989ddbe5827609f3e432854f",
+      "sample": "microsocks.elf_",
+      "sha256": "4f405550ba8ce619bf5a3547acb7871009d1e51160d4feabdb3b7d827b44e507",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 87,
+      "original_json_sha256": "dd894c2ca311beeaba960cd5850e77a078c23511180fe42e0397fda0a0aec355",
+      "result": "results/332055baba919a5c9d3f1a4c4cdd3702bfabb38bfee8fe346c60adcf5f739632.json.gz",
+      "result_sha256": "07717c5ca7bf19b6d338dead4f281d8b95726c60042173215f7075257fff4f09",
+      "sample": "mimikatz.exe_",
+      "sha256": "131314a6f6d1d263c75b9909586b3e1bd837036329ace5e69241749e861ac01d",
+      "status": "ok"
+    },
+    {
+      "matched_rules": 10,
+      "original_json_sha256": "8fb6c580c30755e4673124f6a5d0b8e40de3e90273ad79c0aea546479a577983",
+      "result": "results/b53b057d34b4f792a720012064e1a07aee001b0d0957a0cdbfccab5f5266e82c.json.gz",
+      "result_sha256": "3241c97f6513406e521c201745ea10588f1e92a2c476585a22d79a0d722ab2cc",
+      "sample": "ping_t\u00e4st.exe_",
+      "sha256": "4ca10dba7ff487fdb3f1362a3681d7d929f5aa1262cdfd31b04c30826983fb1d",
+      "status": "ok"
+    }
+  ],
+  "schema_version": 1,
+  "validation_environment": {
+    "flare-capa": "10.0.0",
+    "pefile": "2024.8.26",
+    "python": "3.13.14",
+    "python-flirt": "0.10.0",
+    "viv-utils": "0.8.1",
+    "vivisect": "1.3.2"
+  }
+}
