@@ -189,6 +189,68 @@ pub fn evaluate(
     }
 }
 
+/// The success/error outcome of `evaluate(node, fs, true)`, without building
+/// evidence. Keep traversal order identical to capa/engine.py, including
+/// short-circuiting errors. Successful rules still use `evaluate(..., false)`
+/// to collect their complete evidence.
+pub(crate) fn evaluate_boolean(node: &Node, fs: &FeatureSet) -> Result<bool, EngineError> {
+    match &node.stmt {
+        Statement::And(children) => {
+            for child in children {
+                if !evaluate_boolean(child, fs)? {
+                    return Ok(false);
+                }
+            }
+            Ok(true)
+        }
+        Statement::Or(children) => {
+            for child in children {
+                if evaluate_boolean(child, fs)? {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }
+        Statement::Not(child) => Ok(!evaluate_boolean(child, fs)?),
+        Statement::Some { count, children } => {
+            let mut satisfied = 0u32;
+            for child in children {
+                if evaluate_boolean(child, fs)? {
+                    satisfied += 1;
+                }
+                // Upstream checks after evaluating a child even when count
+                // is zero; an empty Some is false in the short-circuit pass.
+                if satisfied >= *count {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        }
+        Statement::Range { feature, min, max } => {
+            let count = fs.get(feature).map_or(0, |locations| locations.len() as u32);
+            Ok(count >= *min && max.is_none_or(|max| count <= max))
+        }
+        Statement::Subscope { scope, .. } => Err(EngineError::UnextractedSubscope(*scope)),
+        Statement::Leaf(feature) => match feature {
+            Feature::String(StringFeature::Substring(needle)) => Ok(fs
+                .keys()
+                .filter_map(string_value)
+                .any(|value| value.contains(needle))),
+            Feature::String(StringFeature::Regex(re)) => {
+                Ok(fs.keys().filter_map(string_value).any(|value| re.is_match(value)))
+            }
+            Feature::Bytes(needle) => Ok(fs
+                .keys()
+                .any(|feature| matches!(feature, Feature::Bytes(value) if value.starts_with(needle)))),
+            Feature::Os(query) => Ok(fs.keys().any(
+                |feature| matches!(feature, Feature::Os(value) if query == "any" || value == "any" || query == value),
+            )),
+            Feature::Com(kind, _) => Err(EngineError::UnexpandedCom(*kind)),
+            _ => Ok(fs.contains_key(feature)),
+        },
+    }
+}
+
 fn eval_and(
     children: &[Node],
     fs: &FeatureSet,
@@ -464,6 +526,16 @@ impl StringMatch<'_> {
     }
 }
 
+fn string_value(feature: &Feature) -> Option<&str> {
+    match feature {
+        Feature::String(StringFeature::Plain(value) | StringFeature::Substring(value)) => {
+            Some(value)
+        }
+        Feature::String(StringFeature::Regex(re)) => Some(&re.raw),
+        _ => None,
+    }
+}
+
 /// port of `Substring.evaluate` / `Regex.evaluate`: scan every `String`-family
 /// feature actually present in the set (plain `String`, and -- matching
 /// Python's `isinstance(feature, (String,))`, which a `Substring`/`Regex`
@@ -483,12 +555,8 @@ fn eval_string_scan(
     let mut captures: std::collections::BTreeMap<String, BTreeSet<Address>> =
         std::collections::BTreeMap::new();
     for (feature, locs) in fs {
-        let Feature::String(sf) = feature else {
+        let Some(haystack) = string_value(feature) else {
             continue;
-        };
-        let haystack = match sf {
-            StringFeature::Plain(s) | StringFeature::Substring(s) => s.as_str(),
-            StringFeature::Regex(re) => re.raw.as_str(),
         };
         if matcher.matches(needle, haystack) {
             any = true;
@@ -632,7 +700,126 @@ mod tests {
     }
 
     fn ev(node: &Node, fs: &FeatureSet) -> bool {
-        evaluate(node, fs, true).expect("no engine error").success
+        let expected = evaluate(node, fs, true).expect("no engine error").success;
+        assert_eq!(
+            evaluate_boolean(node, fs).expect("no engine error"),
+            expected
+        );
+        expected
+    }
+
+    fn assert_boolean_equivalent(node: &Node, features: &FeatureSet) {
+        assert_eq!(
+            evaluate_boolean(node, features).map_err(|error| error.to_string()),
+            evaluate(node, features, true)
+                .map(|result| result.success)
+                .map_err(|error| error.to_string()),
+            "boolean outcome differs for {node:?} against {features:?}"
+        );
+    }
+
+    #[test]
+    fn boolean_matches_evidence_across_features_and_statements() {
+        use crate::features::CompiledRegex;
+
+        let queries = [
+            num(1),
+            num(2),
+            Feature::Number(NumberValue::Float(1.0)),
+            Feature::MatchedRule("example".into()),
+            Feature::String(StringFeature::Plain("foobar".into())),
+            Feature::String(StringFeature::Substring("bar".into())),
+            Feature::String(StringFeature::Substring(String::new())),
+            Feature::String(StringFeature::Regex(
+                CompiledRegex::compile("/foo/i").unwrap(),
+            )),
+            Feature::String(StringFeature::Regex(
+                CompiledRegex::compile("/foo(?=bar)/").unwrap(),
+            )),
+            Feature::Bytes(vec![1, 2]),
+            Feature::Bytes(vec![]),
+            Feature::Os("any".into()),
+            Feature::Os("windows".into()),
+            Feature::Os("linux".into()),
+        ];
+        let data = [
+            num(1),
+            Feature::MatchedRule("example".into()),
+            Feature::String(StringFeature::Plain("foobar".into())),
+            Feature::String(StringFeature::Substring("foobar".into())),
+            Feature::String(StringFeature::Regex(
+                CompiledRegex::compile("/foobar/").unwrap(),
+            )),
+            Feature::Bytes(vec![1, 2, 3]),
+            Feature::Os("windows".into()),
+            Feature::Os("any".into()),
+        ];
+        let mut feature_sets = vec![FeatureSet::new()];
+        for locations in [vec![], vec![ADDR1], vec![ADDR1, ADDR2]] {
+            // Include each data kind alone so one matching string variant
+            // cannot hide a regression in another variant's scan behavior.
+            for feature in &data {
+                feature_sets.push(fs(vec![(feature.clone(), locations.clone())]));
+            }
+            feature_sets.push(fs(data
+                .iter()
+                .cloned()
+                .map(|f| (f, locations.clone()))
+                .collect()));
+        }
+        let leaves: Vec<Node> = queries.iter().cloned().map(leaf_node).collect();
+        for features in &feature_sets {
+            for empty in [and(vec![]), or(vec![]), some(0, vec![]), some(1, vec![])] {
+                assert_boolean_equivalent(&empty, features);
+            }
+            for (query, left) in queries.iter().zip(&leaves) {
+                assert_boolean_equivalent(left, features);
+                assert_boolean_equivalent(&not(left.clone()), features);
+                for (min, max) in [(0, None), (0, Some(0)), (1, Some(1)), (2, None)] {
+                    assert_boolean_equivalent(&range(query.clone(), min, max), features);
+                }
+                for right in &leaves {
+                    let children = vec![left.clone(), not(right.clone())];
+                    assert_boolean_equivalent(&and(children.clone()), features);
+                    assert_boolean_equivalent(&or(children.clone()), features);
+                    for count in 0..=3 {
+                        assert_boolean_equivalent(&some(count, children.clone()), features);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn boolean_preserves_short_circuit_errors() {
+        let features = fs(vec![(num(1), vec![])]);
+        let errors = [
+            leaf_node(Feature::Com(ComKind::Class, "example".into())),
+            leaf_node(Feature::Com(ComKind::Interface, "example".into())),
+            Node {
+                stmt: Statement::Subscope {
+                    scope: Scope::Function,
+                    body: Box::new(leaf_node(num(1))),
+                },
+                description: None,
+            },
+        ];
+        for error in errors {
+            assert_boolean_equivalent(&error, &features);
+            assert_boolean_equivalent(&not(error.clone()), &features);
+            for ordinary in [leaf_node(num(1)), leaf_node(num(2))] {
+                for children in [
+                    vec![ordinary.clone(), error.clone()],
+                    vec![error.clone(), ordinary.clone()],
+                ] {
+                    assert_boolean_equivalent(&and(children.clone()), &features);
+                    assert_boolean_equivalent(&or(children.clone()), &features);
+                    for count in 0..=3 {
+                        assert_boolean_equivalent(&some(count, children.clone()), &features);
+                    }
+                }
+            }
+        }
     }
 
     // --- ported 1:1 from tests/test_engine.py ---
