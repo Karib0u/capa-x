@@ -170,26 +170,27 @@ gets a cheaper linux-only build plus the same schema-validation check.
 
 ## Accuracy and limitations
 
-Measured on 2026-10-20 after instruction-stream and switch compatibility updates against
-Python capa 10.0.0 and capa-rules v10.0.0. Comparisons on binaries measure
-rule names. Shared freeze tests separately check match addresses and JSON
-evidence.
+Measured on 2026-10-20 against Python capa 10.0.0 and capa-rules v10.0.0,
+using all 377 native x86/x64 and shellcode inputs in the pinned testfiles
+corpus. Original capa rejects one malformed ELF, leaving 376 comparable
+inputs. Shared freeze tests separately check JSON evidence.
 
 | Metric | Result |
 |---|---:|
-| Rule-name agreement | **100.00%** |
-| Reference-matched rules | 6,300 |
-| Divergent rules | 0 missing, 0 extra |
-| Samples with identical rule sets | 200/200 (100.0%) |
+| Rule-name agreement | **99.72%** |
+| Reference rule/sample matches | 11,412 |
+| Divergent rules | 29 missing, 3 extra |
+| Samples with identical rule sets | 358/376 (95.2%) |
+| Samples with identical rule and match-address sets | 177/376 (47.1%) |
 
-The fresh 200-sample run resolves all four previously documented differences
-without regressions. Historical measurements and the current comparison are
-recorded in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
-
-Rule-level agreement leads because it measures individual capability rules.
-Every measured difference is mapped to a documented root cause. Exact methods,
-cross-implementation coverage, performance tables, and reproduction commands
-are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+The earlier 200-sample regression corpus still has identical rule sets.
+Expanding to every native input exposes differences outside that selection.
+The [full validation report](docs/validation/full-corpus-2026-10-20.md)
+records each case and the other backend checks. Complete
+[original reference results](tests/reference-results/capa-10.0.0/README.md)
+are preserved for future regression work. The newly found differences still
+require root-cause investigation. Historical methods and performance
+measurements are in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
 
 On the v1.0.0 release, a controlled result-equivalent sample had medians of
 0.959 seconds for capa-x and 3.007 seconds for Python capa 9.4.0 across five
@@ -199,8 +200,7 @@ speedup of 2.03 times and a worst sample of 1.52 times. These are measurements
 on a MacBook Pro M1 Max with macOS 26.6 and 10 logical CPUs, not universal
 performance claims.
 
-The pinned corpus has no remaining rule-name differences. Resolved causes
-and the boundary of this measurement are catalogued in
+Previously resolved causes and measurement boundaries are catalogued in
 [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md). Compatibility mode reproduces
 the reference's overlapping instruction streams and legacy decoder behavior;
 native mode retains its broader decoding. Exact locations and evidence on
@@ -211,8 +211,8 @@ full differential suite before the pin moves. This is maintained by one person,
 so review and security response times are best-effort.
 
 The differential suite compares capa-x against the pinned Python release.
-The rule-name agreement above covers the 200-sample corpus;
-version-specific results appear in [docs/BENCHMARKS.md](docs/BENCHMARKS.md).
+The inventory covers all 377 native inputs; agreement metrics use the 376
+comparable inputs. These results do not establish universal compatibility.
 
 ## Reproduce the evidence
 
@@ -225,8 +225,11 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets -- -D warnings
 
 python3 scripts/difftest.py --mode full \
-  --samples scripts/corpus-outer.txt --capa-cli target/release/capa-x \
-  --no-rust-cache
+  --samples scripts/corpus-full-static.txt --capa-cli target/release/capa-x \
+  --no-rust-cache --no-expected
+python3 scripts/difftest.py --mode full-exact \
+  --samples scripts/corpus-full-static.txt --capa-cli target/release/capa-x \
+  --no-rust-cache --no-expected
 python3 scripts/determinism.py \
   --samples scripts/corpus-jobs.txt --capa-cli target/release/capa-x
 python3 scripts/bench.py \

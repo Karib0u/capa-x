@@ -9,8 +9,16 @@ tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
 
 ## [Unreleased]
 
+### Added
+
+- Preserve original capa results and an address index for the complete
+  377-entry native corpus, with hash verification and explicit reference
+  failures. Record expanded rule, address, and backend validation results.
+
 ### Fixed
 
+- Run the Python binding's CLI parity test against the correct release
+  executable instead of skipping it because of the former binary name.
 - Preserve reference instruction locations and overlapping block decoding
   in compatibility mode. Follow legacy decoder aliases and reject invalid
   function and switch-arm candidates without changing native decoding.
