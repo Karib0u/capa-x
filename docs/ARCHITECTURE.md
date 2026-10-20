@@ -99,6 +99,12 @@ to the shared freeze and matching layers.
   interpreter over iced-x86, before late signature scans. It tracks private
   state without executing samples; unsupported paths retain diagnostics.
   Windows callback recovery reuses this state for typed API arguments.
+  Import-call fragments run before entry signatures and preserve each
+  callee's instruction view at creation, keeping later loose instructions
+  separate from function ownership. The compatibility ELF loader binds only
+  reference import relocation types; native loading retains broader bindings.
+  Full PE analysis uses workspace segment names, while file-only analysis
+  uses pefile section names. File-only PE/ELF format features have file scope.
   x86/x64 compatibility recovery uses registered entry signatures rather than broad
   prologue and raw call scans; native recovery retains those fallbacks.
   See [ADR 0007](decisions/0007-candidate-evaluation.md).

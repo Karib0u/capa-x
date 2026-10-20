@@ -53,6 +53,76 @@ fn extract_pe_on_real_sample() {
 
 #[test]
 #[allow(clippy::unwrap_used, clippy::expect_used)]
+fn full_pe_sections_follow_workspace_names_while_file_only_follows_pefile() {
+    use capa_x::api::{load_input, PhaseTimings};
+    use capa_x::freeze::Freeze;
+    use capa_x::parallel::AnalysisOptions;
+
+    let path = testfiles_dir()
+        .join("2826b762b9c268601a44974ef469a671b441e798a6c3cbb40070450c6c030ba2.exe_");
+    let bytes = std::fs::read(path).expect("sample present");
+    for file_only in [false, true] {
+        let options = AnalysisOptions {
+            file_only,
+            ..AnalysisOptions::SERIAL
+        };
+        let (input, _) =
+            load_input(&bytes, &options, &mut PhaseTimings::default()).expect("valid PE");
+        let Freeze::Static(features) = input.freeze else {
+            panic!("PE extraction is static");
+        };
+        let sections: Vec<_> = features
+            .file_features
+            .iter()
+            .filter_map(|(_, feature)| match feature {
+                Feature::Section(name) => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(sections.contains(&"PE_Header"), !file_only);
+        assert_eq!(sections.contains(&"   \0    "), !file_only);
+        assert_eq!(sections.contains(&"   "), file_only);
+        assert!(sections.contains(&"        "));
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+fn format_scope_follows_the_selected_extractor() {
+    use capa_x::address::Address;
+    use capa_x::api::{load_input, PhaseTimings};
+    use capa_x::freeze::Freeze;
+    use capa_x::parallel::AnalysisOptions;
+
+    for (name, format) in [
+        ("Practical Malware Analysis Lab 01-01.exe_", "pe"),
+        ("microsocks.elf_", "elf"),
+    ] {
+        let bytes = std::fs::read(testfiles_dir().join(name)).expect("sample present");
+        for file_only in [false, true] {
+            let options = AnalysisOptions {
+                file_only,
+                ..AnalysisOptions::SERIAL
+            };
+            let (input, _) =
+                load_input(&bytes, &options, &mut PhaseTimings::default()).expect("valid sample");
+            let Freeze::Static(features) = input.freeze else {
+                panic!("PE/ELF extraction is static");
+            };
+            let feature = Feature::Format(format.to_string());
+            assert_eq!(features.global_features.contains(&feature), !file_only);
+            assert_eq!(
+                features
+                    .file_features
+                    .contains(&(Address::NoAddress, feature)),
+                file_only
+            );
+        }
+    }
+}
+
+#[test]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
 fn extract_elf_on_real_sample() {
     let path = testfiles_dir().join("e17e6a79ed614f5468d0eed758629697.elf_");
     let buf = std::fs::read(&path).expect("sample present (capa-testfiles submodule checked out?)");

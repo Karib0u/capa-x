@@ -86,10 +86,8 @@
       "details": []
     },
     "1e9fc7f32bd5522dd0222932eb9f1d8bd0a2e132c7b46cfcc622ad97831e6128.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'delete registry key'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "2055994ff75b4309eee3a49c5749d306.exe_": {
       "diffs": 0,
@@ -112,11 +110,8 @@
       "details": []
     },
     "2826b762b9c268601a44974ef469a671b441e798a6c3cbb40070450c6c030ba2.exe_": {
-      "diffs": 2,
-      "details": [
-        "  rule extra in capa-x: '(internal) packer file limitation'",
-        "  rule extra in capa-x: 'packed with Themida'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "2855ba06b90e7c64d9bce888e47baf6d.exe_": {
       "diffs": 0,
@@ -151,10 +146,8 @@
       "details": []
     },
     "31600ad0d1a7ea615690df111ae36c73.exe_": {
-      "diffs": 1,
-      "details": [
-        "  rule extra in capa-x: 'create directory'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "31cee4f66cf3b537e3d2d37a71f339f4.exe_": {
       "diffs": 0,
@@ -257,11 +250,8 @@
       "details": []
     },
     "50d5ee1ce2ca5e30c6b1019ee64eeec2.exe_": {
-      "diffs": 2,
-      "details": [
-        "  rule extra in capa-x: 'delete directory'",
-        "  rule extra in capa-x: 'enumerate files recursively'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "512a5575ff395389fc952d7925e72be1ca4ba86a5d4f2da50f1cbbde0b208c92.elf_": {
       "diffs": 0,
@@ -378,15 +368,8 @@
       "details": []
     },
     "749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2.elf_": {
-      "diffs": 6,
-      "details": [
-        "  rule extra in capa-x: 'change memory permission on Linux'",
-        "  rule extra in capa-x: 'create or open file'",
-        "  rule extra in capa-x: 'hook routines via dlsym RTLD_NEXT'",
-        "  rule extra in capa-x: 'link function at runtime on Linux'",
-        "  rule extra in capa-x: 'map or unmap memory on Linux'",
-        "  rule extra in capa-x: 'write file on Linux'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "74e0758e469ab87f38cda7925d696ea41a122364891860e1ae30fc9ff2f68e7d.exe_": {
       "diffs": 0,
@@ -595,11 +578,8 @@
       "details": []
     },
     "a563c50c5fa0fd541248acaf72cc4e7d.exe_": {
-      "diffs": 2,
-      "details": [
-        "  rule extra in capa-x: 'enumerate files on Windows'",
-        "  rule extra in capa-x: 'enumerate files recursively'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "a6594d9550d56ddeaac8b3140821e698eefb7163ba29f0119c2ef19beb6040b0.exe_": {
       "diffs": 0,

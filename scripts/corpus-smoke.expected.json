@@ -46,15 +46,8 @@
       "details": []
     },
     "749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2.elf_": {
-      "diffs": 6,
-      "details": [
-        "  rule extra in capa-x: 'change memory permission on Linux'",
-        "  rule extra in capa-x: 'create or open file'",
-        "  rule extra in capa-x: 'hook routines via dlsym RTLD_NEXT'",
-        "  rule extra in capa-x: 'link function at runtime on Linux'",
-        "  rule extra in capa-x: 'map or unmap memory on Linux'",
-        "  rule extra in capa-x: 'write file on Linux'"
-      ]
+      "diffs": 0,
+      "details": []
     },
     "82bf6347acf15e5d883715dc289d8a2b.exe_": {
       "diffs": 0,

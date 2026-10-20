@@ -4,6 +4,79 @@ This page records the methodology behind the summary numbers in the project
 README. The measurements are reproducible evidence for a pinned implementation,
 ruleset, corpus, and host. They are not universal rankings.
 
+## Loader and import-call ownership compatibility (capa 10.0.0)
+
+Measured on 2026-10-20 against freshly fetched main `d660eec`. Both sides
+used newly built release binaries and fresh sample analysis with
+`--no-rust-cache`; the pinned Python reference cache was retained. Rules,
+signatures, and corpus pins are unchanged. This measures matched rule names
+per sample, not exact evidence locations or full JSON equivalence.
+
+| Outer corpus | Main | Updated |
+|---|---:|---:|
+| Samples / reference-matched rules | 200 / 6,300 | 200 / 6,300 |
+| Missing / extra rules | 2 / 16 | 2 / 2 |
+| Total divergences | 18 | 4 |
+| Rule-level agreement | 99.71% | 99.94% |
+| Identical matched-rule sets | 190/200 | 196/200 |
+| Analysis errors | 0 | 0 |
+
+Six samples improve and none regress. The 23-sample smoke corpus improves
+from 22 identical samples and six extra rules to 23 identical samples and
+zero differences against 731 reference-matched rules. Both expected files
+are deliberately refreshed to lock in these improvements.
+
+- Reference ELF import classification removes six extras on `749cf36a`.
+  Native recovery retains the broader relocation bindings.
+- Full PE workspace section names remove two extras on `2826b762`.
+  File-only extraction retains the separate pefile naming contract.
+- Import-call discovery order and function views captured at creation
+  remove six extras on `1e9fc7f3`, `31600ad0`, `50d5ee1c`, and `a563c50c`.
+  Respecting relocation pointer locations protects `6f99a2c8` from a
+  premature import-call scan that otherwise hides a signature-created
+  function. Regression tests cover that sample and the ownership boundaries.
+- A separate file-only parity check exposed format features at the wrong
+  scope on PE and ELF. The API now puts them at file scope for file-only
+  extraction while full analysis retains global format features.
+
+The four remaining differences are KD-008's switch-arm ownership extra,
+KD-014/KD-015's overlapping-instruction misses, and KD-016's EVEX decoder
+extra. The pinned Base64 rule explicitly disables its Vivisect example for
+the last case. No sample-specific addresses or rule names are used in the
+implementation to force agreement.
+
+Validation:
+
+- `cargo test --workspace`: 450 passed; six slow gates ignored.
+- `cargo test --workspace -- --ignored`: all six acceptance and robustness
+  gates passed, for 456 Rust tests in total.
+- `cargo +1.98.1 clippy --workspace --all-targets -- -D warnings`: passed.
+  The default installed Clippy rejects pre-existing
+  `chunks_exact_to_as_chunks` lint attributes; the newer installed toolchain
+  recognizes them without suppressing warnings.
+- `python3 -m unittest discover -s scripts -p 'test_*.py'`: six passed.
+- File-only feature and result comparison: all 23 smoke samples match,
+  plus the embedded-NUL section sample `2826b762`.
+- Determinism: 90 runs at jobs 1, 2, and 4, with two repetitions per job
+  count over 15 samples, match single-job output byte for byte after the
+  harness's metadata normalization. The sample list is the union of
+  `corpus-jobs.txt`, main `d660eec`'s ten differing outer-corpus samples,
+  and the `6f99a2c8` relocation regression sample.
+- `cargo fmt --all -- --check`, `git diff --check`, and
+  `scripts/check_env.sh`: passed.
+
+Reproduction commands:
+
+```bash
+cargo build --release
+python3 scripts/difftest.py --mode full --samples scripts/corpus-outer.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-rust-cache
+python3 scripts/difftest.py --mode full --samples scripts/corpus-smoke.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-rust-cache
+python3 scripts/difftest.py --mode file-features --samples scripts/corpus-smoke.txt \
+  --capa-cli target/release/capa-x --jobs 6 --no-expected
+```
+
 ## Callback recovery and compatibility seed policy (capa 10.0.0)
 
 Measured on 2026-10-20 against main `1943f82`, using fresh release analyses

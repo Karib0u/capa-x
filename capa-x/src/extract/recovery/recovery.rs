@@ -147,6 +147,9 @@ impl Analysis {
 #[derive(Debug, Default)]
 struct DirectFlowGraph {
     successors: BTreeMap<u64, Vec<Edge>>,
+    /// Import-call fragments can create a function before the fragment's
+    /// remaining instructions exist. Keep that codeblocks.py view.
+    import_functions: BTreeMap<u64, Function>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -170,7 +173,11 @@ pub fn analyze_with_backend(
     bytes: &[u8],
     backend: RecoveryBackend,
 ) -> Result<Analysis, RecoveryError> {
-    let image = LoadedImage::parse(bytes)?;
+    let image = if super::super::looks_like_elf(bytes) {
+        LoadedImage::from_elf_with_import_policy(bytes, backend == RecoveryBackend::VivisectCompat)?
+    } else {
+        LoadedImage::parse(bytes)?
+    };
     analyze_image(bytes, image, backend)
 }
 
@@ -347,6 +354,13 @@ fn recover_functions(
             } else {
                 early_candidates_done = true;
                 pointers.finish_emucode();
+                run_import_call_wave(
+                    analysis,
+                    &mut direct_flow,
+                    &mut pending,
+                    noreturn,
+                    Some(&function_starts),
+                );
             }
         }
         let Some(start) = pending.pop_front() else {
@@ -359,27 +373,17 @@ fn recover_functions(
                 }
                 break;
             }
-            // Vivisect's `i386.importcalls` only fires on space no earlier
-            // analysis has defined, and by the time it runs (analysis module
-            // 6) its location database already covers everything reachable
-            // from the entry points. capa-x's nearest equivalent to "still
-            // undefined" is "no seed's flow ever walked it", which is only
-            // known once the queue is empty -- so the wave runs last, and
-            // whatever it seeds is drained by the same loop.
-            //
-            // Firing it earlier, at the boundary before the entry-signature
-            // seeds, reproduces upstream's module order but not its coverage:
-            // measured on `6f99a2c8944cb02ff28c6f9ced59b161.exe_` it found 645
-            // fragments where vivisect finds 0, because 641 of those sites sit
-            // in code capa-x had not yet walked. Claiming them as loose
-            // code suppressed three signature-seeded functions vivisect keeps.
-            //
-            // The Go pass shares the timing for a different reason: it reads
+            // Compatibility import-call discovery ran after emucode and
+            // before function signatures, as in the reference module order.
+            // Native recovery keeps its late import-call scan.
+            // The Go pass reads
             // the *recovered* entry function's basic blocks, so it cannot run
             // until that function's flow exists.
             late_waves_done = true;
             run_go_runtime_main_wave(analysis, &direct_flow, &mut pending)?;
-            run_import_call_wave(analysis, &mut direct_flow, &mut pending, noreturn);
+            if !evaluate_candidates {
+                run_import_call_wave(analysis, &mut direct_flow, &mut pending, noreturn, None);
+            }
             // `vivisect.analysis.ms.msvcfunc` is amodlist[9]/[10] -- after
             // the import-call pass, and reading the function set the earlier
             // ones produced.
@@ -481,6 +485,10 @@ fn recover_functions(
         }
     }
     for start in function_starts {
+        if let Some(function) = direct_flow.import_functions.remove(&start) {
+            analysis.functions.insert(start, function);
+            continue;
+        }
         let function = match build_function_view(
             analysis,
             &direct_flow,
@@ -670,7 +678,9 @@ fn run_import_call_wave(
     direct_flow: &mut DirectFlowGraph,
     pending: &mut VecDeque<u64>,
     noreturn: &BTreeSet<u64>,
+    function_starts: Option<&BTreeSet<u64>>,
 ) {
+    let mut known_functions = function_starts.cloned();
     let starts = {
         let instructions = &analysis.instructions;
         importcalls::fragment_starts(&analysis.image, &|address| {
@@ -680,6 +690,19 @@ fn run_import_call_wave(
                 .map(|(start, insn)| (*start, insn.next_address))
                 .filter(|(_, end)| address < *end)
                 .map(|(_, end)| end)
+                .or_else(|| {
+                    function_starts?;
+                    // `generic.relocations.analyze` makes pointer locations
+                    // at undefined PE relocation slots before importcalls.
+                    // findPointers skips these locations even when the slot
+                    // happens to encode the operand of an undiscovered call.
+                    let slots = &analysis.image.relocation_locations;
+                    let index = slots.partition_point(|source| *source <= address);
+                    let source = slots.get(index.checked_sub(1)?)?;
+                    let end =
+                        source.checked_add(analysis.image.architecture.pointer_width() as u64)?;
+                    (address < end).then_some(end)
+                })
         })
     };
 
@@ -688,7 +711,13 @@ fn run_import_call_wave(
         if direct_flow.successors.contains_key(&start) || !is_executable(&analysis.image, start) {
             continue;
         }
-        let calls = discover_direct_flow(analysis, direct_flow, start, noreturn);
+        let calls = discover_flow(
+            analysis,
+            direct_flow,
+            start,
+            noreturn,
+            known_functions.as_mut(),
+        );
         for target in calls.into_iter().rev() {
             if !is_executable(&analysis.image, target) {
                 continue;
@@ -699,7 +728,7 @@ fn run_import_call_wave(
                 .entry(target)
                 .or_default()
                 .insert(SeedKind::CallTarget);
-            if is_new {
+            if is_new || direct_flow.import_functions.contains_key(&target) {
                 pending.push_front(target);
             }
         }
@@ -1802,11 +1831,41 @@ fn discover_direct_flow(
     start: u64,
     noreturn: &BTreeSet<u64>,
 ) -> BTreeSet<u64> {
-    let mut pending = VecDeque::from([start]);
+    discover_flow(analysis, direct_flow, start, noreturn, None)
+}
+
+enum FlowTask {
+    Path(u64),
+    FinishFunction(u64),
+}
+
+fn discover_flow(
+    analysis: &mut Analysis,
+    direct_flow: &mut DirectFlowGraph,
+    start: u64,
+    noreturn: &BTreeSet<u64>,
+    mut import_functions: Option<&mut BTreeSet<u64>>,
+) -> BTreeSet<u64> {
+    let mut pending = VecDeque::from([FlowTask::Path(start)]);
     let mut calls = BTreeSet::new();
     let mut discovered = 0usize;
 
-    while let Some(path_start) = pending.pop_front() {
+    while let Some(task) = pending.pop_front() {
+        let path_start = match task {
+            FlowTask::Path(address) => address,
+            FlowTask::FinishFunction(address) => {
+                match build_function_view(analysis, direct_flow, address, false) {
+                    Ok(function) => {
+                        direct_flow.import_functions.insert(address, function);
+                    }
+                    Err(error) => analysis.diagnostics.push(RecoveryDiagnostic {
+                        address,
+                        message: format!("could not preserve import-call function extent: {error}"),
+                    }),
+                }
+                continue;
+            }
+        };
         let mut address = path_start;
         loop {
             // Pinned Vivisect 1.3.2 discovers opcode locations and direct code
@@ -1896,6 +1955,24 @@ fn discover_direct_flow(
                             kind: EdgeKind::Fallthrough,
                         }],
                     );
+                    // `envi/codeflow.py:addCodeFlow` descends into procedural
+                    // targets before resuming a loose import-call fragment.
+                    // `base.py:_cb_function` runs codeblocks.py immediately.
+                    // A callee that meets already decoded fragment code can
+                    // therefore end before the fragment's later continuation.
+                    // Explicit tasks preserve that timing without Rust recursion.
+                    if let Some(target) = target
+                        .filter(|target| *target != next && is_executable(&analysis.image, *target))
+                    {
+                        if import_functions.as_deref_mut().is_some_and(|known| {
+                            known.len() < MAX_FUNCTIONS && known.insert(target)
+                        }) {
+                            pending.push_front(FlowTask::Path(next));
+                            pending.push_front(FlowTask::FinishFunction(target));
+                            pending.push_front(FlowTask::Path(target));
+                            break;
+                        }
+                    }
                     address = next;
                 }
                 Flow::IndirectCall => {
@@ -1933,14 +2010,23 @@ fn discover_direct_flow(
                         target: next,
                         kind: EdgeKind::Fallthrough,
                     }];
-                    pending.push_back(next);
+                    if import_functions.is_none() {
+                        pending.push_back(FlowTask::Path(next));
+                    }
                     if let Some(target) = insn.direct_target {
                         edges.push(Edge {
                             target,
                             kind: EdgeKind::Branch,
                         });
-                        pending.push_back(target);
+                        if import_functions.is_some() {
+                            pending.push_front(FlowTask::Path(target));
+                        } else {
+                            pending.push_back(FlowTask::Path(target));
+                        }
                         push_xref(&mut analysis.code_xrefs, target, address);
+                    }
+                    if import_functions.is_some() {
+                        pending.push_front(FlowTask::Path(next));
                     }
                     direct_flow.successors.insert(address, edges);
                     break;
@@ -1965,7 +2051,11 @@ fn discover_direct_flow(
                             }],
                         );
                         push_xref(&mut analysis.code_xrefs, target, address);
-                        pending.push_back(target);
+                        if import_functions.is_some() {
+                            pending.push_front(FlowTask::Path(target));
+                        } else {
+                            pending.push_back(FlowTask::Path(target));
+                        }
                     } else {
                         direct_flow.successors.insert(address, Vec::new());
                     }
@@ -1995,7 +2085,11 @@ fn discover_direct_flow(
                     // the dispatching function.
                     if !targets.is_empty() && is_pointer_jump(&analysis.image, &insn) {
                         for target in targets {
-                            pending.push_back(target);
+                            if import_functions.is_some() {
+                                pending.push_front(FlowTask::Path(target));
+                            } else {
+                                pending.push_back(FlowTask::Path(target));
+                            }
                             push_xref(&mut analysis.code_xrefs, target, address);
                         }
                         direct_flow.successors.insert(address, Vec::new());
@@ -2010,7 +2104,11 @@ fn discover_direct_flow(
                         let edges: Vec<_> = targets
                             .into_iter()
                             .map(|target| {
-                                pending.push_back(target);
+                                if import_functions.is_some() {
+                                    pending.push_front(FlowTask::Path(target));
+                                } else {
+                                    pending.push_back(FlowTask::Path(target));
+                                }
                                 push_xref(&mut analysis.code_xrefs, target, address);
                                 Edge {
                                     target,
@@ -2333,6 +2431,71 @@ mod tests {
             Vec::new(),
         )
         .expect("synthetic callback recovery succeeds")
+    }
+
+    #[test]
+    fn import_call_functions_keep_the_extent_at_creation() {
+        let mut bytes = vec![0xc3];
+        bytes.resize(0x10, 0xcc);
+        // An unreferenced function, with an exit reachable independently of
+        // the import-call fragment that first discovers its recursive call.
+        bytes.extend_from_slice(&[0x31, 0xc0, 0x74, 0x2c]);
+        bytes.resize(0x20, 0x90);
+        bytes.extend_from_slice(&[
+            0xff, 0x15, 0, 0x20, 0, 0, // 0x1020: call [import]
+            0xe8, 0xe5, 0xff, 0xff, 0xff, // 0x1026: call 0x1010
+            0xe8, 0x20, 0, 0, 0, // 0x102b: call 0x1050
+            0xc3,
+        ]);
+        bytes.resize(0x40, 0xcc);
+        bytes.push(0xc3);
+        bytes.resize(0x50, 0xcc);
+        bytes.push(0xc3);
+        // Keep the synthetic IAT inside a mapped region for findPointers.
+        bytes.resize(0x1100, 0);
+        let analysis = callback_image(&bytes, Architecture::X86, "kernel32.OtherApi");
+        let function = &analysis.functions[&0x1010];
+        let owned: BTreeSet<_> = function
+            .blocks
+            .iter()
+            .flat_map(|block| block.insns.iter().map(|insn| insn.address))
+            .collect();
+        assert!(owned.contains(&0x1026));
+        assert!(owned.contains(&0x1040));
+        assert!(!owned.contains(&0x102b));
+        assert!(analysis.instructions.contains_key(&0x102b));
+        assert!(analysis.functions.contains_key(&0x1050));
+        assert!(!analysis.is_noreturn_va(0x1010));
+
+        let native = analyze_seeded_image(
+            analysis.image.clone(),
+            RecoveryBackend::Native,
+            SeedMap::from([(0x1000, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(native.functions[&0x1010]
+            .blocks
+            .iter()
+            .flat_map(|block| &block.insns)
+            .any(|insn| insn.address == 0x102b));
+
+        let mut relocated = analysis.image.clone();
+        relocated.relocation_locations.push(0x1022);
+        let relocated = analyze_seeded_image(
+            relocated,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(0x1000, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .unwrap();
+        assert!(
+            !relocated.instructions.contains_key(&0x1020),
+            "a typed relocation operand is not an undefined import-call candidate"
+        );
+        assert!(!relocated.functions.contains_key(&0x1010));
     }
 
     #[test]

@@ -2,6 +2,7 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use capa_x::extract::recovery::{analyze, SeedKind};
@@ -168,6 +169,54 @@ fn recovery_gaps_do_not_cut_off_the_documented_callers() {
                 .flat_map(|block| &block.insns)
                 .any(|insn| insn.address == recovered_instruction),
             "{name}: missing caller continuation"
+        );
+    }
+}
+
+#[test]
+fn import_call_discovery_preserves_reference_function_ownership() {
+    for (name, function, last_owned, loose_continuation) in [
+        (
+            "1e9fc7f32bd5522dd0222932eb9f1d8bd0a2e132c7b46cfcc622ad97831e6128.exe_",
+            0x4028d2,
+            0x40293b,
+            0x402940,
+        ),
+        (
+            "31600ad0d1a7ea615690df111ae36c73.exe_",
+            0x401155,
+            0x4011c2,
+            0x4011c7,
+        ),
+        (
+            "a563c50c5fa0fd541248acaf72cc4e7d.exe_",
+            0x401490,
+            0x4015c7,
+            0x4015cc,
+        ),
+    ] {
+        let bytes = std::fs::read(root().join("tests/testfiles").join(name)).unwrap();
+        let analysis = analyze(&bytes).unwrap();
+        let owned: BTreeSet<_> = analysis.functions[&function]
+            .blocks
+            .iter()
+            .flat_map(|block| block.insns.iter().map(|insn| insn.address))
+            .collect();
+        assert!(
+            owned.contains(&last_owned),
+            "{name}: missing recursive call"
+        );
+        assert!(
+            !owned.contains(&loose_continuation),
+            "{name}: claimed instructions decoded after function creation"
+        );
+        assert!(
+            analysis.instructions.contains_key(&loose_continuation),
+            "{name}: loose code must still be decoded"
+        );
+        assert!(
+            !analysis.is_noreturn_va(function),
+            "{name}: false no-return"
         );
     }
 }

@@ -364,6 +364,25 @@ fn extract_pe_input(
         Ok::<_, AnalysisError>((features, analysis, libraries))
     })?;
     timed(&mut timings.extraction, || {
+        // `viv/file.py:extract_file_section_names` enumerates workspace
+        // segments, including PE_Header and embedded NULs. File-only analysis
+        // keeps the independent pefile contract in `extract_pe`.
+        if matches!(
+            analysis.image.architecture,
+            Architecture::X86 | Architecture::X64
+        ) {
+            features
+                .file_features
+                .retain(|(_, feature)| !matches!(feature, crate::features::Feature::Section(_)));
+            features
+                .file_features
+                .extend(analysis.image.sections.iter().map(|section| {
+                    (
+                        Address::Absolute(section.address),
+                        crate::features::Feature::Section(section.name.clone()),
+                    )
+                }));
+        }
         enrich_static_features(&mut features, &analysis, &libraries, options)
     });
     let library_functions = libraries
@@ -381,11 +400,27 @@ fn extract_pe_input(
 
 fn extract_pe_file_only(bytes: &[u8]) -> Result<LoadedInput, AnalysisError> {
     extract_pe(bytes)
-        .map(|features| LoadedInput {
-            freeze: Freeze::Static(features),
-            library_functions: Vec::new(),
-        })
+        .map(file_only_input)
         .map_err(AnalysisError::PeExtract)
+}
+
+fn file_only_input(mut features: freeze::StaticFeatures) -> LoadedInput {
+    // `pefile.py` and `elffile.py` include extract_file_format in
+    // FILE_HANDLERS, whereas the Vivisect extractor makes format global.
+    features.global_features.retain(|feature| {
+        if matches!(feature, crate::features::Feature::Format(_)) {
+            features
+                .file_features
+                .push((Address::NoAddress, feature.clone()));
+            false
+        } else {
+            true
+        }
+    });
+    LoadedInput {
+        freeze: Freeze::Static(features),
+        library_functions: Vec::new(),
+    }
 }
 
 fn extract_elf_input(
@@ -412,10 +447,7 @@ fn extract_elf_input(
 
 fn extract_elf_file_only(bytes: &[u8]) -> Result<LoadedInput, AnalysisError> {
     extract_elf(bytes)
-        .map(|features| LoadedInput {
-            freeze: Freeze::Static(features),
-            library_functions: Vec::new(),
-        })
+        .map(file_only_input)
         .map_err(AnalysisError::ElfExtract)
 }
 
