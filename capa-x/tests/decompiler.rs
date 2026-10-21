@@ -177,8 +177,11 @@ fn unsupported_and_invalid_requests_are_controlled() -> anyhow::Result<()> {
     Ok(())
 }
 #[test]
-fn work_limit_is_an_error_and_failed_session_is_rejected() -> anyhow::Result<()> {
+fn work_limit_is_an_error_and_leaves_the_session_usable() -> anyhow::Result<()> {
     let mut session = DecompilerSession::from_pe(FIXTURE)?;
+    let expected = DecompilerSession::from_pe(FIXTURE)?
+        .decompile_function(address("switches")?)?
+        .text;
     session.set_limits(ResourceLimits {
         max_work: 1,
         ..Default::default()
@@ -188,13 +191,102 @@ fn work_limit_is_an_error_and_failed_session_is_rejected() -> anyhow::Result<()>
         .err()
         .ok_or_else(|| anyhow::anyhow!("expected work limit error"))?;
     assert!(error.to_string().contains("work limit"), "{error}");
-    let error = session
-        .decompile_function(address("arithmetic")?)
-        .err()
-        .ok_or_else(|| anyhow::anyhow!("expected poisoned session error"))?;
-    assert!(error.to_string().contains("session failed previously"));
+    // A cooperative limit aborts one request and nothing else.
+    session.set_limits(ResourceLimits::default())?;
+    assert_eq!(
+        session.decompile_function(address("switches")?)?.text,
+        expected
+    );
     Ok(())
 }
+
+#[test]
+fn enrichment_budget_is_separate_and_its_failure_keeps_the_function() -> anyhow::Result<()> {
+    let target = address("switches")?;
+    let plain = DecompilerSession::from_pe(FIXTURE)?.decompile_function(target)?;
+    // Find a budget large enough for the selected function alone but too small
+    // for callee inference to finish within its own, equal budget.
+    let mut found = false;
+    for max_work in [200, 400, 800, 1_600, 3_200, 6_400, 12_800, 25_600] {
+        let mut session = DecompilerSession::from_pe(FIXTURE)?;
+        session.set_limits(ResourceLimits {
+            max_work,
+            ..Default::default()
+        })?;
+        let Ok(output) = session.decompile_function(target) else {
+            continue;
+        };
+        if output
+            .warnings
+            .iter()
+            .any(|w| w.contains("inference skipped"))
+        {
+            assert!(output.incomplete);
+            assert!(output.text.contains("switches("), "{}", output.text);
+            // The session survives and still produces the full result.
+            session.set_limits(ResourceLimits::default())?;
+            assert_eq!(session.decompile_function(target)?.text, plain.text);
+            found = true;
+            break;
+        }
+    }
+    assert!(found, "no budget exercised the skipped-enrichment path");
+    Ok(())
+}
+
+#[test]
+fn output_does_not_depend_on_request_order() -> anyhow::Result<()> {
+    let names = [
+        "switches",
+        "branches",
+        "loops",
+        "arithmetic",
+        "imported_call",
+        "nonreturn",
+    ];
+    let mut reference = Vec::new();
+    for name in names {
+        let mut fresh = DecompilerSession::from_pe(FIXTURE)?;
+        reference.push(fresh.decompile_function(address(name)?)?.text);
+    }
+    // Deterministic shuffles of the same requests on a single session.
+    for rotation in 0..names.len() {
+        for reversed in [false, true] {
+            let mut order: Vec<usize> = (0..names.len()).map(|i| (i + rotation) % names.len()).collect();
+            if reversed {
+                order.reverse();
+            }
+            let mut session = DecompilerSession::from_pe(FIXTURE)?;
+            for index in order {
+                assert_eq!(
+                    session.decompile_function(address(names[index])?)?.text,
+                    reference[index],
+                    "{} after rotation {rotation} reversed={reversed}",
+                    names[index]
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn malformed_import_directory_loads_without_imports() -> anyhow::Result<()> {
+    let mut bytes = FIXTURE.to_vec();
+    let pe = goblin::pe::PE::parse(&bytes)?;
+    // Delay import data directory (index 13) claiming millions of descriptors.
+    let entry = pe.header.dos_header.pe_pointer as usize + 4 + 20 + 112 + 13 * 8;
+    bytes[entry..entry + 4].copy_from_slice(&0x6000u32.to_le_bytes());
+    bytes[entry + 4..entry + 8].copy_from_slice(&0x7fff_fff0u32.to_le_bytes());
+    assert!(DecompilerSession::from_pe(FIXTURE).is_ok());
+    let mut session = DecompilerSession::from_pe(&bytes)?;
+    let output = session.decompile_function(address("arithmetic")?)?;
+    assert!(output.text.contains("arithmetic"), "{}", output.text);
+    assert!(output.warnings.iter().any(|w| w.contains("import directory ignored")), "{:?}", output.warnings);
+    assert!(output.incomplete);
+    Ok(())
+}
+
 #[test]
 fn interleaved_sessions_keep_their_own_translator() -> anyhow::Result<()> {
     let mut first = DecompilerSession::from_pe(FIXTURE)?;

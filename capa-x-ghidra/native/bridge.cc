@@ -27,6 +27,17 @@ struct Budget {
   std::chrono::steady_clock::time_point deadline;
 };
 thread_local Budget budget;
+// Cooperative limits abort one request; the session stays usable because every
+// request starts by clearing the analysis state it touched.
+struct BudgetExceeded : std::runtime_error {
+  using std::runtime_error::runtime_error;
+};
+// Charge \p work units, as if the engine had spent them itself.
+void charge(uint64_t work) {
+  if (!budget.active) return;
+  if (budget.remaining < work) { budget.remaining = 0; throw BudgetExceeded("native work limit exceeded"); }
+  budget.remaining -= work;
+}
 struct BudgetGuard {
   BudgetGuard(uint32_t ms, uint32_t work) {
     budget = {true, work, std::chrono::steady_clock::now() + std::chrono::milliseconds(ms)};
@@ -299,9 +310,9 @@ std::string capax_sla() {
 }
 void capax_check() {
   if (!budget.active) return;
-  if (budget.remaining-- == 0) throw std::runtime_error("native work limit exceeded");
+  if (budget.remaining-- == 0) throw BudgetExceeded("native work limit exceeded");
   if (std::chrono::steady_clock::now() >= budget.deadline)
-    throw std::runtime_error("native decompilation deadline exceeded");
+    throw BudgetExceeded("native decompilation deadline exceeded");
 }
 // TypeFactory::setFields is private since Ghidra 12 and the public route is the
 // XML decoder. Explicit instantiation may name a private member, which yields a
@@ -362,62 +373,152 @@ public:
         if (flow.flows == 1 && flow.direct && flow.target.getOffset() != entry &&
             supplied_entries.count(flow.target.getOffset()) &&
             arch.image().executable(flow.target.getOffset()))
+        {
           fd->getOverride().insertFlowOverride(Address(arch.getDefaultCodeSpace(), current), Override::CALL_RETURN);
+          invalidateInferred();
+        }
         return;
       }
       if (length <= 0 || current > UINT64_MAX - uint64_t(length)) return;
       current += length;
     }
   }
-  // Inference is request-local: no dependency on prior request order, and an
-  // explicit signature supplied later never leaves stale inferred prototypes.
-  // Local safety policy: at most 16 supporting functions and four call levels,
-  // sharing the selected request's work/deadline budget.
-  void inferCallees(Funcdata *caller, unsigned depth, std::set<uint64_t> &visited,
-                    std::vector<Funcdata *> &inferred) {
-    if (depth >= 4) return;
+  // Callee prototype inference. Locks never outlive one function's analysis, so
+  // the result for (target, level) is a pure function of the image and explicit
+  // signatures and can be cached for the session. A cache hit charges the work
+  // the original computation took, so limits behave identically in any request
+  // order. set_signature and the other mutators drop the cache.
+  // Local safety policy: at most 16 direct callees per request, 16 analyzed
+  // functions below each, and four call levels.
+  struct Inferred {
+    bool usable = false;
+    PrototypePieces pieces;
+    uint64_t cost = 0;
+    unsigned size = 0;
+  };
+  std::map<std::pair<uint64_t, unsigned>, Inferred> inferred_cache;
+  std::set<uint64_t> in_progress;
+  std::set<Funcdata *> touched;
+  std::vector<Funcdata *> applied;
+  void invalidateInferred() { inferred_cache.clear(); }
+  static std::set<uint64_t> directTargets(Funcdata *caller) {
     std::set<uint64_t> targets;
     for (int4 i = 0; i < caller->numCalls(); ++i) {
       capax_check();
       auto *call = caller->getCallSpecs(i);
       if (!call->getEntryAddress().isInvalid()) targets.insert(call->getEntryAddress().getOffset());
     }
-    for (auto target : targets) {
-      capax_check();
-      if (visited.size() >= 17) return;
-      if (!arch.image().executable(target) || !visited.insert(target).second) continue;
-      auto *fd = arch.symboltab->getGlobalScope()->queryFunction(Address(arch.getDefaultCodeSpace(), target));
-      if (!fd || fd->getFuncProto().isInputLocked() || fd->getFuncProto().isOutputLocked()) continue;
-      errors.str("");
+    return targets;
+  }
+  int4 analyze(Funcdata *fd) {
+    arch.clearAnalysis(fd);
+    errors.str("");
+    arch.allacts.getCurrent()->reset(*fd);
+    return arch.allacts.getCurrent()->perform(*fd);
+  }
+  void apply(uint64_t target, const Inferred &entry) {
+    auto *fd = arch.symboltab->getGlobalScope()->queryFunction(Address(arch.getDefaultCodeSpace(), target));
+    auto &proto = fd->getFuncProto();
+    proto.setPieces(entry.pieces);
+    proto.setInputLock(true);
+    proto.setOutputLock(true);
+    proto.setModelLock(true);
+    applied.push_back(fd);
+  }
+  /// Drop every inferred lock and the analysis state of everything a request
+  /// touched, so the next request sees only supplied facts.
+  void release(Funcdata *selected) {
+    for (auto *fd : applied) {
+      fd->getFuncProto().setInputLock(false);
+      fd->getFuncProto().setOutputLock(false);
+      fd->getFuncProto().setModelLock(false);
+    }
+    applied.clear();
+    in_progress.clear();
+    touched.insert(selected);
+    for (auto *fd : touched) {
       arch.clearAnalysis(fd);
-      arch.allacts.getCurrent()->reset(*fd);
-      int4 status = arch.allacts.getCurrent()->perform(*fd);
-      const auto candidate_errors = errors.str();
-      auto previous = inferred.size();
-      inferCallees(fd, depth + 1, visited, inferred);
-      if (inferred.size() != previous) {
-        arch.clearAnalysis(fd);
-        errors.str("");
-        arch.allacts.getCurrent()->reset(*fd);
-        status = arch.allacts.getCurrent()->perform(*fd);
+      fd->getFuncProto().clearUnlockedInput();
+      fd->getFuncProto().clearUnlockedOutput();
+    }
+    touched.clear();
+  }
+  const Inferred &infer(uint64_t target, unsigned level) {
+    const auto key = std::make_pair(target, level);
+    auto cached = inferred_cache.find(key);
+    if (cached != inferred_cache.end()) {
+      charge(cached->second.cost);
+      return cached->second;
+    }
+    const uint64_t before = budget.active ? budget.remaining : 0;
+    Inferred out;
+    out.size = 1;
+    auto *fd = arch.symboltab->getGlobalScope()->queryFunction(Address(arch.getDefaultCodeSpace(), target));
+    if (arch.image().executable(target) && fd && !fd->getFuncProto().isInputLocked() &&
+        !fd->getFuncProto().isOutputLocked()) {
+      touched.insert(fd);
+      in_progress.insert(target);
+      int4 status = analyze(fd);
+      const auto own_errors = errors.str();
+      std::vector<std::pair<uint64_t, const Inferred *>> usable_children;
+      if (level < 4) {
+        for (auto child : directTargets(fd)) {
+          if (in_progress.count(child) || out.size > 16) continue;
+          const auto &entry = infer(child, level + 1);
+          out.size += entry.size;
+          if (entry.usable) usable_children.emplace_back(child, &entry);
+        }
+      }
+      if (!usable_children.empty()) {
+        const auto mark = applied.size();
+        for (auto &[child, entry] : usable_children) apply(child, *entry);
+        status = analyze(fd);
+        out.usable = status >= 0;
+        collect(fd, out);
+        for (auto i = applied.size(); i-- > mark;) unlockOne(applied[i]);
+        applied.resize(mark);
       } else {
-        errors.str(candidate_errors);
+        errors.str(own_errors);
+        out.usable = status >= 0;
+        collect(fd, out);
       }
-      bool usable = status >= 0 && fd->getFuncProto().numParams() <= 32 && errors.str().empty();
-      for (auto it = arch.commentdb->beginComment(fd->getAddress()); it != arch.commentdb->endComment(fd->getAddress()); ++it)
-        if ((*it)->getType() & (Comment::warning | Comment::warningheader)) usable = false;
-      for (int4 i = 0; i < fd->numCalls(); ++i) {
-        const auto *call = fd->getCallSpecs(i);
-        if (!call->isInputLocked() || !call->isOutputLocked()) usable = false;
-      }
-      if (usable) {
-        fd->getFuncProto().setInputLock(true);
-        fd->getFuncProto().setOutputLock(true);
-        inferred.push_back(fd);
-      }
+      in_progress.erase(target);
       arch.clearAnalysis(fd);
       errors.str("");
     }
+    if (out.size > 16) out.usable = false;
+    out.cost = budget.active ? before - budget.remaining : 0;
+    return inferred_cache.emplace(key, std::move(out)).first->second;
+  }
+  static void unlockOne(Funcdata *fd) {
+    fd->getFuncProto().setInputLock(false);
+    fd->getFuncProto().setOutputLock(false);
+    fd->getFuncProto().setModelLock(false);
+  }
+  /// Decide whether \p fd's finished analysis is trustworthy, and if so keep its pieces.
+  void collect(Funcdata *fd, Inferred &out) {
+    if (!out.usable || fd->getFuncProto().numParams() > 32 || !errors.str().empty()) { out.usable = false; return; }
+    for (auto it = arch.commentdb->beginComment(fd->getAddress()); it != arch.commentdb->endComment(fd->getAddress()); ++it)
+      if ((*it)->getType() & (Comment::warning | Comment::warningheader)) out.usable = false;
+    for (int4 i = 0; i < fd->numCalls(); ++i) {
+      const auto *call = fd->getCallSpecs(i);
+      if (!call->isInputLocked() || !call->isOutputLocked()) out.usable = false;
+    }
+    if (out.usable) fd->getFuncProto().getPieces(out.pieces);
+  }
+  /// Infer and lock the direct callees of \p selected; returns how many were applied.
+  size_t inferDirect(Funcdata *selected) {
+    in_progress.insert(selected->getAddress().getOffset());
+    size_t count = 0, seen = 0;
+    std::vector<std::pair<uint64_t, const Inferred *>> usable;
+    for (auto target : directTargets(selected)) {
+      if (in_progress.count(target)) continue;
+      if (++seen > 16) break;
+      const auto &entry = infer(target, 1);
+      if (entry.usable) usable.emplace_back(target, &entry);
+    }
+    for (auto &[target, entry] : usable) { apply(target, *entry); ++count; }
+    return count;
   }
   Funcdata *function(uint64_t address, const std::string &name, bool noreturn) {
     auto *scope = arch.symboltab->getGlobalScope();
@@ -494,6 +595,7 @@ void Session::add_function(uint64_t address, rust::Str name, bool noreturn) {
   std::lock_guard<std::mutex> lock(engine_mutex);
   checked([&] {
     impl->ready();
+    impl->invalidateInferred();
     impl->function(address, identifier(name), noreturn);
     impl->supplied_entries.insert(address);
   });
@@ -502,6 +604,7 @@ void Session::add_import(uint64_t address, rust::Str name, bool noreturn) {
   std::lock_guard<std::mutex> lock(engine_mutex);
   checked([&] {
     impl->ready();
+    impl->invalidateInferred();
     auto &arch = impl->arch;
     if (address > UINT64_MAX - 7) throw std::runtime_error("import slot address overflow");
     // Only the IAT slot is mutable. Preserve read-only strings/constants in
@@ -520,6 +623,7 @@ bool Session::apply_prototype(uint64_t address, rust::Str name) {
   std::lock_guard<std::mutex> lock(engine_mutex);
   return checked([&] {
     impl->ready();
+    impl->invalidateInferred();
     if (name.size() > 256) throw std::runtime_error("function name exceeds 256 bytes");
     auto &arch = impl->arch;
     auto *scope = arch.symboltab->getGlobalScope();
@@ -574,6 +678,7 @@ void Session::add_tail_call(uint64_t caller, uint64_t site, uint64_t target) {
   std::lock_guard<std::mutex> lock(engine_mutex);
   checked([&] {
     impl->ready();
+    impl->invalidateInferred();
     auto &arch = impl->arch;
     auto *fd = arch.symboltab->getGlobalScope()->queryFunction(Address(arch.getDefaultCodeSpace(), caller));
     const auto target_address = Address(arch.getDefaultCodeSpace(), target);
@@ -588,6 +693,7 @@ void Session::set_signature(uint64_t address, ValueType result, rust::Slice<cons
   std::lock_guard<std::mutex> lock(engine_mutex);
   checked([&] {
     impl->ready();
+    impl->invalidateInferred();
     if (parameters.size() > 32) throw std::runtime_error("signature exceeds 32 parameters");
     auto &arch = impl->arch;
     auto *scope = arch.symboltab->getGlobalScope();
@@ -635,6 +741,7 @@ void Session::set_preserves_rax(uint64_t address) {
   std::lock_guard<std::mutex> lock(engine_mutex);
   checked([&] {
     impl->ready();
+    impl->invalidateInferred();
     auto &arch = impl->arch;
     auto *fd = arch.symboltab->getGlobalScope()->queryFunction(Address(arch.getDefaultCodeSpace(), address));
     if (!fd) throw std::runtime_error("register effect requires a registered function");
@@ -671,37 +778,52 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
       std::ostringstream name;
       name << "FUN_" << std::hex << address;
       fd = impl->function(address, name.str(), false);
+      impl->invalidateInferred();
     }
-    BudgetGuard guard(timeout_ms, max_work);
+    // Each phase gets the full budget: a heavy callee inference must not starve
+    // or lose the selected function's own analysis.
+    const auto fresh = [&] { return BudgetGuard(timeout_ms, max_work); };
     try {
-      impl->prepareRequestedWrapper(fd, max_instructions);
-      arch.clearAnalysis(fd);
       arch.max_instructions = max_instructions;
       arch.flowoptions |= FlowInfo::error_toomanyinstructions;
-      impl->errors.str("");
-      std::vector<Funcdata *> inferred;
-      std::set<uint64_t> visited{address};
-      arch.allacts.getCurrent()->reset(*fd);
-      int4 result = arch.allacts.getCurrent()->perform(*fd);
-      const auto selected_errors = impl->errors.str();
-      impl->inferCallees(fd, 0, visited, inferred);
-      if (!inferred.empty()) {
-        arch.clearAnalysis(fd);
-        impl->errors.str("");
-        arch.allacts.getCurrent()->reset(*fd);
-        result = arch.allacts.getCurrent()->perform(*fd);
-      } else {
-        impl->errors.str(selected_errors);
+      int4 result;
+      std::string baseline_errors;
+      {
+        auto guard = fresh();
+        impl->prepareRequestedWrapper(fd, max_instructions);
+        result = impl->analyze(fd);
+        baseline_errors = impl->errors.str();
       }
-      capax_check();
+      size_t inferred = 0;
+      std::string skipped;
+      try {
+        auto guard = fresh();
+        inferred = impl->inferDirect(fd);
+        if (inferred) result = impl->analyze(fd);
+      } catch (const BudgetExceeded &e) {
+        skipped = e.what();
+      }
+      if (!skipped.empty()) {
+        // Enrichment is optional: drop it and redo the selected function plainly.
+        impl->release(fd);
+        inferred = 0;
+        auto guard = fresh();
+        result = impl->analyze(fd);
+      } else if (!inferred) {
+        impl->errors.str(baseline_errors);
+      }
       OutputBuffer buffer;
-      std::ostream output(&buffer);
-      output.exceptions(std::ios::badbit | std::ios::failbit);
-      arch.print->setOutputStream(&output);
-      arch.print->setMarkup(false);
-      arch.print->docFunction(fd);
-      arch.print->setOutputStream(&impl->errors);
       NativeOutput response;
+      {
+        auto guard = fresh();
+        capax_check();
+        std::ostream output(&buffer);
+        output.exceptions(std::ios::badbit | std::ios::failbit);
+        arch.print->setOutputStream(&output);
+        arch.print->setMarkup(false);
+        arch.print->docFunction(fd);
+        arch.print->setOutputStream(&impl->errors);
+      }
       response.text = buffer.str();
       for (auto it = arch.commentdb->beginComment(fd->getAddress()); it != arch.commentdb->endComment(fd->getAddress()); ++it)
         if ((*it)->getType() & (Comment::warning | Comment::warningheader)) response.warnings.push_back((*it)->getText());
@@ -713,16 +835,16 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
           break;
         }
       }
+      if (!skipped.empty())
+        response.warnings.push_back("Callee prototype inference skipped (" + skipped + "); callee prototypes remain unknown.");
       response.incomplete = result < 0 || !response.warnings.empty();
-      if (!inferred.empty()) response.warnings.push_back("Direct callee prototypes inferred from bounded native analysis; validate against machine code.");
-      arch.clearAnalysis(fd);
-      for (auto *callee : inferred) {
-        callee->getFuncProto().setInputLock(false);
-        callee->getFuncProto().setOutputLock(false);
-        callee->getFuncProto().setModelLock(false);
-        arch.clearAnalysis(callee);
-      }
+      if (inferred) response.warnings.push_back("Direct callee prototypes inferred from bounded native analysis; validate against machine code.");
+      impl->release(fd);
       return response;
+    } catch (const BudgetExceeded &) {
+      arch.print->setOutputStream(&impl->errors);
+      impl->release(fd);
+      throw;
     } catch (...) {
       arch.print->setOutputStream(&impl->errors);
       impl->poisoned = true;

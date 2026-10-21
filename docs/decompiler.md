@@ -46,8 +46,9 @@ analysis is released after each request, including temporary inferred callee pro
 timings, even when the CLI omits them for deterministic JSON.
 
 Sessions are neither Send nor Sync. Native calls are serialized process-wide
-because Ghidra has shared registries. A native failure poisons the session;
-create another session to continue. Rust-rejected invalid requests leave it
+because Ghidra has shared registries. An unexpected native failure poisons the
+session; create another session to continue. A work-limit or deadline error
+aborts only its request and leaves the session usable. Rust-rejected invalid requests leave it
 usable. Native warnings set `incomplete`; consumers should display them.
 The adapter applies the prototype of every import from a Windows system DLL that
 Ghidra's bundled Windows and C library data type archives describe (see
@@ -56,7 +57,7 @@ runtime names. Validated MSVC runtime matches and the PE DLL entry point get
 known calling signatures. Validated security-cookie checks also receive an
 explicit RAX-preservation effect, so their callers retain return values across
 the check. An arbitrary caller-supplied name does not enable that effect.
-See the [runtime-signature provenance](../capa-x/sigs/DECOMPILER.md). `from_analysis` uses the caller's symbol map and
+See the [runtime-signature provenance](../capa-x/sigs/DECOMPILER.md). `from_pe` loads a PE whose import or delay import directory is malformed without imports and with an "import directory ignored" warning. `from_analysis` uses the caller's symbol map and
 avoids the library-matching cost. PDB types are not loaded.
 
 `set_signature` accepts explicit scalar/pointer prototypes for function entries
@@ -64,9 +65,16 @@ or IAT slots. For unknown direct callees, native analysis can infer prototypes
 from at most 16 supporting functions and four call levels per request. These
 share the request's time/work budget and instruction limit per analyzed function.
 Only completed analysis without warnings or unresolved call prototypes supplies
-an inferred signature. Recursive or unresolved callees remain unknown. Derived
-signatures are discarded after the request, so previous requests and subsequent
-explicit overrides cannot leave stale prototype state.
+an inferred signature. Recursive or unresolved callees remain unknown. Inference
+has its own budget, separate from the selected function's, and each phase gets
+the full limits. If enrichment hits a limit, the function is decompiled without
+it and the result carries an "inference skipped" warning. Inferred signatures are
+cached per session as a pure function of the image and explicit signatures, and a
+cache hit charges the work of the original computation, so output and limits do
+not depend on request order. Locks last only while a function is analyzed, and
+`set_signature` and the other mutators drop the cache. Limits: 16 direct callees
+per request, 16 analyzed functions below each, four call levels. An explicitly
+requested unrecovered wrapper keeps the tail-call override it received.
 
 Results using inferred callee prototypes carry a warning and are conservatively
 marked incomplete. Calls still lacking prototypes retain the explicit unknown

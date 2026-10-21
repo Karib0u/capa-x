@@ -14,7 +14,7 @@ pub use capa_x_ghidra::ValueType;
 use crate::extract::decoder::Flow;
 use crate::extract::image::{Architecture, ImageFormat, LoadedImage};
 use crate::extract::recovery::flirt::{self, Signatures};
-use crate::extract::recovery::{self, Analysis, RecoveryBackend};
+use crate::extract::recovery::{self, Analysis};
 
 #[derive(Debug, thiserror::Error)]
 pub enum DecompileError {
@@ -89,11 +89,21 @@ impl DecompilerSession {
     /// requested function. Existing callers can avoid recovery via from_analysis.
     pub fn from_pe(bytes: &[u8]) -> Result<Self, DecompileError> {
         let started = Instant::now();
-        let image = LoadedImage::parse(bytes).map_err(|e| DecompileError::Input(e.to_string()))?;
+        // A malformed import directory only costs the imports, with a warning.
+        let image =
+            LoadedImage::parse_partial(bytes).map_err(|e| DecompileError::Input(e.to_string()))?;
         validate_image(&image)?;
         let image_base = image.image_base;
+        let imports_skipped = image.imports_skipped;
         drop(image);
-        let pe = goblin::pe::PE::parse(bytes).map_err(|e| DecompileError::Input(e.to_string()))?;
+        let mut options = goblin::pe::options::ParseOptions::default();
+        options.parse_mode = goblin::options::ParseMode::Permissive;
+        options.parse_tls_data = false;
+        options.parse_resources = false;
+        options.parse_attribute_certificates = false;
+        options.parse_imports = !imports_skipped;
+        let pe = goblin::pe::PE::parse_with_opts(bytes, &options)
+            .map_err(|e| DecompileError::Input(e.to_string()))?;
         if pe
             .header
             .optional_header
@@ -102,7 +112,7 @@ impl DecompilerSession {
         {
             return Err(DecompileError::Unsupported("managed PE image".into()));
         }
-        let analysis = recovery::analyze_with_backend(bytes, RecoveryBackend::Native)
+        let analysis = recovery::analyze_partial_pe(bytes)
             .map_err(|e| DecompileError::Input(e.to_string()))?;
         let signatures =
             Signatures::decompiler_runtime().map_err(|e| DecompileError::Input(e.to_string()))?;

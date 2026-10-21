@@ -207,6 +207,13 @@ pub fn analyze_with_backend(
     analyze_image(bytes, image, backend)
 }
 
+/// Native recovery for a PE whose malformed import directory is dropped with a
+/// diagnostic instead of refusing the image. Used by the decompiler only.
+pub fn analyze_partial_pe(bytes: &[u8]) -> Result<Analysis, RecoveryError> {
+    let image = LoadedImage::parse_partial(bytes)?;
+    analyze_image(bytes, image, RecoveryBackend::Native)
+}
+
 /// PE recovery with the same signatures used by the caller for library recognition.
 pub fn analyze_with_signatures(
     bytes: &[u8],
@@ -1254,6 +1261,7 @@ fn collect_pe_seeds(
     options.parse_resources = false;
     options.parse_attribute_certificates = false;
     options.parse_tls_data = true;
+    options.parse_imports = !image.imports_skipped;
     let pe = PE::parse_with_opts(bytes, &options).map_err(|error| RecoveryError::Seeds {
         format: ImageFormat::Pe,
         context: error.to_string(),

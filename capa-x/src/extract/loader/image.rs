@@ -572,6 +572,9 @@ pub struct LoadedImage {
     /// Recoverable malformed optional-directory conditions encountered while
     /// loading. Code recovery exposes these without rejecting the sample.
     pub load_diagnostics: Vec<String>,
+    /// Set by [`LoadedImage::parse_partial`] when a malformed import directory
+    /// was dropped, so the image has no import bindings.
+    pub(crate) imports_skipped: bool,
     /// PE relocation slots, retained as pointer locations during recovery.
     pub(crate) relocation_locations: Vec<u64>,
     /// ELF PLT section ranges, separate from the PT_LOAD memory mappings.
@@ -604,9 +607,35 @@ impl LoadedImage {
         }
     }
 
+    /// Like [`parse`](Self::parse), but a PE whose import or delay import
+    /// directory cannot be parsed loads without any imports and records a
+    /// diagnostic instead of being refused. Capability analysis keeps using
+    /// the strict `parse`.
+    pub fn parse_partial(bytes: &[u8]) -> Result<Self, ImageError> {
+        match Self::parse(bytes) {
+            Err(error @ (ImageError::Pe(_) | ImageError::DelayImport { .. }))
+                if bytes.starts_with(b"MZ") =>
+            {
+                let Ok(mut image) = Self::from_pe_with_imports(bytes, false) else {
+                    return Err(error);
+                };
+                image
+                    .load_diagnostics
+                    .push(format!("import directory ignored: {error}"));
+                Ok(image)
+            }
+            other => other,
+        }
+    }
+
     pub fn from_pe(bytes: &[u8]) -> Result<Self, ImageError> {
+        Self::from_pe_with_imports(bytes, true)
+    }
+
+    fn from_pe_with_imports(bytes: &[u8], parse_imports: bool) -> Result<Self, ImageError> {
         let mut options = ParseOptions::default();
         options.parse_mode = ParseMode::Permissive;
+        options.parse_imports = parse_imports;
         options.parse_tls_data = false;
         options.parse_resources = false;
         options.parse_attribute_certificates = false;
@@ -842,6 +871,7 @@ impl LoadedImage {
             external_bindings: BTreeMap::new(),
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            imports_skipped: false,
             relocation_locations: Vec::new(),
             elf_plt_ranges: Vec::new(),
             dead_data,
@@ -931,7 +961,11 @@ impl LoadedImage {
                 .import_locations
                 .insert(address, import_location_name(import.dll, &symbol));
         }
-        image.load_pe_delay_imports(&pe)?;
+        if parse_imports {
+            image.load_pe_delay_imports(&pe)?;
+        } else {
+            image.imports_skipped = true;
+        }
 
         Ok(image)
     }
@@ -1049,6 +1083,7 @@ impl LoadedImage {
             external_bindings: BTreeMap::new(),
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            imports_skipped: false,
             relocation_locations: Vec::new(),
             elf_plt_ranges: Vec::new(),
             dead_data: Vec::new(),
@@ -1204,6 +1239,7 @@ impl LoadedImage {
             external_bindings: BTreeMap::new(),
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            imports_skipped: false,
             relocation_locations: Vec::new(),
             elf_plt_ranges: Vec::new(),
             dead_data: Vec::new(),
@@ -1367,6 +1403,7 @@ impl LoadedImage {
             external_bindings: BTreeMap::new(),
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            imports_skipped: false,
             relocation_locations: Vec::new(),
             elf_plt_ranges: Vec::new(),
             dead_data: Vec::new(),
@@ -2736,6 +2773,7 @@ impl LoadedImage {
             external_bindings,
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            imports_skipped: false,
             relocation_locations: Vec::new(),
             elf_plt_ranges: Vec::new(),
             dead_data: Vec::new(),
@@ -2899,6 +2937,7 @@ mod tests {
             external_bindings: BTreeMap::new(),
             import_locations: BTreeMap::new(),
             load_diagnostics: Vec::new(),
+            imports_skipped: false,
             relocation_locations: Vec::new(),
             elf_plt_ranges: Vec::new(),
             dead_data: Vec::new(),
