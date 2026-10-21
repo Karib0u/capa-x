@@ -16,7 +16,9 @@ these shortcuts. The pinned implementation uses
 Use a bounded abstract interpreter over the existing iced-x86 decoder for
 x86/x64 compatibility recovery. It tracks known register values, aliases,
 effective addresses, and private memory writes. Calls invalidate return values
-and caller-saved state; conditional branches explore both paths. It never
+and preserve other registers and private memory, matching the reference
+emulator. Known Windows x86 APIs apply their
+stdcall stack cleanup; conditional branches explore both paths. It never
 executes sample code, calls an external process, or loads a new dependency.
 
 Acceptance follows the watcher's return/no-return and mnemonic-distribution
@@ -56,6 +58,9 @@ Keep candidate selection separate from evaluation:
   x86 stack and Windows x64 register/stack values. Explicit callbacks can
   enter executable sections marked as dead data, as the upstream call
   monitor does; they cannot split existing instructions.
+  Match the calling emulator's entry-opcode exception for no-return locations:
+  it may discover callees after an entry call without expanding that function's
+  captured blocks. Stop at the calling monitor's all-zero bad opcode.
 - Keep broad prologue and raw call sweeps for the native backend and
   AArch64, which has no Vivisect reference backend. Candidate, callback, and
   registered-signature recovery replace them in x86/x64 compatibility mode. Support `xadd` so relocation-backed functions do not
@@ -67,14 +72,22 @@ Keep candidate selection separate from evaluation:
   reference's depth-first order and stops at existing locations, including
   instruction interiors. Block construction advances by location sizes;
   extraction decodes each resulting interval from its own start.
-- Use the pinned decoder's legacy BOUND and MOV/POP ModRM aliases in
+  Preserve the uncovered suffix of a typed pointer when an instruction
+  overwrites its prefix; that suffix remains a codeflow barrier.
+- Use the pinned decoder's legacy BOUND, LES/LDS, and MOV/POP ModRM aliases in
   compatibility mode. Native decoding retains modern instruction support.
   Explicit codeflow may traverse string I/O, while candidate evaluation
   rejects output instructions and decoder anomalies across queued paths.
 - Evaluate x64 RVA switch entries in consecutive table order, stopping at
   the first definite candidate rejection as `iterJumpTable` does. Keep
-  inconclusive results visible through diagnostics and retain their
-  statically validated targets. Native switches retain the full guarded table.
+  inconclusive results visible through diagnostics and stop the compatibility
+  table at that candidate. Native switches retain the full guarded table.
+  When no guarded table resolves, recognize the compatibility MOV/ADD/JMP
+  form with a statically proven image base, even without an adjacent guard.
+  Stop at referenced table boundaries, invalid targets, or rejected candidates.
+  Guarded and image-relative switches retain the 256-case resource limit with
+  an overflow diagnostic. Generic absolute tables are bounded by their
+  mapped source bytes.
 
 Ordered candidate maps and path scheduling preserve reproducible results.
 The native backend keeps its existing heuristic policy.
@@ -84,9 +97,8 @@ The native backend keeps its existing heuristic policy.
 This remains a bounded analyzer, not a complete Vivisect workspace emulator.
 API callback positions are supported, but arbitrary API side effects,
 dynamically resolved API identities, general symbolic switches, and all
-vector/FPU operations are not. Unknown calls discard argument state while
-preserving known imports in nonvolatile registers. Unknown input state stays
-unknown. The supported instructions and limits are explicit in `emucode.rs`,
+vector/FPU operations are not. Unknown calls preserve argument state while
+invalidating the return value. Unknown input state stays unknown. The supported instructions and limits are explicit in `emucode.rs`,
 `callbacks.rs`, and `pointers.rs`.
 
 The per-trace limits are 8,192 instructions and 256 queued paths. Discovery

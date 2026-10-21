@@ -64,6 +64,31 @@ fn elf_mapping_bindings_and_entry_decode() {
 }
 
 #[test]
+fn elf_relative_relocations_rebase_switch_operands_and_entries() {
+    use capa_x::extract::recovery::{analyze_with_backend, RecoveryBackend};
+
+    let bytes = std::fs::read(
+        testfiles_dir()
+            .join("749cf36adc5513c92c7acc836d20935e3c433f3c2d5641293e7a9c57c5ce22c2.elf_"),
+    )
+    .unwrap();
+    let analysis = analyze_with_backend(&bytes, RecoveryBackend::VivisectCompat).unwrap();
+    let branch = analysis.image.decode_at(0x2003558).unwrap();
+    assert_eq!(branch.memory_target, Some(0x200b52c));
+    assert_eq!(
+        analysis.image.bytes_at(0x200b52c, 4),
+        Some(0x20036dcu32.to_le_bytes().as_slice())
+    );
+    // The reference owns these case blocks through the dispatching function.
+    // Treating the table as unrelated pointers creates extra loop matches.
+    assert!(analysis.functions[&0x2003350]
+        .blocks
+        .iter()
+        .any(|block| block.addr == 0x20036dc));
+    assert!(!analysis.functions.contains_key(&0x20036dc));
+}
+
+#[test]
 fn elf_compatibility_only_binds_reference_import_relocation_types() {
     use capa_x::extract::recovery::{analyze_with_backend, RecoveryBackend};
     use goblin::elf::reloc::{R_386_JMP_SLOT, R_X86_64_GLOB_DAT, R_X86_64_IRELATIVE};

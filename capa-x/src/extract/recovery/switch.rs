@@ -2,8 +2,8 @@
 //!
 //! The x64 shape corresponds to Vivisect 1.3.2's
 //! analysis/generic/switchcase.py:getSwitchBase (load, add base, jump),
-//! including its optional byte selector table. Unlike that emulator hook,
-//! we require an adjacent unsigned bounds check and explicit base creation.
+//! including its optional byte selector table. Native recovery requires a
+//! guard; compatibility also accepts proven image-relative MOV/ADD/JMP tables.
 //! AArch64's BinExport2 reference supplies already-resolved CFG edges; its
 //! native counterpart recognizes ADRP/ADD/LDRSW/ADD/BR with the same guard.
 //! Unsupported sequences keep the existing unresolved-branch diagnostic.
@@ -18,24 +18,135 @@ use super::Analysis;
 #[path = "switch_tests.rs"]
 mod tests;
 
-// Local analysis budgets, not upstream constants. Never truncate a table:
-// an excessive bound or one invalid entry rejects the entire dispatch.
+// Local analysis budgets, not upstream constants. Exceeding a budget rejects
+// the dispatch; compatibility may stop earlier at a reference table boundary.
 const MAX_CASES: u64 = 256;
 const MAX_DISPATCH_INSNS: usize = 10;
 
 pub(super) fn targets(analysis: &Analysis, branch: &DecodedInstruction) -> Option<Vec<u64>> {
-    targets_with_policy(analysis, branch, None, &mut Vec::new())
+    targets_with_policy(analysis, branch, None, &mut Vec::new(), &mut Vec::new())
 }
 
 pub(super) fn targets_compat(
     analysis: &mut Analysis,
     branch: &DecodedInstruction,
     noreturn: &std::collections::BTreeSet<u64>,
+    table_locations: &mut Vec<(u64, usize)>,
 ) -> Option<Vec<u64>> {
     let mut diagnostics = Vec::new();
-    let targets = targets_with_policy(analysis, branch, Some(noreturn), &mut diagnostics);
+    let mut locations = Vec::new();
+    let targets = targets_with_policy(
+        analysis,
+        branch,
+        Some(noreturn),
+        &mut diagnostics,
+        &mut locations,
+    )
+    .or_else(|| {
+        compatibility_rva_targets(analysis, branch, noreturn, &mut diagnostics, &mut locations)
+    });
     analysis.diagnostics.extend(diagnostics);
+    if targets.is_some() {
+        table_locations.extend(locations);
+    }
     targets
+}
+
+/// generic/switchcase.py:getSwitchBase recognizes a MOV/ADD/JMP dispatch
+/// without requiring a nearby bounds check. This fallback proves the image
+/// base statically; unresolved register values retain the branch diagnostic.
+fn compatibility_rva_targets(
+    analysis: &Analysis,
+    branch: &DecodedInstruction,
+    noreturn: &std::collections::BTreeSet<u64>,
+    diagnostics: &mut Vec<super::RecoveryDiagnostic>,
+    table_locations: &mut Vec<(u64, usize)>,
+) -> Option<Vec<u64>> {
+    if analysis.image.architecture != Architecture::X64 {
+        return None;
+    }
+    let register = reg_operand(branch.x86_instruction(), 0)?;
+    let add = previous(analysis, branch.address)?;
+    // getSwitchBase/findOp searches past unrelated instructions, including
+    // an image-base LEA placed between the table load and the ADD.
+    let mut load = previous(analysis, add.address)?;
+    let mut remaining = MAX_DISPATCH_INSNS;
+    while !reg_operand(load.x86_instruction(), 0)
+        .is_some_and(|dest| dest.full_register() == register)
+    {
+        if remaining == 0 || load.flow != Flow::Next || has_entry(analysis, load.address) {
+            return None;
+        }
+        remaining -= 1;
+        load = previous(analysis, load.address)?;
+    }
+    let sum = add.x86_instruction();
+    let mov = load.x86_instruction();
+    let base_register = reg_operand(sum, 1)?;
+    if branch.x86_instruction().mnemonic() != Mnemonic::Jmp
+        || sum.mnemonic() != Mnemonic::Add
+        || base_register == register
+        || reg_operand(sum, 0) != Some(register)
+        || mov.mnemonic() != Mnemonic::Mov
+        || !reg_operand(mov, 0)
+            .is_some_and(|dest| dest.size() == 4 && dest.full_register() == register)
+        || !indexed_load(mov, mov.memory_base(), mov.memory_index(), 4, 4)
+        || mov.memory_index() == Register::None
+        || constant_before(analysis, add.address, base_register)? != analysis.image.image_base
+        || constant_before(analysis, load.address, mov.memory_base())? != analysis.image.image_base
+    {
+        return None;
+    }
+    let base = analysis.image.image_base;
+    let table = base.checked_add_signed(mov.memory_displacement64() as i64)?;
+    let mut targets = Vec::new();
+    for index in 0..=MAX_CASES {
+        let slot = table.checked_add(index.checked_mul(4)?)?;
+        if index != 0
+            && (analysis.code_xrefs.contains_key(&slot) || analysis.data_xrefs.contains_key(&slot))
+        {
+            break;
+        }
+        let Some(raw) = read_u32(&analysis.image, slot) else {
+            break;
+        };
+        // VivWorkspace.iterJumpTable rebases only values below the image base.
+        let raw = u64::from(raw);
+        let target = if raw < base {
+            base.checked_add(raw)?
+        } else {
+            raw
+        };
+        if !analysis.image.is_executable_address(target) {
+            break;
+        }
+        if index == MAX_CASES {
+            diagnostics.push(super::RecoveryDiagnostic {
+                address: branch.address,
+                message: format!("RVA switch exceeds {MAX_CASES} entries"),
+            });
+            return None;
+        }
+        match super::emucode::evaluate_candidate(analysis, target, noreturn, &[]) {
+            super::emucode::Verdict::NotCode => break,
+            super::emucode::Verdict::Inconclusive { address, reason } => {
+                diagnostics.push(super::RecoveryDiagnostic {
+                    address,
+                    message: format!(
+                        "switch {:#x} arm {target:#x} candidate evaluation inconclusive: {reason}",
+                        branch.address
+                    ),
+                });
+                break;
+            }
+            super::emucode::Verdict::Code => {}
+        }
+        if !targets.contains(&target) {
+            targets.push(target);
+        }
+    }
+    table_locations.push((table, analysis.image.architecture.pointer_width()));
+    Some(targets)
 }
 
 fn targets_with_policy(
@@ -43,15 +154,31 @@ fn targets_with_policy(
     branch: &DecodedInstruction,
     noreturn: Option<&std::collections::BTreeSet<u64>>,
     diagnostics: &mut Vec<super::RecoveryDiagnostic>,
+    table_locations: &mut Vec<(u64, usize)>,
 ) -> Option<Vec<u64>> {
     let sequence = guarded_sequence(analysis, branch)?;
     let (compare, rest) = sequence.split_first()?;
     let (guard, body) = rest.split_first()?;
     let mut targets = match analysis.image.architecture {
         Architecture::AArch64 => arm_targets(analysis, compare, guard, body)?,
-        Architecture::X64 => absolute_targets(analysis, compare, guard, body)
-            .or_else(|| x64_targets(analysis, compare, guard, body, noreturn, diagnostics))?,
-        Architecture::X86 => absolute_targets(analysis, compare, guard, body)?,
+        Architecture::X64 => {
+            absolute_targets(analysis, compare, guard, body, noreturn, diagnostics).or_else(
+                || {
+                    x64_targets(
+                        analysis,
+                        compare,
+                        guard,
+                        body,
+                        noreturn,
+                        diagnostics,
+                        table_locations,
+                    )
+                },
+            )?
+        }
+        Architecture::X86 => {
+            absolute_targets(analysis, compare, guard, body, noreturn, diagnostics)?
+        }
     };
     // An arm must not re-enter the guarded computation with an unchecked
     // selector. AArch64 targets also have to be instruction-aligned.
@@ -69,8 +196,15 @@ fn targets_with_policy(
     }) {
         return None;
     }
-    targets.sort_unstable();
-    targets.dedup();
+    if noreturn.is_some() {
+        // makeJumpTable and codeflow preserve the first occurrence of each
+        // arm in the table. Address sorting changes discovery order.
+        let mut seen = std::collections::BTreeSet::new();
+        targets.retain(|target| seen.insert(*target));
+    } else {
+        targets.sort_unstable();
+        targets.dedup();
+    }
     Some(targets)
 }
 
@@ -79,6 +213,8 @@ fn absolute_targets(
     compare: &DecodedInstruction,
     guard: &DecodedInstruction,
     body: &[&DecodedInstruction],
+    noreturn: Option<&std::collections::BTreeSet<u64>>,
+    diagnostics: &mut Vec<super::RecoveryDiagnostic>,
 ) -> Option<Vec<u64>> {
     let (branch, setup) = body.split_last()?;
     let op = branch.x86_instruction();
@@ -127,9 +263,42 @@ fn absolute_targets(
         return None;
     }
     let base = branch.memory_target?;
-    (0..count)
-        .map(|index| super::read_pointer(&analysis.image, base.checked_add(index * width as u64)?))
-        .collect()
+    let mut targets = Vec::new();
+    for index in 0..count {
+        let slot = base.checked_add(index * width as u64)?;
+        if let Some(noreturn) = noreturn {
+            // VivWorkspace.iterJumpTable stops at a referenced next slot,
+            // or at the first arm rejected by isProbablyCode.
+            if index != 0
+                && (analysis.code_xrefs.contains_key(&slot)
+                    || analysis.data_xrefs.contains_key(&slot))
+            {
+                break;
+            }
+            let target = super::read_pointer(&analysis.image, slot)?;
+            let signature = analysis
+                .seeds
+                .get(&target)
+                .is_some_and(|kinds| kinds.contains(&super::SeedKind::FunctionSignature));
+            if !signature {
+                match super::emucode::evaluate_candidate(analysis, target, noreturn, &[]) {
+                    super::emucode::Verdict::NotCode => break,
+                    super::emucode::Verdict::Inconclusive { address, reason } => {
+                        diagnostics.push(super::RecoveryDiagnostic {
+                            address,
+                            message: format!("switch {:#x} arm {target:#x} candidate evaluation inconclusive: {reason}", branch.address),
+                        });
+                        break;
+                    }
+                    super::emucode::Verdict::Code => {}
+                }
+            }
+            targets.push(target);
+        } else {
+            targets.push(super::read_pointer(&analysis.image, slot)?);
+        }
+    }
+    Some(targets)
 }
 
 fn previous(analysis: &Analysis, address: u64) -> Option<&DecodedInstruction> {
@@ -382,6 +551,7 @@ fn x64_targets(
     body: &[&DecodedInstruction],
     noreturn: Option<&std::collections::BTreeSet<u64>>,
     diagnostics: &mut Vec<super::RecoveryDiagnostic>,
+    table_locations: &mut Vec<(u64, usize)>,
 ) -> Option<Vec<u64>> {
     let cmp = compare.x86_instruction();
     if cmp.mnemonic() != Mnemonic::Cmp {
@@ -443,16 +613,23 @@ fn x64_targets(
     }
     // CMP r32 does not clear the upper half of the register. CDQE or an
     // immediately preceding 32-bit assignment must establish it.
-    if selector.size() == 4 && !sign_extend {
+    if noreturn.is_none() && selector.size() == 4 && !sign_extend {
         if has_entry(analysis, compare.address) {
             return None;
         }
         let prior = previous(analysis, compare.address)?.x86_instruction();
-        if !matches!(
+        let zero_extended = matches!(
             prior.mnemonic(),
-            Mnemonic::Lea | Mnemonic::Mov | Mnemonic::Sub | Mnemonic::Add
-        ) || reg_operand(prior, 0)? != selector
-        {
+            Mnemonic::Lea | Mnemonic::Mov | Mnemonic::Movzx | Mnemonic::Sub | Mnemonic::Add
+        ) && reg_operand(prior, 0) == Some(selector);
+        // A signed dword load before the unsigned guard also establishes
+        // the full index. Negative values fail CMP r32 against this bounded
+        // case count, leaving only nonnegative, correctly extended values.
+        let sign_extended = prior.mnemonic() == Mnemonic::Movsxd
+            && reg_operand(prior, 0) == Some(selector.full_register())
+            && (reg_operand(prior, 1).is_some_and(|source| source.size() == 4)
+                || prior.op1_kind() == OpKind::Memory && prior.memory_size().size() == 4);
+        if !zero_extended && !sign_extended {
             return None;
         }
     }
@@ -487,6 +664,12 @@ fn x64_targets(
     let jump = branch.x86_instruction();
     let loaded = reg_operand(load, 0)?;
     let signed = load.mnemonic() == Mnemonic::Movsxd && loaded.size() == 8;
+    // generic/switchcase.py:getSwitchBase requires a MOV of an unsigned
+    // RVA and an addition of the image base. Table-relative MOVSXD shapes
+    // belong to native recovery; the pinned reference does not resolve them.
+    if noreturn.is_some() && (signed || base != analysis.image.image_base) {
+        return None;
+    }
     if !(signed || load.mnemonic() == Mnemonic::Mov && loaded.size() == 4)
         || loaded.full_register() == base_reg
         || !indexed_load(load, base_reg, index, 4, 4)
@@ -508,7 +691,7 @@ fn x64_targets(
         for index in 0..limit {
             let slot = table.checked_add(index.checked_mul(4)?)?;
             let target = base.checked_add(u64::from(read_u32(&analysis.image, slot)?))?;
-            match super::emucode::evaluate(&analysis.image, target, noreturn, &[]) {
+            match super::emucode::evaluate_candidate(analysis, target, noreturn, &[]) {
                 super::emucode::Verdict::NotCode => {
                     indexes.retain(|value| *value < index);
                     break;
@@ -521,10 +704,18 @@ fn x64_targets(
                             branch.address
                         ),
                     });
+                    indexes.retain(|value| *value < index);
+                    break;
                 }
                 super::emucode::Verdict::Code => {}
             }
         }
+    }
+    // generic/switchcase.py:analyzeJmp makes a pointer at the RVA table
+    // base before makeJumpTable. Its size is the workspace pointer width,
+    // even though the relative entries themselves are four bytes wide.
+    if noreturn.is_some() && !signed && base == analysis.image.image_base {
+        table_locations.push((table, analysis.image.architecture.pointer_width()));
     }
     indexes
         .into_iter()

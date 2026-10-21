@@ -175,8 +175,8 @@ impl DecodedInstruction {
     /// x86-only recovery barrier: `Cli`/`Hlt`/string I/O (`Insb`/`Insd`/
     /// `Insw`/`Outsb`/`Outsd`/`Outsw`)/`Sti` are ring-0-only or a
     /// sandbox/debugger tell, so native recovery stops there rather
-    /// than decoding further. Compatibility codeflow follows the pinned
-    /// reference through these instructions. `false` for AArch64:
+    /// than decoding further. Compatibility follows the pinned decoder's
+    /// flow flags, including HLT's no-fallthrough flag. `false` for AArch64:
     /// yet, and AArch64 recovery is where one would be added if the pinned
     /// corpus needs it.
     pub fn is_privileged_barrier(&self) -> bool {
@@ -225,6 +225,11 @@ fn x86_memory_target(instruction: &Instruction) -> Option<u64> {
 }
 
 fn x86_flow(instruction: &Instruction) -> Flow {
+    // envi/archs/i386/disasm.py marks INS_HALT with IF_NOFALL. iced-x86
+    // classifies HLT as Next, but recovery must not decode the bytes after it.
+    if instruction.mnemonic() == Mnemonic::Hlt {
+        return Flow::Terminal;
+    }
     match instruction.flow_control() {
         FlowControl::Next => Flow::Next,
         FlowControl::Call => Flow::Call,

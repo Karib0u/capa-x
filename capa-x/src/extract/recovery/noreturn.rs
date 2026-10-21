@@ -139,6 +139,19 @@ pub(crate) fn seed_addresses(image: &LoadedImage) -> BTreeSet<u64> {
 /// behind.
 fn import_thunk_location(analysis: &Analysis, function: &Function) -> Option<u64> {
     let insn = analysis.instructions.get(&function.addr)?;
+    // elf/elfplt.py recognizes the complete PLT stub, including a CET
+    // landing pad before the jump. generic/thunks.py only checks the entry.
+    let plt_jump = (analysis.image.format == ImageFormat::Elf
+        && analysis
+            .image
+            .elf_plt_ranges
+            .iter()
+            .any(|&(start, end)| start <= function.addr && function.addr < end)
+        && function.blocks.len() == 1)
+        .then(|| function.blocks.first().and_then(|block| block.insns.last()))
+        .flatten()
+        .filter(|last| last.flow == Flow::IndirectBranch);
+    let insn = plt_jump.unwrap_or(insn);
     let target = if matches!(insn.flow, Flow::IndirectCall | Flow::IndirectBranch) {
         memory_target(insn)?
     } else {
@@ -183,11 +196,15 @@ fn function_never_returns(analysis: &Analysis, function: &Function) -> bool {
     if import_thunk_location(analysis, function).is_some() {
         return false;
     }
-    for block in function
-        .blocks
-        .iter()
-        .filter(|block| block.succs.is_empty())
-    {
+    // graphutil.buildFunctionGraph omits edges without a code block at the
+    // exact destination. An unresolved jump is therefore a returning leaf.
+    let block_starts: BTreeSet<_> = function.blocks.iter().map(|block| block.addr).collect();
+    for block in function.blocks.iter().filter(|block| {
+        !block
+            .succs
+            .iter()
+            .any(|edge| block_starts.contains(&edge.target))
+    }) {
         let Some(last) = block.insns.last() else {
             continue;
         };
@@ -243,6 +260,20 @@ pub(crate) fn propagate(analysis: &Analysis, seed: &BTreeSet<u64>) -> BTreeSet<u
         }
     }
     result
+}
+
+pub(super) fn completed_function_never_returns(
+    analysis: &Analysis,
+    function: &Function,
+    known: &BTreeSet<u64>,
+) -> bool {
+    if import_thunk_location(analysis, function).is_some_and(|slot| known.contains(&slot)) {
+        return true;
+    }
+    // The pinned blob analysis does not register generic.noret.
+    matches!(analysis.image.format, ImageFormat::Pe | ImageFormat::Elf)
+        && !function.blocks.is_empty()
+        && function_never_returns(analysis, function)
 }
 
 #[cfg(test)]

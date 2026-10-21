@@ -170,7 +170,7 @@ gets a cheaper linux-only build plus the same schema-validation check.
 
 ## Accuracy and limitations
 
-Measured on 2026-10-20 against Python capa 10.0.0 and capa-rules v10.0.0,
+Measured on 2026-10-21 against Python capa 10.0.0 and capa-rules v10.0.0,
 using all 377 native x86/x64 and shellcode inputs in the pinned testfiles
 corpus. Original capa rejects one malformed ELF, leaving 376 comparable
 inputs. Shared freeze tests separately check JSON evidence.
@@ -181,13 +181,13 @@ inputs. Shared freeze tests separately check JSON evidence.
 | Reference rule/sample matches | 11,412 |
 | Divergent rules | 0 missing, 0 extra |
 | Samples with identical rule sets | 376/376 (100%) |
-| Samples with identical rule and match-address sets | 251/376 (66.8%) |
+| Samples with identical rule and match-address sets | **376/376 (100%)** |
 
-The [compatibility validation report](docs/validation/compatibility-2026-10-20.md)
-records the fixes and remaining address differences. Rule names now match on
-every comparable native input; 125 samples still differ at one or more match
-addresses. This is corpus compatibility, not a claim of identical recovery or
-evidence trees for arbitrary binaries. Complete
+The [match-address validation report](docs/validation/match-address-parity-2026-10-21.md)
+records the fixes and all 377 outcomes. Every comparable input has identical
+rule and match-address sets, with zero missing or extra addresses. This is
+corpus compatibility; evidence-tree identity and duplicate-match multiplicity
+are not established by this comparison. Complete
 [original reference results](tests/reference-results/capa-10.0.0/README.md)
 remain available for regression work. The
 [earlier expanded validation](docs/validation/full-corpus-2026-10-20.md)

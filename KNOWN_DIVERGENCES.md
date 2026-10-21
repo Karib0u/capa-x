@@ -7,20 +7,18 @@ historical causes so earlier measurements remain interpretable.
 
 ## Current measured remainder
 
-The latest 2026-10-20 run covers all 377 native x86/x64 and shellcode inputs.
-Original capa rejects one malformed ELF. All 376 comparable inputs now have
-identical rule-name sets: 11,412 reference rule/sample matches, zero missing,
-and zero extra. Exact rule and match-address sets agree on 251 inputs and
-differ on 125, improved from 177 identical inputs. Match-location and evidence
-tree compatibility are not complete.
+The latest 2026-10-21 run covers all 377 native x86/x64 and shellcode inputs.
+Original capa rejects one malformed ELF. All 376 comparable inputs have
+identical rule-name and match-address sets: zero missing or extra rules and
+zero missing or extra addresses. Evidence-tree identity and duplicate-match
+multiplicity remain outside this comparison.
 
-The [compatibility report](docs/validation/compatibility-2026-10-20.md)
-records the fixes and links every remaining address difference. The
+The [match-address report](docs/validation/match-address-parity-2026-10-21.md)
+records the fixes, commands, and every input outcome. The
 [earlier full validation](docs/validation/full-corpus-2026-10-20.md) and
 [complete reference outputs](tests/reference-results/capa-10.0.0/README.md)
-remain unchanged. The remaining address cases need further investigation;
-the resolved mechanisms below do not assert that every remaining difference
-has the same cause.
+remain unchanged as historical evidence. The resolved mechanisms below
+explain earlier differences rather than current corpus failures.
 
 The earlier 200-sample regression run has zero rule-name differences,
 with 6,300 reference-matched rules. The four formerly remaining
@@ -382,14 +380,13 @@ of this project's release contract.
 - **Class:** recovery / function extent
 - **Status:** the documented examples are resolved. This does not claim exact
   function-boundary parity for arbitrary shared code.
-- **Merged extent:** `29a76e413ffe0f78b62926b8455082d6.exe_` previously
-  accumulated code from adjacent functions under `0x1400e1300`, producing
-  `execute shellcode via indirect call`. Function views now stop fallthrough
-  at another independent PE unwind entry. Explicit branches still reach
-  shared tails, and chained unwind fragments remain excluded from the seed
-  set. Ending at this boundary does not itself prove a function never returns.
-  This intentionally follows linker evidence instead of reproducing the
-  reference workspace's overlapping, partially shared extents.
+- **Unwind boundaries:** the native backend stops fallthrough at independent
+  PE unwind entries. Compatibility recovery follows the pinned reference's
+  fallthrough across these entries and preserves the function view when its
+  discovery finishes. This restores the loop match at `0x1400e1300` in
+  `29a76e413ffe0f78b62926b8455082d6.exe_`. Later-discovered instructions must
+  not expand the earlier function's matching scope. Chained unwind fragments
+  remain excluded from the seed set.
 - **Corrected attribution:** on current main, `3fdfb2d5...exe_` already has
   `0x4146a9` inside `0x41467e`, exactly as the pinned reference does. Its
   remaining `link function at runtime on Windows` extra was an import-loader
@@ -652,4 +649,91 @@ of this project's release contract.
 - **Resolution:** derive x86 loop edges from terminal instruction branches;
   retain ELF PLT section ranges and recognize import jumps following ENDBR.
 - **Status:** these mechanisms are implemented and tested. They improve match
-  locations but do not eliminate the remaining 125 differing samples.
+  locations but do not eliminate the remaining 55 differing samples.
+
+
+### KD-024: function completion and evaluated callees
+
+- **Class:** recovery / function extent
+- **Upstream behavior:** `envi/codeflow.py:addCodeFlow` completes branch paths
+  and callees before the function callback. `generic/codeblocks.py` captures
+  the locations available at that point. Later discovery does not rebuild
+  every previous function from the expanded instruction map.
+- **Resolution:** preserve compatibility views at completion, finish switch
+  arms before capturing them, and propagate compatibility no-return decisions
+  as functions complete. Native recovery retains its graph-wide fixed point.
+  Calling traces run before final no-return classification, and changed jump
+  table edges refresh the affected function scopes. Late signatures cannot
+  start inside an existing instruction, matching `generic/funcentries.py`.
+- **Evaluated calls:** `impemu/monitor.py:AnalysisMonitor.apicall` also creates
+  concrete runtime-resolved callees. The bounded calling trace now follows
+  computed jumps into undecoded bytes and records executable callees. Import
+  identities take precedence over raw IAT contents. Newly supported scalar
+  and SSE operations follow `envi/archs/i386/emu.py`; unsupported operations
+  still produce diagnostics. Vector values remain unknown.
+- **Decoder boundary:** operand-size-prefixed relative branches retain their
+  complete 32-bit target in compatibility mode. Typed data locations constrain
+  codeflow, while pointer locations remain eligible for reclassification.
+  WAIT, legacy NOP aliases, and SSE string-register behavior follow the pinned
+  decoder and emulator.
+- **Coverage:** synthetic tests exercise completion order, signature interiors,
+  computed jumps, IAT identities, packed operations, and prefixed LOOP targets.
+  `match_address_parity.rs` compares complete rule/address sets for eleven
+  inputs with the immutable reference index. The initial PR gained 70 exact
+  samples; the follow-up gains five more and preserves every previously exact
+  sample. The remaining 50 differing inputs are listed in the current
+  validation report.
+
+### KD-025: extra function scopes expose pusha/popa matches
+
+- **Class:** recovery / callback discovery and function ownership
+- **Direction:** two extra rule-name matches
+- **Sample:** `971e599e6e707349eccea2fd4c8e5f67.exe_`
+- **Affects:** `contain anti-disasm techniques`
+- **Evidence:** callback discovery before function finalization retains extra
+  function scopes matching `contain pusha popa sequence`, crossing the parent
+  rule's threshold. This sample already had address differences on main; the
+  new rule-name match is a regression, not an accepted baseline change.
+- **Upstream mechanism:** `WorkspaceEmulator.runFunction` checks no-return
+  locations only after the entry opcode. A call at trace entry can therefore
+  expose later concrete callees to `AnalysisMonitor.apicall`, even though the
+  captured function blocks end at that call. The calling monitor also rejects
+  the all-zero bad opcode before following more calls. Applying those rules
+  restores the parent rule's threshold behavior.
+- **Additional sample:** `648fc498110b11b4313a47a776e6ba40.exe_` gains
+  `contain pusha popa sequence` at function `0x5fa068`. This was absent from
+  the main baseline. A typed pointer at `0x5fa114` is partially overwritten by
+  the instruction at `0x5fa113`. The reference location map keeps the pointer
+  suffix at `0x5fa117`, which stops codeflow before a false pusha/popa sequence.
+  Preserve exact pointer spans separately from merged data intervals to
+  reproduce that boundary.
+- **Status:** resolved for rule names. A permanent integration test compares
+  both complete rule-name sets with the immutable reference. Synthetic tests
+  cover trace-entry exceptions, bad opcodes, and pointer suffixes. Both samples
+  now also have identical match-address sets in the 2026-10-21 full run.
+  Expected baselines remain unchanged.
+
+
+### KD-026: pointer retyping, analyzer ordering, and compatibility decoding
+
+- **Cause:** the remaining native address differences depended on when the
+  reference creates, overwrites, and deletes locations. A partial pointer
+  overwrite leaves a suffix; deleting it can remove its covering opcode and
+  stop block installation. FLIRT must retain monotonic discovery visibility
+  even when the number of live opcodes decreases.
+- **Reference:** Vivisect 1.3.2 `analysis/generic/codeblocks.py`,
+  `analysis/generic/relocations.py`, `analysis/generic/switchcase.py`,
+  `analysis/i386/calling.py`, `analysis/i386/thunk_reg.py`, `envi/codeflow.py`,
+  `impemu/platarch/windows.py`, and `envi/archs/i386/{disasm,opcode86,emu}.py`.
+- **Resolution:** preserve pointer suffix deletion and block installation
+  order; stop strings and relocations at existing locations; record pointer
+  references that delimit adjacent tables; defer RVA switches to reached
+  calling traces; preserve immediate-only delayed callback release, PE root
+  ordering, ELF register thunks, and dynamic-library return hooks. Align
+  legacy vector boundaries, LOCK/REX handling, undefined x87 aliases, bounds
+  faults, and unresolved no-return edges with the pinned reference.
+- **Validation:** synthetic regressions cover deletion, signature visibility,
+  strings, typed relocations, thunks, decoder boundaries, emulation faults,
+  root ordering, and unresolved jumps. The complete native corpus has
+  **376/376 exact rule/address sets**, with one separate reference rejection.
+  See the [2026-10-21 report](docs/validation/match-address-parity-2026-10-21.md).

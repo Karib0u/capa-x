@@ -345,10 +345,20 @@ fn resource_code_recovers_without_absorbing_the_unpacked_region() {
 }
 
 #[test]
-fn unwind_entries_do_not_merge_adjacent_function_scopes() {
+fn native_unwind_boundaries_differ_from_reference_fallthrough() {
     let bytes = std::fs::read(root().join("tests/testfiles/29a76e413ffe0f78b62926b8455082d6.exe_"))
         .unwrap();
     let analysis = analyze(&bytes).unwrap();
+    assert!(analysis.functions[&0x1400e1300]
+        .blocks
+        .iter()
+        .flat_map(|block| &block.insns)
+        .any(|insn| insn.address == 0x1400e1360));
+    let analysis = capa_x::extract::recovery::analyze_with_backend(
+        &bytes,
+        capa_x::extract::recovery::RecoveryBackend::Native,
+    )
+    .unwrap();
     let first = &analysis.functions[&0x1400e1300];
     assert!(first
         .blocks
