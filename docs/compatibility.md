@@ -1,7 +1,6 @@
 # Compatibility
 
-Python capa 10.0.0 is the behavioral reference
-(see [`PINNED.md`](../PINNED.md)). capa-x is a native backend, not a
+Python capa 10.0.0 is the behavioral reference (see [`PINNED.md`](../PINNED.md)). capa-x is a native backend, not a
 replacement for every capa input format. Each input below carries a different
 kind of claim; do not read one row's evidence into another.
 
@@ -26,10 +25,10 @@ partially analyzed.
 
 | Class | Members | Evidence |
 |---|---|---|
-| Upstream parity | PE, ELF, shellcode, .NET | Direct comparison with Python capa ([report](validation/match-address-parity-2026-10-21.md)) |
+| Upstream parity | PE, ELF, shellcode, .NET | Direct comparison with Python capa ([benchmarks](benchmarks.md)) |
 | Cross-backend parity | AArch64 ELF | Feature- and rule-level comparison with Ghidra BinExport2 ([benchmarks](benchmarks.md)) |
 | capa-x extension | Mach-O, AArch64 PE | Hand-built structural and feature fixtures; never claimed as upstream parity |
-| Not measured | Evidence-tree identity, other ISAs, dynamic extractors | [known divergences](known-divergences.md) |
+| Not covered | Evidence-tree identity, other ISAs, dynamic extractors | n/a |
 
 ### Format notes
 
@@ -45,43 +44,6 @@ partially analyzed.
   analyzed for managed methods only, as in upstream, and carry the
   "mixed mode" characteristic feature.
 
-## Accuracy
+Measurements (accuracy, performance, reproduction) are in [benchmarks.md](benchmarks.md).
 
-Measured 2026-10-21 against Python capa 10.0.0 and capa-rules v10.0.0 on the
-377 native x86/x64 and shellcode inputs in the pinned testfiles corpus. The
-reference rejects one malformed ELF, leaving 376 comparable inputs.
-
-| Metric | Result |
-|---|---:|
-| Rule-name agreement | 100% |
-| Reference rule/sample matches | 11,412 |
-| Missing / extra rules | 0 / 0 |
-| Missing / extra match addresses | 0 / 0 |
-| Samples with identical rule and match-address sets | 376/376 |
-
-This is corpus compatibility. Evidence-tree identity and duplicate-match
-multiplicity are not established, and arbitrary binaries can still differ in
-exact locations. Compatibility mode reproduces the reference's overlapping
-instruction streams and legacy decoder behavior; native mode keeps its broader
-decoding.
-
-Reports: [match-address parity](validation/match-address-parity-2026-10-21.md),
-[full-corpus baseline](validation/full-corpus-2026-10-20.md),
-[reference results](../tests/reference-results/capa-10.0.0/README.md).
-
-## Performance
-
-Single-host measurements on a MacBook Pro M1 Max (macOS 26.6, 10 logical CPUs),
-not universal claims.
-
-| Measurement | Result |
-|---|---|
-| Result-equivalent sample, median of 5 runs | capa-x 0.959 s vs Python capa 9.4.0 3.007 s |
-| 10-sample corpus, 1 job vs 10 jobs | 77.4 s vs 37.2 s (median per-sample speedup 2.03x) |
-
-Methods and the dated log are in [benchmarks.md](benchmarks.md).
-
-## Upstream tracking
-
-capa-x follows upstream capa on a best-effort basis. Each supported version is
-re-verified with the full differential suite before the pin moves.
+capa-x follows upstream capa on a best-effort basis; each supported version is re-verified with the full differential suite before the pin moves.

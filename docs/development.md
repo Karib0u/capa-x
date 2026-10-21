@@ -82,19 +82,7 @@ python3 scripts/determinism.py --samples scripts/corpus-jobs.txt \
 python3 scripts/bench.py --samples scripts/corpus-bench.txt --markdown
 ```
 
-## Reproducing the published evidence
-
-```bash
-python3 scripts/difftest.py --mode full \
-  --samples scripts/corpus-full-static.txt --capa-cli target/release/capa-x \
-  --no-rust-cache --no-expected
-python3 scripts/difftest.py --mode full-exact \
-  --samples scripts/corpus-full-static.txt --capa-cli target/release/capa-x \
-  --no-rust-cache --no-expected
-```
-
-Never carry a measurement forward from prose or a cached report; rerun it on
-the commit under evaluation.
+Published measurements and how to reproduce them: [benchmarks.md](benchmarks.md). Never carry a measurement forward from prose or a cached report; rerun it on the commit under evaluation.
 
 ## Rules of the codebase
 

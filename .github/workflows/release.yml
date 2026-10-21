@@ -79,7 +79,7 @@ jobs:
           # executable -- so this layout runs from any working directory.
           cp -R rules "dist/${stage}/rules"
           rm -rf "dist/${stage}/rules/.git"
-          cp LICENSE NOTICE README.md docs/known-divergences.md PINNED.md "dist/${stage}/"
+          cp LICENSE NOTICE README.md PINNED.md "dist/${stage}/"
 
           echo "STAGE=${stage}" >> "$GITHUB_ENV"
 
@@ -250,8 +250,7 @@ jobs:
 
             Release-gate evidence is measured fresh on each release tree:
             rule-level agreement with pinned Python capa on the 200-sample
-            corpus is recorded in `docs/benchmarks.md`, and known differences
-            are documented in `docs/known-divergences.md`.
+            corpus is recorded in `docs/benchmarks.md`.
 
             Each archive contains the `capa-x` binary and the pinned
             [capa-rules](https://github.com/mandiant/capa-rules) it was built
@@ -270,6 +269,6 @@ jobs:
             ```
 
             FLIRT signatures are compiled into the binary. Pinned upstream
-            versions are in `PINNED.md`; known result differences against
-            Python capa are in `docs/known-divergences.md`.
+            versions are in `PINNED.md`; measured agreement with
+            Python capa is in `docs/benchmarks.md`.
           fail_on_unmatched_files: true

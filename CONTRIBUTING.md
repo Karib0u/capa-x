@@ -28,5 +28,5 @@ ADRs, and measurements in [`docs/benchmarks.md`](docs/benchmarks.md).
 ## Issues
 
 Open a normal issue for reproducible bugs, unsupported behavior, and accuracy
-differences. Check [known divergences](docs/known-divergences.md) first.
+differences.
 Report vulnerabilities privately per [`SECURITY.md`](SECURITY.md).

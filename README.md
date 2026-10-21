@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/license-Apache%202.0-green" alt="License">
 </p>
 
-[Releases](https://github.com/Karib0u/capa-x/releases) · [Documentation](docs/) · [Compatibility](docs/compatibility.md) · [Known divergences](docs/known-divergences.md)
+[Releases](https://github.com/Karib0u/capa-x/releases) · [Documentation](docs/) · [Compatibility](docs/compatibility.md) · [Benchmarks](docs/benchmarks.md)
 
 capa-x is an independent Rust implementation of the
 [Mandiant capa](https://github.com/mandiant/capa) static backend. It runs the
@@ -21,7 +21,8 @@ unmodified capa rules with no Python and no external disassembler at analysis
 time, and produces deterministic output at every `--jobs` value.
 
 Python capa 10.0.0 is the behavioral reference. On the pinned corpus, **376 of
-376** comparable samples have identical rule and match-address sets.
+376** comparable samples have identical rule and match-address sets
+([benchmarks](docs/benchmarks.md)).
 
 ## Features
 
@@ -31,7 +32,7 @@ Python capa 10.0.0 is the behavioral reference. On the pinned corpus, **376 of
   instead of being skipped.
 - **Output:** human-readable text or capa's canonical JSON result document.
 - **Fast:** parallel, and roughly 3x faster than Python capa on a controlled
-  sample ([measurements](docs/compatibility.md#performance)).
+  sample ([benchmarks](docs/benchmarks.md)).
 - **Bindings:** in-process Python extension, no subprocess.
 - **Offline:** analysis performs no network access.
 
@@ -110,8 +111,7 @@ Details in [capa-x-python/README.md](capa-x-python/README.md).
 ## Limitations
 
 - Exact instruction recovery and evidence locations can differ from Python capa
-  on arbitrary binaries; accepted differences are catalogued in
-  [known divergences](docs/known-divergences.md).
+  on arbitrary binaries.
 - Evidence-tree identity and duplicate-match multiplicity are not established.
 - Dynamic analysis and other ISAs are out of scope.
 - Targets capa 10.0.0 and tracks upstream on a best-effort basis. It is
@@ -120,10 +120,9 @@ Details in [capa-x-python/README.md](capa-x-python/README.md).
 
 ## Documentation
 
-- [Compatibility and accuracy](docs/compatibility.md)
+- [Compatibility](docs/compatibility.md)
+- [Benchmarks](docs/benchmarks.md)
 - [Architecture](docs/architecture.md) and [design decisions](docs/decisions/)
-- [Known divergences](docs/known-divergences.md)
-- [Benchmarks and methodology](docs/benchmarks.md)
 - [Development guide](docs/development.md) · [Contributing](CONTRIBUTING.md)
 - [Pinned upstream versions](PINNED.md) · [Changelog](CHANGELOG.md)
 - [Security policy](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md)

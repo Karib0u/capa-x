@@ -182,7 +182,7 @@ fn function_never_returns(analysis: &Analysis, function: &Function) -> bool {
     // A target inside an existing instruction has conflicting decodings.
     // Vivisect keeps the original location's size/flags in codeblocks.py;
     // our alternate stream can instead stop on invalid or privileged bytes.
-    // That recovery gap is not evidence that callers cannot return (KD-012).
+    // That recovery gap is not evidence that callers cannot return.
     // x86 instructions are at most 15 bytes; AArch64 starts do not overlap.
     if analysis
         .instructions

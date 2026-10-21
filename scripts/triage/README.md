@@ -5,10 +5,8 @@ divergence at a time. They are not part of any gate and nothing in CI runs
 them: `scripts/difftest.py` tells you *that* a sample diverges, and these tell
 you *who is at fault*.
 
-Every `KD-` entry in [`docs/known-divergences.md`](../../docs/known-divergences.md) was
-produced by one of them. That is why they are kept rather than deleted, and why
-their analysis logic should not be casually rewritten — the recorded findings
-have to keep meaning what they meant when they were recorded.
+They are kept because they produced the historical divergence catalogue (removed
+from the tree, see git history); do not casually rewrite their analysis logic.
 
 All of them need the pinned Python environment (`scripts/check_env.sh`), and
 the attribution tools additionally need a release build of `capa` to compare

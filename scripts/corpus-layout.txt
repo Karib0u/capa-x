@@ -1,6 +1,6 @@
 # Code-layout corpus.
 # Paths are relative to tests/testfiles/. This preserves the ten inputs used
-# for docs/development/decisions/0001-backend.md and becomes the first recovery regression
+# for docs/decisions/0001-backend.md and becomes the first recovery regression
 # gate before feature extraction. It covers PE32/PE32+, EXE/DLL/driver/packed,
 # and ELF32/ELF64 shared, PIE, stripped, and dynamically linked layouts.
 
