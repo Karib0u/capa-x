@@ -24,7 +24,7 @@ Python capa 10.0.0 is the behavioral reference. On the pinned corpus, **376 of 3
 - **Inputs:** x86/x64 PE, ELF, .NET/CLR, raw shellcode, capa freeze files, AArch64 ELF and PE, and x86_64/AArch64 Mach-O.
 - **Rules:** parses unmodified capa-rules; unknown constructs fail with context instead of being skipped.
 - **Output:** human-readable text or capa's canonical JSON result document.
-- **Fast:** parallel analysis with deterministic output ([benchmarks](docs/benchmarks.md)).
+- **Fast:** 4x to 17x faster than single-threaded Python capa on sampled files, with parallel analysis and deterministic output ([benchmarks](docs/benchmarks.md)).
 - **Bindings:** in-process Python extension, no subprocess.
 - **Offline:** analysis performs no network access.
 
