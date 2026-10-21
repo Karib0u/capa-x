@@ -1,0 +1,22 @@
+[package]
+name = "capa-x-ghidra"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Isolated native Ghidra bridge for capa-x"
+
+[features]
+default = []
+native = ["dep:cxx", "dep:cxx-build", "dep:cc"]
+
+# This is the only native FFI boundary. Analysis crates still forbid unsafe.
+[dependencies]
+# CXX generates checked string, slice and ownership bindings and catches C++
+# exceptions. Its maintained MIT/Apache-2.0 runtime contains unsafe runtime code.
+cxx = { version = "=1.0.180", optional = true }
+
+[build-dependencies]
+cxx-build = { version = "=1.0.180", optional = true }
+# Compile pinned C++ sources and the build-time SLEIGH compiler, without a JVM.
+cc = { version = "1", features = ["parallel"], optional = true }

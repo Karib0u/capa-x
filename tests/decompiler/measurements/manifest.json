@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-21",
+  "base_revision": "315c4ba083ae16aeeb154bc702d292442a28cacb",
+  "source_dirty": true,
+  "rust": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+  "cpu": "Apple M1 Max",
+  "memory_bytes": 68719476736,
+  "sha256": {
+    "target/release/examples/decompiler_bench": "b62dda27246016862e8cb581b3c2c02253368b6efc2acb6d89611ae4468d3079",
+    "tests/decompiler/fixtures.dll": "bd6662fce7bc09116542a16b94b602f19d8c45e272138dbd973bcf7f5f2b358e",
+    "capa-x/src/decompiler.rs": "eab4cb27a53c83cc540ea0a9fe708f8304460e8a9e826c0553fc015dd6d01487",
+    "capa-x-ghidra/native/bridge.cc": "443acf1bc5eb99dc862ee7ca88e4bdf06f6a78565875e340db5aa76bd00982a0",
+    "capa-x-ghidra/src/lib.rs": "f3a06c26aefa255e2777217a9e58e546dc88621030fa72fe1566df293566bbb9"
+  }
+}

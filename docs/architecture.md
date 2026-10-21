@@ -14,6 +14,7 @@ capa-x/
 │   ├── result_document/    canonical result document model
 │   └── render/             text and JSON renderers
 ├── capa-x-cli/             command-line loading and presentation
+├── capa-x-ghidra/          optional native decompiler bridge
 ├── capa-x-python/          PyO3 declarations around the library API
 ├── third_party/dnfile/     checked vendored CLR metadata and CIL parser
 ├── rules/                  pinned capa-rules submodule
@@ -74,3 +75,7 @@ Each backend has the same broad responsibilities: validate its container, recove
 - **Freeze input:** the freeze reader skips binary extraction entirely and enters at the shared matching stage.
 
 Adding a backend therefore changes format dispatch and extraction modules. It does not require a second rule engine, result schema, or renderer.
+
+## Optional function decompilation
+
+The `decompiler` feature provides a separate `Decompilation` result for one explicitly requested x86-64 PE function. Existing recovery supplies discovery metadata; native SLEIGH translates the bytes and Ghidra performs decompilation. The bridge crate owns the FFI boundary while analysis crates forbid unsafe code. Normal capability analysis never initializes the engine. See [usage](decompiler.md) and [ownership, integration and resource policy](decompiler-design.md).

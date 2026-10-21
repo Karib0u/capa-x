@@ -4,6 +4,8 @@ pub mod address;
 pub mod api;
 pub mod capabilities;
 pub mod com;
+#[cfg(feature = "decompiler")]
+pub mod decompiler;
 pub mod engine;
 pub mod extract;
 pub mod features;

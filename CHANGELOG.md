@@ -8,6 +8,7 @@ Result differences against Python capa are not changelog entries - they are trac
 
 ### Added
 
+- Optional native Ghidra and SLEIGH decompilation for explicitly selected x86-64 PE functions, with reusable sessions, structured results, Windows API context, and bounded analysis. Enable the `decompiler` Cargo feature; see [usage and limits](docs/decompiler.md).
 - Preserve original capa results and an address index for the complete 377-entry native corpus, with hash verification and explicit reference failures. Record expanded rule, address, and backend validation results.
 
 ### Fixed
@@ -43,7 +44,7 @@ First public release: a native Rust backend for unmodified upstream capa rules, 
 - **capa freeze files** (`-f freeze`), read at the extraction seam that decouples backends from matching.
 - **.NET / CLR** (`-f dotnet`): CLR metadata reader, name model, CIL decoder and basic blocks, and feature extraction. Auto-detected ahead of the native x86 path for a CLR PE (`-f pe` forces native x86; `-f dotnet` forces managed). Mixed-mode assemblies are analyzed for their managed methods only, matching upstream `dnfile`'s own scope. Vendors a patched fork of `dnfile` (`third_party/dnfile/`, whose `PATCH.md` documents 12 upstream defects found and fixed during the port, mostly signedness bugs in branch-target and exception-handler decoding). 100% rule-level agreement on all 8 pinned .NET samples.
 - **Mach-O** (`-f macho`): thin and fat x86_64/`arm64`/`arm64e` images, including a from-scratch `LC_DYLD_CHAINED_FIXUPS` reader (`goblin` has none). A documented capa-x extension - pinned capa 9.4.0 has no raw Mach-O input, so it is never selected by `-f auto` and must be requested explicitly.
-- **AArch64:** native decoding, recovery, and feature extraction (`disarm64`-based, no Ghidra/IDA/Binary Ninja/BinExport at runtime), composed with the existing ELF, Mach-O, and PE loaders. ELF is validated against the pinned Ghidra BinExport2 fixture corpus at 96.55% rule-level agreement (one divergence root-caused as `KD-013`); Mach-O and PE carry the same "capa-x extension, no Python oracle" caveat x86_64 Mach-O does and are validated against a hand-built fixture corpus.
+- **AArch64:** native decoding, recovery, and feature extraction (`disarm64`-based, no external disassembler at runtime), composed with the existing ELF, Mach-O, and PE loaders. ELF is validated against the pinned Ghidra BinExport2 fixture corpus at 96.55% rule-level agreement (one divergence root-caused as `KD-013`); Mach-O and PE carry the same "capa-x extension, no Python oracle" caveat x86_64 Mach-O does and are validated against a hand-built fixture corpus.
 
 ### Interfaces
 

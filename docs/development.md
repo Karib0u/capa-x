@@ -82,3 +82,15 @@ Published measurements and how to reproduce them: [benchmarks.md](benchmarks.md)
 - Constants copied from Python (limits, byte caps, windows) name the upstream source file in a nearby comment.
 - Justify new dependencies in one sentence: maintenance, malformed-input, panic, allocation, unsafe, and license properties.
 - Output stays deterministic across job counts.
+
+## Optional native decompiler checks
+
+For changes to the `decompiler` feature, also run:
+
+```sh
+cargo test --release -p capa-x --features decompiler --test decompiler
+cargo test --release -p capa-x-ghidra --features native
+cargo test --release -p capa-x-cli --features decompiler --test decompiler
+```
+
+The native CI job runs on Linux and macOS with Rust 1.87. See [decompiler.md](decompiler.md) for source fixture rebuilding, development reference generation and performance measurements.

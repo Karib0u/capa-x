@@ -35,7 +35,7 @@ Python capa 10.0.0 is the behavioral reference. On the pinned corpus, **376 of 3
 | PE x86/x64, ELF x86/x64, shellcode, .NET, freeze | Parity with Python capa 10.0.0 |
 | ELF AArch64 | Validated against Ghidra BinExport2 fixtures |
 | PE AArch64, Mach-O (`-f macho`) | capa-x extension, no Python oracle |
-| IDA, Ghidra, Binary Ninja, BinExport | Non-goal |
+| External disassembler databases and BinExport | Non-goal |
 
 Evidence and caveats for each row are in [docs/compatibility.md](docs/compatibility.md).
 
@@ -77,6 +77,16 @@ git submodule update --init --depth 1 rules
 cargo build --release
 target/release/capa-x --version
 ```
+
+## Optional native decompiler
+
+Build with `cargo build --release -p capa-x-cli --features decompiler` on macOS or Linux, then request an x86-64 PE function:
+
+```sh
+capa-x sample.exe --decompile-function 0x140001000
+```
+
+Uses embedded Ghidra C++ and native SLEIGH in process, with reusable library sessions and explicit resource limits. See [build requirements, API and limitations](docs/decompiler.md).
 
 ## Python
 

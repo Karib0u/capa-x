@@ -58,6 +58,10 @@ struct Cli {
     #[arg(short = 'f', long = "format", value_enum, default_value_t = Format::Auto)]
     format: Format,
 
+    /// Decompile one x86-64 PE function by virtual address (requires decompiler feature)
+    #[arg(long, value_parser = parse_function_address, conflicts_with_all = ["dump_code_layout", "dump_features", "dump_matches", "file_only", "rules", "signatures", "tag"])]
+    decompile_function: Option<u64>,
+
     /// emit JSON instead of text
     #[arg(short = 'j', long = "json")]
     json: bool,
@@ -330,7 +334,7 @@ fn run(cli: &Cli) -> Result<(), CliError> {
     let mut timings = Timings::default();
     let result = run_analysis(cli, &mut timings);
     timings.total = started.elapsed();
-    if cli.timing {
+    if cli.timing && cli.decompile_function.is_none() {
         timings.report();
     }
     result
@@ -424,6 +428,10 @@ fn run_analysis(cli: &Cli, timings: &mut Timings) -> Result<(), CliError> {
             format!("reading {}: {e}", input_file.display()),
         )
     })?;
+
+    if let Some(address) = cli.decompile_function {
+        return run_decompilation(cli, &bytes, address);
+    }
 
     if cli.dump_code_layout {
         print_code_layout(&bytes)?;
@@ -675,5 +683,70 @@ fn print_code_layout(bytes: &[u8]) -> Result<(), CliError> {
             CliError::new(E_CORRUPT_FILE, format!("serializing code layout: {error}"))
         })?
     );
+    Ok(())
+}
+
+fn parse_function_address(value: &str) -> Result<u64, String> {
+    let digits = value
+        .strip_prefix("0x")
+        .or_else(|| value.strip_prefix("0X"))
+        .unwrap_or(value);
+    u64::from_str_radix(digits, 16)
+        .map_err(|e| format!("invalid hexadecimal function address: {e}"))
+}
+
+#[cfg(not(feature = "decompiler"))]
+fn run_decompilation(_: &Cli, _: &[u8], _: u64) -> Result<(), CliError> {
+    Err(CliError::new(
+        E_CORRUPT_FILE,
+        "native decompilation is disabled; rebuild with --features decompiler",
+    ))
+}
+
+#[cfg(feature = "decompiler")]
+fn run_decompilation(cli: &Cli, bytes: &[u8], address: u64) -> Result<(), CliError> {
+    use capa_x::decompiler::DecompilerSession;
+    if !matches!(cli.format, Format::Auto | Format::Pe)
+        || !matches!(cli.arch.as_str(), "auto" | "amd64")
+        || !matches!(cli.os.as_str(), "auto" | "windows")
+    {
+        return Err(CliError::new(
+            E_CORRUPT_FILE,
+            "decompilation requires x86-64 PE and Windows x64 calling convention",
+        ));
+    }
+    let error = |e| CliError::new(E_CORRUPT_FILE, format!("{e}"));
+    let mut session = DecompilerSession::from_pe(bytes).map_err(error)?;
+    let result = session.decompile_function(address).map_err(error)?;
+    if cli.quiet {
+        return Ok(());
+    }
+    if cli.json {
+        let mut json = serde_json::to_value(&result)
+            .map_err(|e| CliError::new(E_CORRUPT_FILE, e.to_string()))?;
+        // Keep default JSON deterministic, including across --jobs values.
+        // The reusable API always returns timings; the CLI includes them on request.
+        if !cli.timing {
+            if let Some(object) = json.as_object_mut() {
+                object.remove("timings");
+            }
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&json)
+                .map_err(|e| CliError::new(E_CORRUPT_FILE, e.to_string()))?
+        );
+    } else {
+        print!("{}", result.text);
+        for warning in &result.warnings {
+            eprintln!("warning: {warning}");
+        }
+        if cli.timing {
+            eprintln!(
+                "decompiler initialization: {:.3} ms; function: {:.3} ms",
+                result.timings.initialization_ms, result.timings.decompilation_ms
+            );
+        }
+    }
     Ok(())
 }

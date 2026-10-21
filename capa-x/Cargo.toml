@@ -13,7 +13,13 @@ unsafe_code = "forbid"
 unwrap_used = "deny"
 expect_used = "deny"
 
+[features]
+default = []
+decompiler = ["dep:capa-x-ghidra", "capa-x-ghidra/native"]
+
 [dependencies]
+# Optional native FFI is isolated from the unsafe-free analysis library.
+capa-x-ghidra = { path = "../capa-x-ghidra", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
@@ -24,7 +30,7 @@ serde_yaml = "0.9"
 # Regex compilation for `string: /.../ ` rule features.
 regex = "1"
 # Fallback for the handful of corpus regexes using lookaround (unsupported by
-# `regex`'s finite-automaton engine), e.g. `(?<!\w)ida...`. Tried only after
+# `regex`'s finite-automaton engine). Tried only after
 # `regex` fails to compile a pattern.
 fancy-regex = "0.13"
 # `capa0000` freeze files are `zlib(utf-8(json(...)))`; this is

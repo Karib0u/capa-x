@@ -1,0 +1,26 @@
+cold session including recovery: 52.482 ms
+arithmetic: init 52.434 ms; warm p50 0.107 ms; p95 0.135 ms; max 0.501 ms
+branches: init 52.434 ms; warm p50 0.215 ms; p95 0.244 ms; max 0.328 ms
+imported_call: init 52.434 ms; warm p50 0.146 ms; p95 0.155 ms; max 0.217 ms
+loops: init 52.434 ms; warm p50 0.319 ms; p95 0.343 ms; max 0.427 ms
+nonreturn: init 52.434 ms; warm p50 0.052 ms; p95 0.057 ms; max 0.203 ms
+stack_variables: init 52.434 ms; warm p50 0.192 ms; p95 0.198 ms; max 0.259 ms
+switches: init 52.434 ms; warm p50 2.698 ms; p95 3.104 ms; max 3.132 ms
+        0.86 real         0.43 user         0.01 sys
+            38010880  maximum resident set size
+                   0  average shared memory size
+                   0  average unshared data size
+                   0  average unshared stack size
+                2535  page reclaims
+                   0  page faults
+                   0  swaps
+                   0  block input operations
+                   0  block output operations
+                   0  messages sent
+                   0  messages received
+                   0  signals received
+                   0  voluntary context switches
+                  70  involuntary context switches
+          4274725257  instructions retired
+          1356000702  cycles elapsed
+            33653240  peak memory footprint

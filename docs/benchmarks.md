@@ -111,3 +111,24 @@ python3 scripts/bench.py --samples <samples.txt> --capa-cli target/release/capa-
 ```
 
 Older reports, per-sample tables, and the divergence catalogue were removed from the tree; they remain in git history before the docs restructure.
+
+## Optional native decompiler
+
+Measured on 2026-10-21 with the release build on Apple M1 Max, 64 GiB RAM, macOS arm64, Rust 1.96.0. Each process reuses one session across seven compiled source fixtures, with no supplied prototypes. Raw outputs, process RSS, and executable/source hashes are in [tests/decompiler/measurements](../tests/decompiler/measurements/).
+
+| Requests | Cold session setup | Highest function warm p95 | Peak RSS |
+|---|---:|---:|---:|
+| 700 | 52.482 ms | 3.104 ms | 36.250 MiB |
+| 7,000 | 31.803 ms | 3.016 ms | 36.031 MiB |
+
+Cold setup includes recovery and runtime recognition. The highest p95 is for the switch fixture, which also analyzes supporting callees. These local observations meet fixture regression targets of cold setup below 100 ms, warm p95 below 5 ms, peak RSS below 64 MiB, and less than 8 MiB growth between 700 and 7,000 requests. They do not establish limits for large corpus functions or prove leak freedom. Background machine activity and filesystem caches were not controlled.
+
+Reproduce with:
+
+```sh
+cargo build --release -p capa-x --features decompiler --example decompiler_bench
+/usr/bin/time -l target/release/examples/decompiler_bench 100
+/usr/bin/time -l target/release/examples/decompiler_bench 1000
+```
+
+Use `/usr/bin/time -v` on Linux. See [the decompiler guide](decompiler.md) for scope, cooperative resource limits, and native-engine ownership.

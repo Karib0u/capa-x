@@ -245,3 +245,30 @@ jobs:
 
       - name: Run difftest corpus
         run: python3 scripts/difftest.py --mode freeze --samples scripts/corpus-freeze.txt --jobs 2
+
+  decompiler:
+    name: native decompiler (${{ matrix.os }})
+    if: github.event_name != 'schedule' && github.event.action != 'labeled'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: dtolnay/rust-toolchain@1.87.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Install native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y g++ zlib1g-dev
+      - name: Verify pinned source contents
+        working-directory: third_party/ghidra
+        run: shasum -a 256 -c SHA256SUMS
+      - name: Native fixture and resource-limit tests
+        run: cargo test --release -p capa-x --features decompiler --test decompiler
+      - name: Native boundary robustness tests
+        run: cargo test --release -p capa-x-ghidra --features native
+      - name: Optional CLI and deterministic JSON tests
+        run: cargo test --release -p capa-x-cli --features decompiler --test decompiler

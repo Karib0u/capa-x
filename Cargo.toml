@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["capa-x", "capa-x-cli", "capa-x-python"]
+members = ["capa-x", "capa-x-cli", "capa-x-python", "capa-x-ghidra"]
 # Vendored dnfile fork (third_party/dnfile/PATCH.md): kept out of
 # the workspace so its `cli`-gated bin targets never influence this
 # workspace's feature resolution -- capa-x depends on it as a plain path

@@ -14,7 +14,7 @@ Python capa 10.0.0 is the behavioral reference (see [`PINNED.md`](../PINNED.md))
 | ELF AArch64 | Supported | Pinned Ghidra BinExport2 fixtures (no raw-AArch64 Python oracle) |
 | PE AArch64 | **Extension** | None |
 | Mach-O x86_64 / arm64 / arm64e | **Extension** | None |
-| IDA, Ghidra, Binary Ninja, BinExport | Non-goal | n/a |
+| External disassembler databases and BinExport | Non-goal | n/a |
 
 Unsupported inputs are rejected with context, never silently accepted or partially analyzed.
 

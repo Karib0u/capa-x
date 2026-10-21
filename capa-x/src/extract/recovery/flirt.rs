@@ -201,6 +201,24 @@ pub struct Signatures {
 }
 
 impl Signatures {
+    /// Compact, conservative runtime subset for optional decompilation. Keep
+    /// the full capability-analysis database and its matching policy unchanged.
+    #[cfg(feature = "decompiler")]
+    pub(crate) fn decompiler_runtime() -> Result<Self, FlirtError> {
+        static RUNTIME: OnceLock<Result<Signatures, FlirtError>> = OnceLock::new();
+        RUNTIME
+            .get_or_init(|| {
+                let database = parse_database(
+                    PathBuf::from("(embedded signatures)/decompiler-runtime.pat"),
+                    include_bytes!("../../../sigs/decompiler-runtime.pat"),
+                )?;
+                Ok(Self {
+                    databases: vec![database].into(),
+                })
+            })
+            .clone()
+    }
+
     /// Shares immutable bundled databases, initialized once and retained until
     /// process exit. Cloning this handle does not copy parsed signatures.
     pub fn embedded() -> Result<Self, FlirtError> {

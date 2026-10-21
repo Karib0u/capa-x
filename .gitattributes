@@ -1,0 +1,4 @@
+# Preserve pinned sources and raw reference output byte for byte.
+third_party/ghidra/cpp/** -text -whitespace
+third_party/ghidra/specs/** -text -whitespace
+tests/decompiler/reference/*.c -text -whitespace
