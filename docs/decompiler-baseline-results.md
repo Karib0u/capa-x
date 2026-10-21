@@ -127,6 +127,25 @@ still fail to decode and fall back to an unknown prototype (see the decompiler
 documentation). Startup time was not measurably affected (about 37 ms in the
 fixture benchmark); peak memory with the pack was not measured.
 
+## Phase 1: failure isolation
+
+After `00143de` (enrichment has its own budget, limit errors no longer poison the
+session, inferred signatures are cached), the same 184 addresses give:
+
+| Metric | After phase 2 | After phase 1 |
+|---|---:|---:|
+| Native returned text | 177 | 181 |
+| Request errors (all work limit) | 7 | 3 |
+| Not flagged incomplete | 30 | 30 |
+| Outputs with inferred-callee warning | 117 | 75 |
+| Parameter count agrees | 83.6% | 84.5% |
+| Argument count agrees on matched callees | 98.3% | 98.3% |
+| Ghidra's named callees also named by native | 56.2% | 56.2% |
+
+The three remaining errors are still work-limit failures. The rest of the
+metrics are unchanged, as expected: this phase changes failure behavior, not the
+quality of successful output.
+
 ## Not yet done
 
 - Function-set agreement (discovery) between recovery and Ghidra was not

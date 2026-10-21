@@ -144,8 +144,8 @@ Order by payoff per effort and dependency, not by phase number:
 |---|---|---|
 | 1 | Phase 0, baseline | Done ([results](decompiler-baseline-results.md)) |
 | 2 | Phase 2, type and prototype pack | Done, with known leftovers (see results) |
-| 3 | Phase 1, failure isolation | Next: it fixes the 5 to 7 work-limit regression |
-| 4 | Phase 4, library names (Function ID) | Largest remaining gap (56% callee names) |
+| 3 | Phase 1, failure isolation | Done (`00143de`): request errors 7 to 3 on the baseline, session no longer poisoned by limits; 3 work-limit errors remain |
+| 4 | Phase 4, library names (Function ID) | In progress; largest remaining gap (56% callee names) |
 | 5 | Phase 3, boundaries, thunks, tail calls | Touches shared recovery code: run the difftest loops |
 | 6 | Phase 5, cosmetics and data-flow | Cheap items early, the rest only from baseline clusters |
 | 7 | Phases 6 and 7 | Only after the Windows pipeline is solid, and if the scorecard asks |
@@ -200,6 +200,28 @@ WindowsResourceReference.
 Even with all of the above, this is not Ghidra's analysis: there is no program
 database and no fixed-point interaction between analyzers. The goal is the
 context the decompiler needs, checked against Ghidra case by case.
+
+## Other Ghidra assets to port
+
+Beyond analyzers, most of Ghidra's remaining value is curated data and
+specifications, several already in the 12.1.4 install. Like the type pack, these
+are exported once, offline, and embedded in compact form.
+
+| Asset (in Ghidra 12.1.4) | What it gives | Phase / status |
+|---|---|---|
+| Function ID databases (`FunctionID/data/vs2012` to `vs2019` x64 `.fidbf`, `common_symbols_win64.txt`) | CRT and static library names | Phase 4, in progress |
+| Non-returning lists (`PEFunctionsThatDoNotReturn`, `Elf...`, `Golang...`, `Rust...`, `MachO...`, `noReturnFunctionConstraints.xml`) | Curated `exit`/`abort`-style functions; control flow after them. Cheap, high value | Phase 3, next to the noreturn analyzers |
+| Ordinal and export tables (`symbols/win64/*.exports`, `*.hints`) | Names for ordinal imports, which currently get no prototype | Phase 3 or 5 |
+| Call fixups and p-code injection in the compiler spec (6 `callfixup` entries in `x86-64-win.cspec`) | Helpers such as `__security_check_cookie` and `__chkstk` replaced by injected p-code. Once phase 4 names the helper, the vendored spec's fixups can replace the hand-written RAX-preservation hack and cover more helpers | Phase 5, depends on phase 4 |
+| Function-start patterns (BytePatterns module data) | Prologue-based discovery in stripped code; not yet inspected | Phase 3, after `.pdata` |
+| String n-gram model (`stringngrams/StringModel.sng`) | Better detection of real strings in data; optional | Phase 5 |
+| Other compiler specs (`x86-64-gcc`, `-golang`, `-swift`, `x86win`, `x86gcc`, `x86borland`, `x86delphi`) and processor SLEIGH specs | Calling conventions, register effects and instruction semantics per target | Phase 6 |
+| Other type archives (generic clib, Mac, Go, Rust) and Linux syscall number tables | Prototypes and named syscalls for ELF and Mach-O | Phase 6 |
+| Loader semantics (import binding, forwarded and delay-load exports, relocations, ELF/Mach-O stubs) | Mapping the image as Ghidra would. Check capa-x's loaders against Ghidra on the corpus, starting with the sample Ghidra's own loader rejects | Phases 3 and 6 |
+| Demangling, PDB and DWARF type import | Readable C++ names; types from debug info | Phase 7. Prefer a demangler crate if the dependency policy allows. |
+
+Not worth porting: GUI and project services, version tracking, BSim, scripting,
+the debugger, and the container and file-system importers.
 
 ## Risks
 
