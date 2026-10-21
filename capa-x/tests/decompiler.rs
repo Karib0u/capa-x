@@ -384,3 +384,21 @@ fn real_dll_entry_preserves_runtime_tail_call() -> anyhow::Result<()> {
     assert_eq!(session.decompile_function(0x180034818)?.text, output.text);
     Ok(())
 }
+
+#[test]
+fn function_id_names_and_types_a_static_runtime_function() -> anyhow::Result<()> {
+    let sample = include_bytes!("../../tests/testfiles/92d8ea10ea30e8b534334a1c9857a455.exe_");
+    let mut session = DecompilerSession::from_pe(sample)?;
+    let output = session.decompile_function(0x1400aa420)?;
+    assert!(
+        output
+            .text
+            .trim_start()
+            .starts_with("void * __cdecl memset(void *_Dst,int _Val,size_t _Size)"),
+        "{}",
+        output.text
+    );
+    assert!(!output.text.contains("FUN_1400aa420"), "{}", output.text);
+    assert_eq!(session.decompile_function(0x1400aa420)?.text, output.text);
+    Ok(())
+}

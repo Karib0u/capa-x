@@ -146,6 +146,39 @@ The three remaining errors are still work-limit failures. The rest of the
 metrics are unchanged, as expected: this phase changes failure behavior, not the
 quality of successful output.
 
+## Phase 4: Function ID names
+
+`from_pe` now names unnamed functions from a pack of Ghidra's Function ID databases
+(see [Function ID names](decompiler.md#function-id-names)) and applies the packed
+prototype of recognized names. Measured on 2026-10-21 on the same 184 addresses
+and the same full-Ghidra reference outputs, rerun for both columns on one machine
+(engine 12.1.4; "before" is this commit with Function ID naming switched off):
+
+| Metric | Before | After |
+|---|---:|---:|
+| Native returned text | 181 | 181 |
+| Request errors (all work limit) | 3 | 3 |
+| Flagged incomplete | 151 (83.4%) | 145 (80.1%) |
+| Outputs with unknown-callee warning | 134 | 125 |
+| Ghidra's named callees also named by native | 56.2% (359/639) | **75.6% (483/639)** |
+| Argument count agrees on matched callees | 98.3% (353/359) | 97.3% (470/483) |
+| Return void/non-void agrees | 91.7% | 93.9% |
+| Parameter count agrees | 84.5% | 87.8% |
+| Unnamed `FUN_` calls, Ghidra / native | 770 / 1,288 | 770 / 1,048 |
+| Output lines, Ghidra / native | 18,864 / 19,420 | 18,864 / 19,316 |
+
+Timing is not reported: the two runs were not isolated from background load.
+The additional 124 named callees keep their arity almost as well (117 of 124 agree).
+Warnings "Subroutine does not return" rose from 20 to 28 because recognized
+`exit`-like names bring their no-return prototypes.
+
+Not recovered and why: 156 of Ghidra's 639 named callees are still unnamed. In the
+function-level replay, the largest remaining groups are C++ templates, operators and
+constructors (which need a demangler) and functions that capa-x recovery does not
+discover, so the cap is now phase 3. One sample (`c2d46d25...`) discovers none of the
+285 functions Ghidra names. Hash fidelity against Ghidra is documented in
+[`FID.md`](../capa-x/sigs/FID.md).
+
 ## Not yet done
 
 - Function-set agreement (discovery) between recovery and Ghidra was not

@@ -57,7 +57,10 @@ runtime names. Validated MSVC runtime matches and the PE DLL entry point get
 known calling signatures. Validated security-cookie checks also receive an
 explicit RAX-preservation effect, so their callers retain return values across
 the check. An arbitrary caller-supplied name does not enable that effect.
-See the [runtime-signature provenance](../capa-x/sigs/DECOMPILER.md). `from_pe` loads a PE whose import or delay import directory is malformed without imports and with an "import directory ignored" warning. `from_analysis` uses the caller's symbol map and
+Functions that no other source names are then matched against Ghidra's Function ID
+databases (see [Function ID names](#function-id-names)); a recognized name also
+applies the packed prototype of that name, so `memset`, `strlen` and the other
+libc functions are typed. See the [runtime-signature provenance](../capa-x/sigs/DECOMPILER.md). `from_pe` loads a PE whose import or delay import directory is malformed without imports and with an "import directory ignored" warning. `from_analysis` uses the caller's symbol map and
 avoids the library-matching cost. PDB types are not loaded.
 
 `set_signature` accepts explicit scalar/pointer prototypes for function entries
@@ -92,6 +95,17 @@ UTF-16 literals. The adapter keeps small hand-built layouts of `LUID`,
 calls (sizes 8, 12 and 16, alignment 4, `ANYSIZE_ARRAY = 1`, following
 [the SDK](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-token_privileges)).
 Imports get their full types from the prototype pack instead.
+
+## Function ID names
+
+`from_pe` hashes every recovered function the way Ghidra's Function ID analyzer does
+and looks it up in a pack built from Ghidra's Visual Studio x64 databases
+(`capa-x/sigs/fid-x64.pack`, about 9.9 MB, embedded only with the `decompiler`
+feature; provenance and validation in [`FID.md`](../capa-x/sigs/FID.md)). Lookup is
+hash-bucketed and nothing is decoded until a hash matches. Matches are scored with
+the callee and caller relations like Ghidra's `FidProgramSeeker`, and a name is
+applied only when it is unambiguous. Exports, FLIRT names and the DLL entry keep
+their names. Naming depends only on the image, never on request order.
 
 ## Prototype pack
 

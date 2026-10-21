@@ -75,3 +75,16 @@ disarm64_defn = { version = "0.2.0", default-features = false }
 anyhow = "1"
 # Snapshot tests for gnarly parsed rules.
 insta = "1"
+
+# Function ID development tools need the optional decompiler feature.
+[[example]]
+name = "fid_truth"
+required-features = ["decompiler"]
+
+[[example]]
+name = "fid_names"
+required-features = ["decompiler"]
+
+[[example]]
+name = "fid_pe"
+required-features = ["decompiler"]

@@ -9,6 +9,8 @@ pub mod decompiler;
 pub mod engine;
 pub mod extract;
 pub mod features;
+#[cfg(feature = "decompiler")]
+pub mod fid;
 pub mod freeze;
 pub mod parallel;
 pub mod result_document;

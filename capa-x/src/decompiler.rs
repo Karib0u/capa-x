@@ -15,6 +15,10 @@ use crate::extract::decoder::Flow;
 use crate::extract::image::{Architecture, ImageFormat, LoadedImage};
 use crate::extract::recovery::flirt::{self, Signatures};
 use crate::extract::recovery::{self, Analysis};
+use crate::fid;
+
+/// Ghidra 12.1.4 Function ID data for x64 Visual Studio runtimes; see `sigs/FID.md`.
+static FID_PACK: &[u8] = include_bytes!("../sigs/fid-x64.pack");
 
 #[derive(Debug, thiserror::Error)]
 pub enum DecompileError {
@@ -133,7 +137,25 @@ impl DecompilerSession {
         if let Some(entry) = dll_entry {
             names.entry(entry).or_insert_with(|| "DllEntryPoint".into());
         }
+        let pack =
+            fid::pack::Pack::parse(FID_PACK).map_err(|e| DecompileError::Input(e.to_string()))?;
+        let recognized =
+            fid::names::name_functions(&analysis, &pack, &|address| names.contains_key(&address));
+        for (address, name) in &recognized {
+            names.insert(*address, name.clone());
+        }
         let mut session = Self::from_analysis(&analysis, &names, CallingConvention::WindowsX64)?;
+        for (address, name) in &recognized {
+            // Naming a runtime function also types it when the archives know it.
+            session
+                .native
+                .apply_prototype(*address, name)
+                .map_err(|error| {
+                    DecompileError::Initialization(format!(
+                        "prototype for {name} at {address:#x}: {error}"
+                    ))
+                })?;
+        }
         for (address, name) in libraries {
             // Apply runtime prototypes only to validated FLIRT matches.
             let prototype = match name.trim_start_matches('_') {

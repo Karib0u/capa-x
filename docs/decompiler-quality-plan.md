@@ -110,6 +110,11 @@ regress.
 
 ## Phase 4: runtime and library recognition
 
+Status: Function ID part done (see the baseline results, "Phase 4"). It ran before
+phase 3 and needs no change to the shared recovery code. FLIRT data conversion and
+noreturn or calling-convention facts from FID are not done: Ghidra's databases carry
+only names.
+
 - Replace the 54-signature subset with a compact, lazily loaded index of Ghidra
   Function ID and FLIRT data converted offline. Loading everything cost about
   638 MiB, so hash-bucketed lookup is required.
