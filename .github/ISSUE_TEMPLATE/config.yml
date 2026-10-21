@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/Karib0u/capa-x/blob/main/SECURITY.md
     about: Follow the private reporting policy. Do not open a public issue.
   - name: Documentation map
-    url: https://github.com/Karib0u/capa-x/blob/main/docs/ARCHITECTURE.md
+    url: https://github.com/Karib0u/capa-x/blob/main/docs/architecture.md
     about: Find the architecture, benchmark methodology, and design-decision documentation.

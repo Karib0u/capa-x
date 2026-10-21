@@ -40,7 +40,7 @@ const SECURITY_COOKIE_BYTES_DELTA: u64 = 0x40;
 /// `capa/features/extractors/viv/insn.py:read_string` calls it with no length
 /// of its own, so any fixed window here is a divergence by construction: a
 /// string longer than the window is truncated, and a rule needing content past
-/// it cannot match. That was KD-013, on a 5,006-byte string.
+/// it cannot match. This once truncated a 5,006-byte string.
 ///
 /// The window is now large enough that `LoadedImage::bytes_at`'s clamp to the
 /// end of the containing section is what actually bounds the read, which *is*
@@ -1382,7 +1382,7 @@ mod tests {
 
     /// `detectString` is bounded by the containing memory map, not by a fixed
     /// length, so a string longer than any window we pick must still come back
-    /// whole. This is KD-013: at the old `0x400` the tail was silently cut off,
+    /// whole. At the old `0x400` the tail was silently cut off,
     /// and `schedule task via at` -- whose second regex is only satisfied past
     /// the first kilobyte of a 5,006-byte string -- could not match.
     #[test]

@@ -1,5 +1,5 @@
 # Benchmark corpus -- the fixed 10-sample set behind the published
-# `--jobs` numbers (docs/BENCHMARKS.md, "Parallel scaling").
+# `--jobs` numbers (docs/benchmarks.md, "Parallel scaling").
 # Paths are relative to tests/testfiles/, same as every other corpus list.
 #
 #   python3 scripts/bench.py --samples scripts/corpus-bench.txt \

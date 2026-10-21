@@ -1,5 +1,5 @@
 [build-system]
-# maturin's own version pin -- see ADR 0006 for why this lives here rather
+# maturin's own version pin -- it lives here rather
 # than PINNED.md (upstream-version tracking) or the workspace Cargo.toml
 # (Rust-only).
 requires = ["maturin>=1.7,<2.0"]
@@ -29,7 +29,7 @@ dynamic = ["version"]
 
 [project.urls]
 Repository = "https://github.com/Karib0u/capa-x"
-Documentation = "https://github.com/Karib0u/capa-x/blob/main/docs/ARCHITECTURE.md"
+Documentation = "https://github.com/Karib0u/capa-x/blob/main/docs/architecture.md"
 
 [tool.maturin]
 # Mixed layout: `python/capa_x/__init__.py` re-exports the compiled
@@ -39,6 +39,6 @@ python-source = "python"
 module-name = "capa_x._capa_x"
 # `python-extension` (not `pyo3/extension-module` directly): the crate
 # feature-gates it so plain `cargo build`/`cargo test` at the workspace
-# level never need it -- see ADR 0006 and `capa-x-python/Cargo.toml`.
+# level never need it -- see `capa-x-python/Cargo.toml`.
 features = ["python-extension"]
 manifest-path = "Cargo.toml"

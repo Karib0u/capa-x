@@ -35,10 +35,9 @@ PINNED.md.
 
 capa-x does not reproduce upstream's results exactly. It is a new *backend*
 for the capa rule format, and like capa's other backends it disagrees with the
-Vivisect backend on some code-scope results. Every such difference measured on
-the project's evaluation corpus is enumerated, with its root cause and the
-upstream mechanism responsible, in KNOWN_DIVERGENCES.md. Users relying on
-agreement with Python capa should read that file.
+Vivisect backend on some code-scope results. Measured agreement on the
+project's evaluation corpus is in docs/benchmarks.md. Users relying on
+agreement with Python capa should read it.
 
 ### Artifacts derived from capa
 

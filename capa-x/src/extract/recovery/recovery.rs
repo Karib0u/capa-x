@@ -4754,7 +4754,7 @@ mod tests {
     /// instruction budget at all, so this limit is a statement about
     /// capa-x's guard rail, and a guard rail that discards every result
     /// the run already produced is worse than the runaway it prevents. This
-    /// is the mechanism behind KD-011: mapping `0cd2b334`'s resource-hosted
+    /// is why mapping `0cd2b334`'s resource-hosted
     /// code is the faithful loader behaviour, and it was revertible only
     /// because the budget turned one long walk into a hard error.
     #[test]

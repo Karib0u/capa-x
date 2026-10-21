@@ -42,7 +42,7 @@ jobs:
         run: git submodule update --init --depth 1 rules tests/testfiles
 
       # `cargo build`/`cargo test --workspace` includes `capa-x-python`, which
-      # (outside the `python-extension` feature -- see ADR 0006) links pyo3
+      # (outside the `python-extension` feature) links pyo3
       # in its ordinary embedding mode, against a real, discovered
       # `libpython`. Runner images don't reliably ship one linkable without
       # this: Ubuntu's preinstalled `python3` has no `-dev`/shared-library
@@ -78,7 +78,7 @@ jobs:
       - name: cargo test
         run: cargo test --workspace -- --include-ignored
 
-      # Gate J2 (docs/BENCHMARKS.md): `--jobs N` output must be byte-identical to
+      # Gate J2 (docs/benchmarks.md): `--jobs N` output must be byte-identical to
       # `--jobs 1`. `cargo test` above already runs the library-level half
       # (capa-x/tests/jobs_determinism.rs); this is the CLI half, which
       # additionally covers argument handling and the rendered JSON.

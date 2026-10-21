@@ -4,8 +4,7 @@ Describe the problem and the result of this change.
 
 ## Reference behavior
 
-For behavior changes, identify the pinned upstream file, function, or fixture
-that defines the expected result.
+For behavior changes, identify the pinned upstream file, function, or fixture that defines the expected result.
 
 ## Validation
 
@@ -17,8 +16,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-Add the relevant inner, smoke, outer, determinism, or benchmark result when the
-change can affect it.
+Add the relevant inner, smoke, outer, determinism, or benchmark result when the change can affect it.
 
 ## Checklist
 

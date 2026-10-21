@@ -6,7 +6,7 @@ the pinned Python environment, the difftest cache, and capa-x's own recovered
 function layout. Those lived in three near-identical copies before this module.
 
 Nothing here decides anything -- the analysis and classification logic stays in
-the individual tools, because their output is cited by KNOWN_DIVERGENCES.md and
+the individual tools, because their output is cited by the historical divergence catalogue and
 must keep meaning exactly what it meant when it was recorded.
 """
 

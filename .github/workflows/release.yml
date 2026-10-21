@@ -79,7 +79,7 @@ jobs:
           # executable -- so this layout runs from any working directory.
           cp -R rules "dist/${stage}/rules"
           rm -rf "dist/${stage}/rules/.git"
-          cp LICENSE NOTICE README.md KNOWN_DIVERGENCES.md PINNED.md "dist/${stage}/"
+          cp LICENSE NOTICE README.md PINNED.md "dist/${stage}/"
 
           echo "STAGE=${stage}" >> "$GITHUB_ENV"
 
@@ -128,7 +128,7 @@ jobs:
             dist/*.tar.gz
             dist/*.zip
 
-  # J15 (docs/BENCHMARKS.md): abi3 wheels for the published target matrix,
+  # J15 (docs/benchmarks.md): abi3 wheels for the published target matrix,
   # each one built, imported, and used to scan a sample. Tag/manual-dispatch
   # only -- a five-platform wheel matrix is not a per-push cost, and every
   # push already gets a linux-only build plus the binding-parity check
@@ -182,11 +182,11 @@ jobs:
         env:
           # abi3-py38 (capa-x-python/Cargo.toml): one wheel covers every
           # CPython >= 3.8, so building only against cp38's ABI is correct,
-          # not a narrowing -- see `docs/decisions/0006-python-binding.md`.
+          # not a narrowing.
           CIBW_BUILD: "cp38-*"
           CIBW_SKIP: "*-musllinux*"
           CIBW_ARCHS: ${{ matrix.cibw-archs }}
-          # A smoke test, not a measurement (docs/BENCHMARKS.md "Binding
+          # A smoke test, not a measurement (docs/benchmarks.md "Binding
           # corpus"): install, import, scan one sample. `{project}` is
           # cibuildwheel's placeholder for this job's checkout root, which
           # is why `rules`/`tests/testfiles` are fetched above rather than
@@ -250,8 +250,7 @@ jobs:
 
             Release-gate evidence is measured fresh on each release tree:
             rule-level agreement with pinned Python capa on the 200-sample
-            corpus is recorded in `docs/BENCHMARKS.md`, and known differences
-            are documented in `KNOWN_DIVERGENCES.md`.
+            corpus is recorded in `docs/benchmarks.md`.
 
             Each archive contains the `capa-x` binary and the pinned
             [capa-rules](https://github.com/mandiant/capa-rules) it was built
@@ -270,6 +269,6 @@ jobs:
             ```
 
             FLIRT signatures are compiled into the binary. Pinned upstream
-            versions are in `PINNED.md`; known result differences against
-            Python capa are in `KNOWN_DIVERGENCES.md`.
+            versions are in `PINNED.md`; measured agreement with
+            Python capa is in `docs/benchmarks.md`.
           fail_on_unmatched_files: true

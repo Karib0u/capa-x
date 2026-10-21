@@ -1,7 +1,7 @@
 """Tests for the compiled `capa_x` extension.
 
 Not run by `cargo test` (the crate opts its lib target out of that --
-`capa-x-python/Cargo.toml`'s `[lib] test = false`, explained in ADR 0006):
+`capa-x-python/Cargo.toml`'s `[lib] test = false`):
 this is the pytest suite that proves the actual `.so`/`.pyd` behaves,
 against a real `maturin develop` build. Run with:
 

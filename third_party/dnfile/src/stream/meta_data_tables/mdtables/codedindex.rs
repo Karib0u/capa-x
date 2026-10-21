@@ -97,7 +97,7 @@ impl CodedIndex for SimpleCodedIndex {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -132,7 +132,7 @@ impl CodedIndex for ResolutionScope {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -178,7 +178,7 @@ impl CodedIndex for TypeDefOrRef {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -224,7 +224,7 @@ impl CodedIndex for MemberRefParent {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -270,7 +270,7 @@ impl CodedIndex for HasConstant {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -316,7 +316,7 @@ impl CodedIndex for HasCustomAttribute {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -384,7 +384,7 @@ impl CodedIndex for CustomAttributeType {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -430,7 +430,7 @@ impl CodedIndex for HasFieldMarshall {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -476,7 +476,7 @@ impl CodedIndex for HasDeclSecurity {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -522,7 +522,7 @@ impl CodedIndex for HasSemantics {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -568,7 +568,7 @@ impl CodedIndex for MethodDefOrRef {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -614,7 +614,7 @@ impl CodedIndex for MemberForwarded {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -660,7 +660,7 @@ impl CodedIndex for Implementation {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names
@@ -706,7 +706,7 @@ impl CodedIndex for TypeOrMethodDef {
         self.table = value;
     }
     fn get_table_name(&self, index: usize) -> Result<&'static str> {
-        // ADR 0003 (capa-x): upstream indexed `table_names[index]` directly
+        // capa-x patch: upstream indexed `table_names[index]` directly
         // despite the tag bits coming from untrusted file bytes, panicking on
         // out-of-range values. Bounds-check instead of trusting the tag.
         self.table_names

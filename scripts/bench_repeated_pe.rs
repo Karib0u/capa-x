@@ -1,5 +1,5 @@
 //! Same-process PE loading benchmark. Run from the workspace root.
-//! Compile against a release library as documented in docs/BENCHMARKS.md.
+//! Compile against a release library as documented in docs/benchmarks.md.
 //! This measures loading, recovery and extraction, without rule matching.
 #![forbid(unsafe_code)]
 

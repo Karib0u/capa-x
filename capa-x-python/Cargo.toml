@@ -29,7 +29,7 @@ doctest = false
 
 # Not `[lints] workspace = true`: pyo3's `#[pymodule]`/`#[pyclass]` macros
 # expand to `unsafe`, so this is the one crate in the workspace that cannot
-# carry `unsafe_code = "forbid"`; this exception is documented in ADR 0006.
+# carry `unsafe_code = "forbid"`.
 # No other lint is relaxed.
 
 [dependencies]
@@ -38,7 +38,7 @@ capa-x = { path = "../capa-x" }
 # version (J15's compatibility matrix).
 #
 # `extension-module` is a local feature, not unconditional on this
-# dependency line, despite the brief listing it directly -- see ADR 0006.
+# dependency line, despite the brief listing it directly.
 # Measured: with `pyo3/extension-module` always on, plain `cargo build -p
 # capa-x-python` fails to *link* on macOS (`ld: symbol(s) not found`), because
 # nothing but maturin (or hand-written linker flags this repo doesn't carry)

@@ -1,7 +1,7 @@
 //! Same-process static matching benchmark, run from the workspace root.
 //! Pass a sample path. Rules and extracted features are loaded once; run 0
 //! warms the matcher and runs 1 through 5 are measured. Use release builds.
-//! Compilation and comparison instructions are in docs/BENCHMARKS.md.
+//! Compilation and comparison instructions are in docs/benchmarks.md.
 #![forbid(unsafe_code)]
 use capa_x::{
     api::{load_input, PhaseTimings},

@@ -1,4 +1,4 @@
-//! Regression guard for the ADR 0003 audit: every mutant returns `Err`.
+//! Regression guard for the dnfile audit: every mutant returns `Err`.
 //! This covers
 //! the vendored `dnfile` fork's capa-x patches (`third_party/dnfile/PATCH.md`):
 //! the coded-index panic, the `TypeDef::parse2`

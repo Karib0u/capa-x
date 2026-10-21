@@ -18,8 +18,7 @@
 //! Deliberately not `rayon`: the work here is a single flat map over recovered
 //! functions, with
 //! no nesting and no recursion, and an atomic cursor over a slice already
-//! gives the load balancing a work-stealing scheduler would. See
-//! the rationale recorded in `docs/decisions/0002-parallelism.md`.
+//! gives the load balancing a work-stealing scheduler would.
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 

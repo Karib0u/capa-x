@@ -7,8 +7,8 @@
 //! analysis logic -- all of that stays in `capa-x`, which keeps
 //! `#![forbid(unsafe_code)]`. This is the one crate in the workspace that
 //! cannot carry that lint itself, because pyo3's `#[pymodule]`/`#[pyclass]`
-//! macros expand to `unsafe`; see [ADR 0006](../../docs/decisions/0006-python-binding.md)
-//! and the crate manifest. There is no hand-written `unsafe` anywhere in this
+//! macros expand to `unsafe`; see the crate
+//! manifest. There is no hand-written `unsafe` anywhere in this
 //! crate.
 //!
 //! Two properties define the binding:
