@@ -3,7 +3,7 @@
 Upstream: https://github.com/NationalSecurityAgency/ghidra
 
 The authoritative version and commit are in [PINNED.md](../../PINNED.md).
-This is a source subset from Ghidra 11.4.2, developed by the US National
+This is a source subset from Ghidra 12.1.4, developed by the US National
 Security Agency and Ghidra contributors, licensed under Apache-2.0. See
 [LICENSE](LICENSE) and the attribution and license headers in each file.
 Generated parser sources retain their upstream parser-generator notices.

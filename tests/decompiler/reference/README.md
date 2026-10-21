@@ -1,7 +1,7 @@
 # Development reference
 
 Generated on 2026-10-21 by `scripts/decompiler_reference.sh` using the
-Ghidra 11.4.2 PUBLIC release, Java 21, and default PE auto-analysis. The
+Ghidra 12.1.4 PUBLIC release (outputs were byte-identical under 11.4.2), Java 27, and default PE auto-analysis. The
 source and processor version are pinned in `PINNED.md`.
 
 The fixture was compiled with MinGW GCC 16.2.0 using

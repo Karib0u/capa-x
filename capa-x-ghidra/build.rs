@@ -4,7 +4,7 @@ mod native {
 
     const CORE: &str = "xml marshal space float address pcoderaw translate opcodes globalcontext";
     const SLEIGH: &str = "sleigh pcodeparse pcodecompile sleighbase slghsymbol slghpatexpress slghpattern semantics context slaformat compression filemanage";
-    const DECOMP: &str = "capability architecture options graph cover block cast typeop database cpool comment stringmanage modelrules fspec action loadimage grammar varnode op type variable varmap jumptable emulate emulateutil flow userop multiprecision funcdata funcdata_block funcdata_op funcdata_varnode unionresolve pcodeinject heritage prefersplit rangeutil ruleaction subflow blockaction merge double transform constseq coreaction condexe override dynamic crc32 prettyprint printlanguage printc printjava memstate opbehavior paramid signature sleigh_arch inject_sleigh";
+    const DECOMP: &str = "capability architecture options graph cover block cast typeop database cpool comment stringmanage modelrules fspec action loadimage grammar varnode op type variable varmap jumptable emulate emulateutil flow userop expression multiprecision funcdata funcdata_block funcdata_op funcdata_varnode unionresolve pcodeinject heritage prefersplit rangeutil ruleaction subflow blockaction merge double transform constseq bitfield coreaction condexe override dynamic crc32 prettyprint printlanguage printc printjava memstate opbehavior paramid signature sleigh_arch inject_sleigh";
 
     fn run(command: &mut Command) {
         let status = command.status().expect("launch native build command");

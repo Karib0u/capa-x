@@ -121,7 +121,7 @@ resource policy and the scope of exception handling.
 ```sh
 scripts/build_decompiler_fixtures.sh
 cargo test --release -p capa-x --features decompiler --test decompiler
-GHIDRA_HOME=/path/to/ghidra_11.4.2_PUBLIC scripts/decompiler_reference.sh
+GHIDRA_HOME=/path/to/ghidra_12.1.4_PUBLIC scripts/decompiler_reference.sh
 cargo run --release -p capa-x --features decompiler --example decompiler_bench
 ```
 
@@ -134,8 +134,8 @@ repeatability, session ownership and malformed/limited requests. Source-logic
 tests supply the known fixture signatures, including the two Windows imports.
 Separate tests verify that unknown call prototypes are reported as incomplete.
 
-`tests/decompiler/reference/*.c` is produced by the pinned Ghidra 11.4.2
-headless release with Java 21 and its default PE analyzer. The reference
+`tests/decompiler/reference/*.c` is produced by the pinned Ghidra 12.1.4
+headless release (the fixture output is identical to 11.4.2) and its default PE analyzer. The reference
 script is exclusively a development tool. It is not part of the native build
 or runtime. Its full analyzer supplies broader types and metadata than the
 embedded adapter. Compare control flow, operations,

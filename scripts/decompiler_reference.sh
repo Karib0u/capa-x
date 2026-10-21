@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-: "${GHIDRA_HOME:?Set GHIDRA_HOME to Ghidra 11.4.2 PUBLIC}"
+: "${GHIDRA_HOME:?Set GHIDRA_HOME to Ghidra 12.1.4 PUBLIC}"
 cd "$(dirname "$0")/.."
 workspace=$(pwd)
 project=$(mktemp -d)

@@ -13,11 +13,10 @@ step against full Ghidra, not IDA.
 ## Reference and scope
 
 - Reference: full Ghidra, headless, default PE auto-analysis, decompiler
-  timeout 30 s. Installed version 12.1.4 (SHA-256
+  timeout 30 s, version 12.1.4 (SHA-256
   `ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db`).
-  The vendored engine is 11.4.2. The version difference is a known confounder:
-  a diff that looks like an engine change is checked against 11.4.2 before it is
-  treated as a context gap.
+  The vendored engine was upgraded from 11.4.2 to the same 12.1.4 source, so the
+  engine version is no longer a confounder (see the baseline results).
 - No IDA in this plan. IDA numbers in earlier notes are historical only.
 - Scope: native x86-64 PE under the Windows x64 convention. ELF, Mach-O and
   other architectures follow phase 6.

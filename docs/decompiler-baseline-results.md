@@ -1,7 +1,7 @@
 # Decompiler baseline versus full Ghidra (phase 0)
 
 Measured 2026-10-21 on an Apple M1 Max (arm64), commit `870d1d8` of
-`feat/native-decompiler` (embedded Ghidra 11.4.2 engine, release build) against
+`feat/native-decompiler` (embedded Ghidra engine, release build) against
 full Ghidra 12.1.4 headless with default PE auto-analysis and a 30 s per-function
 decompiler timeout. Plan: [decompiler-quality-plan.md](decompiler-quality-plan.md).
 
@@ -78,13 +78,22 @@ By first-cause class, from the data above:
    of Ghidra, so control-flow structuring is not the main gap. Per-function
    differences were not individually classified.
 
+## Effect of upgrading the embedded engine (11.4.2 to 12.1.4)
+
+The vendored engine was then upgraded to 12.1.4, the same version as the
+reference, and the native side rerun on the identical 184 addresses. Every
+headline metric is unchanged: status per function (0 changes), 5 work-limit
+errors, 88.8% incomplete, 56.8% callee names, 87.4% arity, 91.6% void agreement
+and 82.7% parameter agreement. Native text changed in 21 of 184 functions (output
+lines 17,162 to 16,985, median time 15.2 ms to 13.2 ms). The seven fixture
+references are byte-identical under both versions. So the gaps above are context,
+not the engine version, and the engine-version confounder is closed.
+
 ## Not yet done
 
 - Function-set agreement (discovery) between recovery and Ghidra was not
   measured: only Ghidra's chosen functions were requested, so native-only and
   Ghidra-only functions are unseen. Recovery gaps (phase 3) need that comparison.
-- Native run with the 11.4.2 engine as reference, to separate engine-version
-  differences from context gaps.
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).
 - Latency, serial and warmed, on both sides.
 

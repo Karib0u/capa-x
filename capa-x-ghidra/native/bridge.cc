@@ -170,6 +170,20 @@ void capax_check() {
   if (std::chrono::steady_clock::now() >= budget.deadline)
     throw std::runtime_error("native decompilation deadline exceeded");
 }
+// TypeFactory::setFields is private since Ghidra 12 and the public route is the
+// XML decoder. Explicit instantiation may name a private member, which yields a
+// member pointer without modifying the pinned headers or casting any object.
+struct SetStructFieldsTag {
+  using type = void (TypeFactory::*)(const vector<TypeField> &, const vector<TypeBitField> &,
+                                     TypeStruct *, int4, int4, uint4);
+};
+SetStructFieldsTag::type access_set_struct_fields(SetStructFieldsTag);
+template <typename Tag, typename Tag::type Member>
+struct AccessPrivate {
+  friend typename Tag::type access_set_struct_fields(Tag) { return Member; }
+};
+template struct AccessPrivate<SetStructFieldsTag, &TypeFactory::setFields>;
+
 namespace capax {
 class Session::Impl {
 public:
@@ -189,16 +203,17 @@ public:
     // ANYSIZE_ARRAY is one in the declaration, not a runtime allocation bound.
     // See docs/decompiler.md for the declarations and provenance.
     auto *types = arch.types;
+    auto set_struct_fields = access_set_struct_fields(SetStructFieldsTag());
     auto *u32 = types->getBase(4, TYPE_UINT);
     luid = types->getTypeStruct("LUID");
-    types->setFields({TypeField(0, 0, "LowPart", u32),
-      TypeField(1, 4, "HighPart", types->getBase(4, TYPE_INT))}, luid, 8, 4, 0);
+    (types->*set_struct_fields)({TypeField(0, 0, "LowPart", u32),
+      TypeField(1, 4, "HighPart", types->getBase(4, TYPE_INT))}, {}, luid, 8, 4, 0);
     auto *attributes = types->getTypeStruct("LUID_AND_ATTRIBUTES");
-    types->setFields({TypeField(0, 0, "Luid", luid),
-      TypeField(1, 8, "Attributes", u32)}, attributes, 12, 4, 0);
+    (types->*set_struct_fields)({TypeField(0, 0, "Luid", luid),
+      TypeField(1, 8, "Attributes", u32)}, {}, attributes, 12, 4, 0);
     token_privileges = types->getTypeStruct("TOKEN_PRIVILEGES");
-    types->setFields({TypeField(0, 0, "PrivilegeCount", u32),
-      TypeField(1, 4, "Privileges", types->getTypeArray(1, attributes))}, token_privileges, 16, 4, 0);
+    (types->*set_struct_fields)({TypeField(0, 0, "PrivilegeCount", u32),
+      TypeField(1, 4, "Privileges", types->getTypeArray(1, attributes))}, {}, token_privileges, 16, 4, 0);
   }
   void ready() { if (poisoned) throw std::runtime_error("session failed previously; create a new session"); }
   void prepareRequestedWrapper(Funcdata *fd, uint32_t max_instructions) {
