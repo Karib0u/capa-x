@@ -7,24 +7,18 @@ historical causes so earlier measurements remain interpretable.
 
 ## Current measured remainder
 
-The latest 2026-10-20 run covers all 377 native x86/x64 and shellcode inputs.
+The latest 2026-10-21 run covers all 377 native x86/x64 and shellcode inputs.
 Original capa rejects one malformed ELF. All 376 comparable inputs have
-identical rule-name sets: 11,412 reference rule/sample matches, zero missing,
-and zero extra. Exact rule and match-address sets agree on 357 inputs and
-differ on 19, improved from 326 on the freshly measured preceding PR commit.
-There are 20 missing and 30 extra addresses, with no newly introduced
-rule/address discrepancies.
-The extra `contain anti-disasm techniques` and `contain pusha popa sequence`
-regressions described in KD-025 are resolved.
-Match-location and evidence-tree compatibility are not complete.
+identical rule-name and match-address sets: zero missing or extra rules and
+zero missing or extra addresses. Evidence-tree identity and duplicate-match
+multiplicity remain outside this comparison.
 
-The [match-address report](docs/validation/match-address-checkpoint-2026-10-20.md)
-records the fixes and links every remaining address difference. The
+The [match-address report](docs/validation/match-address-parity-2026-10-21.md)
+records the fixes, commands, and every input outcome. The
 [earlier full validation](docs/validation/full-corpus-2026-10-20.md) and
 [complete reference outputs](tests/reference-results/capa-10.0.0/README.md)
-remain unchanged. The remaining address cases need further investigation;
-the resolved mechanisms below do not assert that every remaining difference
-has the same cause.
+remain unchanged as historical evidence. The resolved mechanisms below
+explain earlier differences rather than current corpus failures.
 
 The earlier 200-sample regression run has zero rule-name differences,
 with 6,300 reference-matched rules. The four formerly remaining
@@ -716,4 +710,30 @@ of this project's release contract.
 - **Status:** resolved for rule names. A permanent integration test compares
   both complete rule-name sets with the immutable reference. Synthetic tests
   cover trace-entry exceptions, bad opcodes, and pointer suffixes. Both samples
-  still have match-address differences. Expected baselines remain unchanged.
+  now also have identical match-address sets in the 2026-10-21 full run.
+  Expected baselines remain unchanged.
+
+
+### KD-026: pointer retyping, analyzer ordering, and compatibility decoding
+
+- **Cause:** the remaining native address differences depended on when the
+  reference creates, overwrites, and deletes locations. A partial pointer
+  overwrite leaves a suffix; deleting it can remove its covering opcode and
+  stop block installation. FLIRT must retain monotonic discovery visibility
+  even when the number of live opcodes decreases.
+- **Reference:** Vivisect 1.3.2 `analysis/generic/codeblocks.py`,
+  `analysis/generic/relocations.py`, `analysis/generic/switchcase.py`,
+  `analysis/i386/calling.py`, `analysis/i386/thunk_reg.py`, `envi/codeflow.py`,
+  `impemu/platarch/windows.py`, and `envi/archs/i386/{disasm,opcode86,emu}.py`.
+- **Resolution:** preserve pointer suffix deletion and block installation
+  order; stop strings and relocations at existing locations; record pointer
+  references that delimit adjacent tables; defer RVA switches to reached
+  calling traces; preserve immediate-only delayed callback release, PE root
+  ordering, ELF register thunks, and dynamic-library return hooks. Align
+  legacy vector boundaries, LOCK/REX handling, undefined x87 aliases, bounds
+  faults, and unresolved no-return edges with the pinned reference.
+- **Validation:** synthetic regressions cover deletion, signature visibility,
+  strings, typed relocations, thunks, decoder boundaries, emulation faults,
+  root ordering, and unresolved jumps. The complete native corpus has
+  **376/376 exact rule/address sets**, with one separate reference rejection.
+  See the [2026-10-21 report](docs/validation/match-address-parity-2026-10-21.md).

@@ -170,7 +170,7 @@ gets a cheaper linux-only build plus the same schema-validation check.
 
 ## Accuracy and limitations
 
-Measured on 2026-10-20 against Python capa 10.0.0 and capa-rules v10.0.0,
+Measured on 2026-10-21 against Python capa 10.0.0 and capa-rules v10.0.0,
 using all 377 native x86/x64 and shellcode inputs in the pinned testfiles
 corpus. Original capa rejects one malformed ELF, leaving 376 comparable
 inputs. Shared freeze tests separately check JSON evidence.
@@ -181,15 +181,13 @@ inputs. Shared freeze tests separately check JSON evidence.
 | Reference rule/sample matches | 11,412 |
 | Divergent rules | 0 missing, 0 extra |
 | Samples with identical rule sets | 376/376 (100%) |
-| Samples with identical rule and match-address sets | 357/376 (94.9%) |
+| Samples with identical rule and match-address sets | **376/376 (100%)** |
 
-The [match-address validation report](docs/validation/match-address-checkpoint-2026-10-20.md)
-records the fixes and remaining differences. There are 19 samples with
-match-address differences: 20 missing and 30 extra addresses. No new address
-discrepancies were introduced relative to the preceding PR commit.
-The 100% exact-parity target is not yet met. This is corpus
-compatibility, not a claim of identical recovery or evidence trees for arbitrary
-binaries. Complete
+The [match-address validation report](docs/validation/match-address-parity-2026-10-21.md)
+records the fixes and all 377 outcomes. Every comparable input has identical
+rule and match-address sets, with zero missing or extra addresses. This is
+corpus compatibility; evidence-tree identity and duplicate-match multiplicity
+are not established by this comparison. Complete
 [original reference results](tests/reference-results/capa-10.0.0/README.md)
 remain available for regression work. The
 [earlier expanded validation](docs/validation/full-corpus-2026-10-20.md)

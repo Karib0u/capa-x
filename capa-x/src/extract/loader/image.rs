@@ -1495,6 +1495,19 @@ impl LoadedImage {
                 reason: "INT1 has no operand for the reference i386 platform trap check".into(),
             });
         }
+        // opcode86.tbl32_fpuDF_rest (also used by amd64) leaves the
+        // undocumented register FFREEP/FSTP aliases undefined.
+        if opcode_offset.is_some_and(|offset| {
+            bytes.get(offset) == Some(&0xdf)
+                && bytes
+                    .get(offset + 1)
+                    .is_some_and(|modrm| *modrm >= 0xc0 && !matches!(*modrm, 0xe0 | 0xe8..=0xf7))
+        }) {
+            return Err(ImageError::InvalidInstruction {
+                address,
+                reason: "undefined DF register opcode in the reference decoder".into(),
+            });
+        }
         // opcode64's mandatory-prefix 0F tables leave 90..9F undefined.
         // Recent decoders assign AVX-512 mask-register moves to these VEX
         // encodings, but the pinned decoder rejects them.
@@ -1602,14 +1615,35 @@ impl LoadedImage {
                     .get(..*offset)
                     .is_some_and(|prefixes| prefixes.contains(&0x67))
         });
+        // opcode86.py's F20F[D6] uses P,V operands: both read ModRM.reg
+        // without consuming ModRM. The amd64 table uses the normal layout.
+        let movdq2q_offset = opcode_offset.filter(|offset| {
+            self.architecture == Architecture::X86
+                && bytes.get(*offset..offset + 2) == Some(&[0x0f, 0xd6])
+                && bytes
+                    .get(..*offset)
+                    .is_some_and(|prefixes| prefixes.contains(&0xf2))
+        });
+        // opcode64's unprefixed VEX 0F[62] retains the legacy MMX operand
+        // layout and adds only a mnemonic prefix. Modern decoders reject it.
+        let vex_mmx_offset = opcode_offset.filter(|offset| {
+            self.architecture == Architecture::X64
+                && bytes.get(*offset) == Some(&0xc5)
+                && vex_opcode == Some((0, 0x62))
+        });
         let mut legacy_bytes = None;
         if bound_offset.is_some()
             || far_load_offset.is_some()
             || alias_offset.is_some()
             || nop_offset.is_some()
             || moffs_offset.is_some()
+            || movdq2q_offset.is_some()
+            || vex_mmx_offset.is_some()
         {
             let mut adjusted = bytes.to_vec();
+            if let Some(modrm) = movdq2q_offset.and_then(|offset| adjusted.get_mut(offset + 2)) {
+                *modrm = 0xc0 | (*modrm & 0x38) | ((*modrm >> 3) & 7);
+            }
             if let Some(opcode) = bound_offset.and_then(|offset| adjusted.get_mut(offset)) {
                 *opcode = 0x8b;
             }
@@ -1640,6 +1674,14 @@ impl LoadedImage {
                     }
                 }
             }
+            if let Some(offset) = vex_mmx_offset {
+                if let Some(prefix) = adjusted.get_mut(offset) {
+                    *prefix = 0x0f;
+                }
+                if offset + 1 < adjusted.len() {
+                    adjusted.remove(offset + 1);
+                }
+            }
             legacy_bytes = Some(adjusted);
         }
         let mut decoder = Decoder::with_ip(
@@ -1647,12 +1689,39 @@ impl LoadedImage {
             legacy_bytes.as_deref().unwrap_or(bytes),
             address,
             if compatibility {
+                // envi's i386/amd64 decoder records LOCK without checking
+                // whether the opcode supports it (disasm.py:disasm).
+                let lock = opcode_offset
+                    .and_then(|offset| bytes.get(..offset))
+                    .is_some_and(|prefixes| prefixes.contains(&0xf0));
+                // The pinned amd64 decoder also accepts a redundant REX
+                // before VEX, even though the architecture forbids it.
+                let rex_vex = self.architecture == Architecture::X64
+                    && opcode_offset.is_some_and(|offset| {
+                        matches!(bytes.get(offset), Some(0xc4 | 0xc5))
+                            && bytes.get(..offset).is_some_and(|prefixes| {
+                                prefixes.iter().any(|byte| (0x40..=0x4f).contains(byte))
+                            })
+                    });
                 DecoderOptions::NO_PAUSE
+                    | if lock || rex_vex {
+                        DecoderOptions::NO_INVALID_CHECK
+                    } else {
+                        0
+                    }
             } else {
                 DecoderOptions::NONE
             },
         );
         let mut instruction = decoder.decode();
+        if vex_mmx_offset.is_some() && !instruction.is_invalid() {
+            instruction.set_len(instruction.len() + 1);
+            instruction.set_next_ip(instruction.next_ip().wrapping_add(1));
+        }
+        if let Some(offset) = movdq2q_offset.filter(|_| !instruction.is_invalid()) {
+            instruction.set_len(offset + 2);
+            instruction.set_next_ip(address.wrapping_add((offset + 2) as u64));
+        }
         if compatibility
             && self.architecture == Architecture::X86
             && instruction.op0_kind() == iced_x86::OpKind::NearBranch16
@@ -1696,7 +1765,7 @@ impl LoadedImage {
                 });
             }
         }
-        let mut mnemonic_override = None;
+        let mut mnemonic_override = vex_mmx_offset.map(|_| "vpunpckldq");
         let instruction = if instruction.is_invalid() {
             let Some((carrier, mnemonic, _)) = decode_undocumented(address, bytes) else {
                 return Err(ImageError::InvalidInstruction {
@@ -2966,6 +3035,61 @@ mod tests {
             );
             assert_eq!(decoded.bytes, bytes);
             assert_eq!(decoded.next_address, image.image_base + bytes.len() as u64);
+        }
+    }
+
+    #[test]
+    fn compatibility_preserves_legacy_vector_decode_boundaries() {
+        let image = LoadedImage::from_shellcode(&[0xf2, 0x0f, 0xd6, 0xeb, 0xc3], Architecture::X86);
+        let instruction = image.decode_at_compat(image.image_base).unwrap();
+        assert_eq!(instruction.bytes, [0xf2, 0x0f, 0xd6]);
+        assert_eq!(instruction.next_address, image.image_base + 3);
+        assert_eq!(
+            instruction.x86_instruction().op0_register(),
+            iced_x86::Register::MM5
+        );
+        assert_eq!(
+            instruction.x86_instruction().op1_register(),
+            iced_x86::Register::XMM5
+        );
+        for bytes in [
+            &[0xc5, 0xf8, 0x62, 0xc0][..],
+            &[0x48, 0xc5, 0xf8, 0x10, 0xc0],
+        ] {
+            let image = LoadedImage::from_shellcode(bytes, Architecture::X64);
+            assert!(image.decode_at(image.image_base).is_err());
+            let instruction = image.decode_at_compat(image.image_base).unwrap();
+            assert_eq!(instruction.bytes, bytes);
+            assert_eq!(
+                instruction.next_address,
+                image.image_base + bytes.len() as u64
+            );
+        }
+    }
+
+    #[test]
+    fn compatibility_rejects_undefined_x87_register_aliases() {
+        for architecture in [Architecture::X86, Architecture::X64] {
+            let image = LoadedImage::from_shellcode(&[0xdf, 0xdb, 0xc3], architecture);
+            assert!(image.decode_at(image.image_base).is_ok());
+            assert!(image.decode_at_compat(image.image_base).is_err());
+            let image = LoadedImage::from_shellcode(&[0xdd, 0xdb, 0xc3], architecture);
+            assert!(image.decode_at_compat(image.image_base).is_ok());
+        }
+    }
+
+    #[test]
+    fn compatibility_accepts_lock_on_non_lockable_instructions() {
+        for architecture in [Architecture::X86, Architecture::X64] {
+            let image = LoadedImage::from_shellcode(&[0xf0, 0x89, 0x5d, 0xf4], architecture);
+            assert!(image.decode_at(image.image_base).is_err());
+            let instruction = image.decode_at_compat(image.image_base).unwrap();
+            assert_eq!(
+                instruction.x86_instruction().mnemonic(),
+                iced_x86::Mnemonic::Mov
+            );
+            assert_eq!(instruction.next_address, image.image_base + 4);
+            assert!(instruction.x86_instruction().has_lock_prefix());
         }
     }
 

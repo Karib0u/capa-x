@@ -29,11 +29,13 @@ pub(super) struct Discovery {
     late_pointers: VecDeque<(u64, u64)>,
     tried: BTreeSet<(SeedKind, u64)>,
     examined_instructions: BTreeSet<u64>,
+    collected_instruction_count: usize,
     examined_functions: BTreeSet<u64>,
     scanned: bool,
     emucode_active: bool,
     data_locations: Vec<(u64, u64)>,
     pointer_locations: BTreeMap<u64, u64>,
+    orphan_pointers: BTreeSet<u64>,
     code_barriers: Vec<(u64, u64)>,
     candidate_limit_hit: bool,
     relocation_index: usize,
@@ -66,11 +68,13 @@ impl Discovery {
             late_pointers: VecDeque::new(),
             tried: BTreeSet::new(),
             examined_instructions: BTreeSet::new(),
+            collected_instruction_count: 0,
             examined_functions: BTreeSet::new(),
             scanned: !enabled,
             emucode_active: enabled,
             data_locations: Vec::new(),
             pointer_locations: BTreeMap::new(),
+            orphan_pointers: BTreeSet::new(),
             code_barriers: Vec::new(),
             candidate_limit_hit: false,
             relocation_index: 0,
@@ -108,26 +112,62 @@ impl Discovery {
         &self.code_barriers
     }
 
-    pub(super) fn is_pointer_tail(&self, analysis: &Analysis, address: u64) -> bool {
-        // locmap retains the uncovered suffix when an opcode overwrites the
-        // beginning of a pointer. _cb_opcode stops at that suffix. During
-        // codeblocks analysis, delLocation(pointer_start) removes the
-        // overlapping opcode instead of freeing the suffix for more code.
+    pub(super) fn mark_code(&mut self, start: u64, end: u64) {
+        // codeblocks deletes a pointer starting at the next opcode before
+        // decoding it. An opcode starting before a pointer instead overwrites
+        // only its covered bytes in Vivisect's location map.
+        let end = self
+            .pointer_locations
+            .remove(&start)
+            .map_or(end, |old_end| end.max(old_end));
+        let first = self
+            .data_locations
+            .partition_point(|(_, stop)| *stop <= start);
+        let last = self
+            .data_locations
+            .partition_point(|(begin, _)| *begin < end);
+        if first >= last {
+            return;
+        }
+        let mut remaining = Vec::new();
+        if let Some(&(begin, _)) = self.data_locations.get(first) {
+            if begin < start {
+                remaining.push((begin, start));
+            }
+        }
+        if let Some(&(_, stop)) = self.data_locations.get(last - 1) {
+            if end < stop {
+                remaining.push((end, stop));
+            }
+        }
+        self.data_locations.splice(first..last, remaining);
+    }
+
+    pub(super) fn orphan_pointer(&self, analysis: &Analysis, address: u64) -> bool {
+        self.pointer_location(analysis, address)
+            .is_some_and(|(start, _)| self.orphan_pointers.contains(&start))
+    }
+
+    pub(super) fn remove_pointer_reference(&mut self, start: u64) {
+        self.orphan_pointers.insert(start);
+    }
+
+    pub(super) fn has_data_location(&self, address: u64) -> bool {
+        emucode::in_data(&self.data_locations, address)
+    }
+
+    pub(super) fn pointer_location(&self, analysis: &Analysis, address: u64) -> Option<(u64, u64)> {
+        if covered(analysis, address) || !emucode::in_data(&self.data_locations, address) {
+            return None;
+        }
         self.pointer_locations
-            .range(..address)
+            .range(..=address)
             .next_back()
-            .is_some_and(|(&start, &end)| {
-                address < end
-                    && analysis
-                        .instructions
-                        .range(..=start)
-                        .next_back()
-                        .is_some_and(|(&opcode, insn)| opcode < start && start < insn.next_address)
-                    && !covered(analysis, address)
-            })
+            .and_then(|(&start, &end)| (address < end).then_some((start, end)))
     }
 
     pub(super) fn mark_data(&mut self, start: u64, size: usize) {
+        self.orphan_pointers.remove(&start);
         insert_location(&mut self.data_locations, start, size);
         if let Some(end) = start.checked_add(size as u64) {
             self.pointer_locations.insert(start, end);
@@ -135,7 +175,7 @@ impl Discovery {
     }
 
     fn mark_noncode(&mut self, start: u64, size: usize) {
-        self.mark_data(start, size);
+        insert_location(&mut self.data_locations, start, size);
         insert_location(&mut self.code_barriers, start, size);
     }
 
@@ -260,8 +300,13 @@ impl Discovery {
         // `base._cb_opcode/guessDataPointer` also contributes immediate and
         // dereferenced operand targets. Repeat after new functions are walked.
         for instruction in analysis.instructions.values() {
-            self.observe_instruction(analysis, instruction, false);
+            self.observe_instruction(
+                analysis,
+                instruction,
+                super::callbacks::enabled(&analysis.image),
+            );
         }
+        self.collected_instruction_count = analysis.instructions.len();
         if self.candidate_limit_hit {
             analysis.diagnostics.push(RecoveryDiagnostic {
                 address: analysis.image.image_base,
@@ -277,7 +322,10 @@ impl Discovery {
         instruction: &super::image::DecodedInstruction,
         during_flow: bool,
     ) -> Option<u64> {
-        if during_flow && instruction.x86_instruction().mnemonic() == Mnemonic::Lea {
+        if during_flow
+            && analysis.image.architecture == Architecture::X86
+            && instruction.x86_instruction().mnemonic() == Mnemonic::Lea
+        {
             return None;
         }
         if !self.examined_instructions.insert(instruction.address) {
@@ -338,7 +386,7 @@ impl Discovery {
                     self.mark_data(target, analysis.image.architecture.pointer_width());
                     return None;
                 }
-                if let Some(size) = string_size(analysis, target) {
+                if let Some(size) = string_size(analysis, target, &self.data_locations) {
                     self.mark_noncode(target, size);
                     return None;
                 }
@@ -386,7 +434,7 @@ impl Discovery {
         {
             return None;
         }
-        if let Some(size) = string_size(analysis, target) {
+        if let Some(size) = string_size(analysis, target, &self.data_locations) {
             self.mark_noncode(target, size);
             return None;
         }
@@ -487,12 +535,19 @@ impl Discovery {
                 .get(self.relocation_index)
             {
                 self.relocation_index += 1;
-                if covered(analysis, source) {
+                // generic.relocations skips every existing location, including
+                // structures and strings created by function analysis.
+                if covered(analysis, source) || emucode::in_data(&self.data_locations, source) {
                     continue;
                 }
                 self.mark_data(source, analysis.image.architecture.pointer_width());
-                super::read_pointer(&analysis.image, source)
-                    .map(|target| (target, SeedKind::PointerTarget))
+                super::read_pointer(&analysis.image, source).map(|target| {
+                    let sources = analysis.data_xrefs.entry(target).or_default();
+                    if !sources.contains(&source) {
+                        sources.push(source);
+                    }
+                    (target, SeedKind::PointerTarget)
+                })
             } else {
                 // Pointer analysis precedes the generic.emucode wave.
                 // A lower-addressed immediate candidate must not absorb a
@@ -517,6 +572,10 @@ impl Discovery {
                         continue;
                     }
                     self.mark_data(source, analysis.image.architecture.pointer_width());
+                    let sources = analysis.data_xrefs.entry(target).or_default();
+                    if !sources.contains(&source) {
+                        sources.push(source);
+                    }
                     Some((target, SeedKind::PointerTarget))
                 } else {
                     self.candidates
@@ -555,7 +614,7 @@ impl Discovery {
             }
             let executable = analysis.image.is_executable_address(address);
             if kind == SeedKind::PointerTarget || !executable {
-                if let Some(size) = string_size(analysis, address) {
+                if let Some(size) = string_size(analysis, address, &self.data_locations) {
                     // analyzePointer/followPointer creates a string location.
                     // Later traces must reject branches into these bytes.
                     self.mark_noncode(address, size);
@@ -598,12 +657,19 @@ impl Discovery {
                         address,
                         message: format!("candidate evaluation stopped at {stopped:#x}: {reason}"),
                     });
+                    // An emulator anomaly rejects code upstream but still
+                    // allows the emucode pass to recognize a string.
+                    if kind == SeedKind::Emulated {
+                        if let Some(size) = string_size(analysis, address, &self.data_locations) {
+                            self.mark_noncode(address, size);
+                        }
+                    }
                 }
                 Verdict::NotCode => {
                     if kind == SeedKind::Emulated {
                         // generic.emucode types rejected string candidates
                         // before creating the accepted functions in this wave.
-                        if let Some(size) = string_size(analysis, address) {
+                        if let Some(size) = string_size(analysis, address, &self.data_locations) {
                             self.mark_noncode(address, size);
                         }
                     }
@@ -613,7 +679,7 @@ impl Discovery {
         if let Some(address) = self.next_emulated(analysis) {
             return Some(address);
         }
-        if !self.scanned || self.examined_instructions.len() < analysis.instructions.len() {
+        if !self.scanned || self.collected_instruction_count < analysis.instructions.len() {
             return self.next(analysis, noreturn);
         }
         None
@@ -635,7 +701,7 @@ impl Discovery {
 }
 
 #[allow(clippy::chunks_exact_to_as_chunks)] // Keep the Rust 1.87 MSRV.
-fn string_size(analysis: &Analysis, address: u64) -> Option<usize> {
+fn string_size(analysis: &Analysis, address: u64, data_locations: &[(u64, u64)]) -> Option<usize> {
     // `VivWorkspace.analyzePointer` checks strings before code. Keep this
     // bounded and require the same printable ASCII and NUL terminator.
     let bytes = analysis.image.bytes_at(address, 4096)?;
@@ -653,7 +719,18 @@ fn string_size(analysis: &Analysis, address: u64) -> Option<usize> {
     let pascal_length = prefixed_length(2);
     let delphi_length = prefixed_length(4);
     let printable = |byte: u8| byte.is_ascii_graphic() || byte == b' ' || matches!(byte, 9..=13);
+    let blocked = |offset: usize| {
+        offset > 0
+            && address.checked_add(offset as u64).is_none_or(|va| {
+                covered(analysis, va)
+                    || emucode::in_data(data_locations, va)
+                    || emucode::in_import(&analysis.image, va)
+            })
+    };
     for (count, &byte) in bytes.iter().enumerate() {
+        if blocked(count) {
+            break;
+        }
         if byte == 0 {
             if count > 0
                 && (count >= 4
@@ -670,6 +747,9 @@ fn string_size(analysis: &Analysis, address: u64) -> Option<usize> {
     }
     let &charset = bytes.get(1)?;
     for (index, pair) in bytes.chunks_exact(2).enumerate() {
+        if blocked(index * 2) {
+            return None;
+        }
         let (&first, rest) = pair.split_first()?;
         if first == 0 {
             return (index > 4).then_some((index + 1) * 2);
@@ -726,6 +806,47 @@ mod tests {
     }
 
     #[test]
+    fn string_candidates_stop_at_existing_locations() {
+        let bytes = b"\xc3\xcc\xcc\xccHello\0W\0o\0r\0l\0d\0\0\0";
+        let mut analysis = super::super::analyze_shellcode(bytes, Architecture::X86).unwrap();
+        let start = analysis.image.image_base;
+        assert_eq!(string_size(&analysis, start + 4, &[]), Some(6));
+        assert_eq!(string_size(&analysis, start + 10, &[]), Some(12));
+        assert_eq!(
+            string_size(&analysis, start + 4, &[(start + 6, start + 10)]),
+            None
+        );
+        assert_eq!(
+            string_size(&analysis, start + 10, &[(start + 14, start + 18)]),
+            None
+        );
+        let instruction = analysis.image.decode_at_compat(start + 6).unwrap();
+        analysis.instructions.insert(start + 6, instruction);
+        assert_eq!(string_size(&analysis, start + 4, &[]), None);
+    }
+
+    #[test]
+    fn relocations_do_not_follow_previously_typed_structure_members() {
+        let mut bytes = vec![0xc3];
+        bytes.resize(16, 0xcc);
+        bytes.extend_from_slice(&[0x31, 0xc0, 0xc3]);
+        bytes.resize(32, 0xcc);
+        let mut analysis = super::super::analyze_shellcode(&bytes, Architecture::X86).unwrap();
+        let start = analysis.image.image_base;
+        let slot = start + 24;
+        // Use the same mapped image helper as recovery, with a relocation
+        // pointing at a valid but otherwise undiscovered function.
+        bytes[24..28].copy_from_slice(&((start + 16) as u32).to_le_bytes());
+        analysis.image =
+            super::super::image::LoadedImage::from_shellcode(&bytes, Architecture::X86);
+        analysis.image.relocation_locations.push(slot);
+        let mut discovery = Discovery::new(&mut analysis, true);
+        discovery.mark_noncode(slot - 4, 12);
+        assert_eq!(discovery.next(&mut analysis, &BTreeSet::new()), None);
+        assert!(!analysis.seeds.contains_key(&(start + 16)));
+    }
+
+    #[test]
     fn length_prefixed_short_strings_are_data() {
         let bytes = [
             0xc3, 0xcc, 0xcc, 0xcc, 2, 0, 0, 0, b'y', b'y', 0, 0xcc, 0xff, 0xff, 3, 0, b'A', b'p',
@@ -733,8 +854,8 @@ mod tests {
         ];
         let analysis = super::super::analyze_shellcode(&bytes, Architecture::X86).unwrap();
         let start = analysis.image.image_base;
-        assert_eq!(string_size(&analysis, start + 8), Some(3));
-        assert_eq!(string_size(&analysis, start + 16), Some(4));
-        assert_eq!(string_size(&analysis, start + 24), None);
+        assert_eq!(string_size(&analysis, start + 8, &[]), Some(3));
+        assert_eq!(string_size(&analysis, start + 16, &[]), Some(4));
+        assert_eq!(string_size(&analysis, start + 24, &[]), None);
     }
 }

@@ -150,6 +150,35 @@ fn call_import<'a>(
     import_at(image, target)
 }
 
+// WindowsMixin's dynamic-library hooks call execCallReturn directly,
+// without checkCall's safe-memory fallback for an invalid return address.
+pub(super) fn import_hook_arguments(
+    image: &LoadedImage,
+    state: &State,
+    insn: &DecodedInstruction,
+) -> Option<usize> {
+    if image.format != ImageFormat::Pe {
+        return None;
+    }
+    Some(
+        match call_import(image, state, insn)?
+            .to_ascii_lowercase()
+            .as_str()
+        {
+            "kernel32.loadlibrarya"
+            | "kernel32.loadlibraryw"
+            | "kernel32.getmodulehandlea"
+            | "kernel32.getmodulehandlew" => 1,
+            "kernel32.getprocaddress" => 2,
+            "kernel32.loadlibraryexa"
+            | "kernel32.loadlibraryexw"
+            | "kernel32.getmodulehandleexa"
+            | "kernel32.getmodulehandleexw" => 3,
+            _ => return None,
+        },
+    )
+}
+
 fn argument(image: &LoadedImage, state: &State, index: usize) -> Option<u64> {
     let width = image.architecture.pointer_width();
     if image.architecture == Architecture::X64 {
@@ -172,7 +201,41 @@ pub(super) fn enabled(image: &LoadedImage) -> bool {
         && matches!(image.architecture, Architecture::X86 | Architecture::X64)
 }
 
-pub(super) type DiscoveryResults = (Vec<(u64, SeedKind)>, Vec<(DecodedInstruction, u64)>);
+pub(super) type DiscoveryResults = (
+    Vec<(u64, SeedKind)>,
+    Vec<(DecodedInstruction, u64)>,
+    Vec<DecodedInstruction>,
+);
+
+pub(super) fn is_register_thunk(analysis: &Analysis, target: u64) -> bool {
+    let image = &analysis.image;
+    if image.format != ImageFormat::Elf
+        || image.architecture != Architecture::X86
+        || !analysis.functions.contains_key(&target)
+    {
+        return false;
+    }
+    // vivisect/analysis/i386/thunk_reg.py recognizes these seven MOV/RET
+    // signatures only when the first caller is immediately followed by ADD.
+    if !matches!(
+        image.bytes_at(target, 4),
+        Some([
+            0x8b,
+            0x04 | 0x0c | 0x14 | 0x1c | 0x2c | 0x34 | 0x3c,
+            0x24,
+            0xc3
+        ])
+    ) {
+        return false;
+    }
+    analysis
+        .code_xrefs
+        .get(&target)
+        .and_then(|sources| sources.first())
+        .and_then(|source| image.decode_at_compat(*source).ok())
+        .and_then(|call| image.decode_at_compat(call.next_address).ok())
+        .is_some_and(|next| next.x86_instruction().mnemonic() == Mnemonic::Add)
+}
 
 pub(super) fn discover(
     analysis: &mut Analysis,
@@ -185,6 +248,7 @@ pub(super) fn discover(
     let mut pending = vec![(start, State::entry())];
     let mut visited = BTreeSet::new();
     let mut observed_pointers = Vec::new();
+    let mut unresolved_switches = Vec::new();
     while let Some((mut address, mut state)) = pending.pop() {
         loop {
             if !visited.insert(address) {
@@ -195,9 +259,9 @@ pub(super) fn discover(
                     address,
                     message: format!("callback trace at {start:#x} exceeded its budget"),
                 });
-                return (targets, observed_pointers);
+                return (targets, observed_pointers, unresolved_switches);
             }
-            if !image.is_executable_address(address) || image.is_uninitialized(address) {
+            if image.section_containing(address).is_none() || image.is_uninitialized(address) {
                 break;
             }
             // The calling-analysis emulator can follow a computed jump into
@@ -239,6 +303,14 @@ pub(super) fn discover(
             }
             match insn.flow {
                 Flow::Call | Flow::IndirectCall => {
+                    // checkCall enters registered PIC thunks. runFunction
+                    // stops at their RET rather than resuming this caller.
+                    if state
+                        .operand(image, op, 0)
+                        .is_some_and(|target| is_register_thunk(analysis, target))
+                    {
+                        break;
+                    }
                     // addAnalysisResults restores the reference for calls
                     // actually reached by the emulator. _cb_noflow removed
                     // the original reference when replacing the location.
@@ -307,6 +379,14 @@ pub(super) fn discover(
                     {
                         break;
                     }
+                    if let Some(count) = import_hook_arguments(image, &state, insn) {
+                        let Some(next) = state.hooked_call_return(image, insn.next_address, count)
+                        else {
+                            break;
+                        };
+                        address = next;
+                        continue;
+                    }
                     if let Some((count, _, callee_clean)) = api {
                         if image.architecture == Architecture::X86 && callee_clean {
                             let sp = state
@@ -368,6 +448,56 @@ pub(super) fn discover(
                         if found {
                             break;
                         }
+                        // i386SibOper.getBranches(emu) scans unresolved
+                        // scale-four tables independently of their selector.
+                        if table
+                            && !analysis
+                                .code_xrefs
+                                .values()
+                                .any(|sources| sources.contains(&address))
+                        {
+                            if let Some(base) = state.register(op.memory_base()) {
+                                let base = base.wrapping_add(op.memory_displacement64());
+                                let width = op.memory_size().size();
+                                let mut branches = Vec::new();
+                                for index in 0..=MAX_PATHS {
+                                    let Some(slot) = base.checked_add((index * width) as u64)
+                                    else {
+                                        break;
+                                    };
+                                    let Some(target) = state.read(image, slot, width) else {
+                                        break;
+                                    };
+                                    if image.section_containing(target).is_none() {
+                                        break;
+                                    }
+                                    if index == MAX_PATHS {
+                                        analysis.diagnostics.push(RecoveryDiagnostic {
+                                            address,
+                                            message: format!(
+                                                "callback table at {start:#x} exceeded its budget"
+                                            ),
+                                        });
+                                        return (targets, observed_pointers, unresolved_switches);
+                                    }
+                                    branches.push(target);
+                                }
+                                if branches.len() > 1 {
+                                    let mut seen = BTreeSet::new();
+                                    for target in branches {
+                                        if seen.insert(target) {
+                                            pending.push((target, state.clone()));
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                        if image.architecture == Architecture::X64
+                            && op.op0_kind() == OpKind::Register
+                        {
+                            unresolved_switches.push(insn.clone());
+                        }
                     }
                     let Some(target) = state.operand(image, op, 0) else {
                         break;
@@ -411,5 +541,5 @@ pub(super) fn discover(
             }
         }
     }
-    (targets, observed_pointers)
+    (targets, observed_pointers, unresolved_switches)
 }

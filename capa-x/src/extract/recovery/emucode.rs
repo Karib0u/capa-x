@@ -3,8 +3,8 @@
 //! This is an abstract interpreter, not a sample execution environment.
 //! Input registers start unknown; unreadable memory uses the reference
 //! emulator's safe-memory fill. Writes are private to each path. Calls return
-//! an unknown value without executing the
-//! callee, and conditional branches explore both successors, as in
+//! an unknown value, except for registered ELF register thunks. Conditional
+//! branches explore both successors, as in
 //! `vivisect/impemu/emulator.py:runFunction/checkBranches/checkCall`.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -256,6 +256,27 @@ impl State {
         }
     }
 
+    pub(super) fn hooked_call_return(
+        &mut self,
+        image: &LoadedImage,
+        next: u64,
+        arguments: usize,
+    ) -> Option<u64> {
+        let width = image.architecture.pointer_width();
+        let sp = self.register(Register::RSP)?;
+        let slot = sp.wrapping_sub(width as u64) & mask(width);
+        self.write(image, slot, width, Some(next));
+        let target = self.read(image, slot, width);
+        let cleanup = if image.architecture == Architecture::X86 {
+            arguments * width
+        } else {
+            0
+        };
+        self.set_register(Register::RSP, Some(sp.wrapping_add(cleanup as u64)));
+        self.clobber_call();
+        target
+    }
+
     pub(super) fn step(
         &mut self,
         image: &LoadedImage,
@@ -335,11 +356,13 @@ impl State {
             // Vector state is deliberately unknown, including after a move.
             // These operations are supported by envi's i_mov aliases.
             Movaps | Movapd | Movups | Movupd | Movdqa | Movdqu | Movss | Movlps | Movlpd
-            | Movhps | Movhpd => None,
+            | Movhps | Movhpd | Vmovaps | Vmovapd | Vmovups | Vmovupd | Vmovdqa | Vmovdqu
+            | Vmovss | Vmovlps | Vmovlpd | Vmovhps | Vmovhpd => None,
             // envi/archs/i386/emu.py implements these packed bitwise
             // operations. Like vector moves, they invalidate the abstract
             // destination without changing scalar registers or control flow.
-            Xorps | Xorpd | Pxor | Andps | Andpd | Pand | Pandn | Orps | Orpd | Por => None,
+            Xorps | Xorpd | Pxor | Andps | Andpd | Pand | Pandn | Orps | Orpd | Por | Vxorps
+            | Vxorpd | Vpxor | Vandps | Vandpd | Vpand | Vpandn | Vorps | Vorpd | Vpor => None,
             // envi/archs/i386/emu.py aliases i_mulss to i_mulsd. Neither
             // writes scalar registers or flags needed by this interpreter.
             Mulsd | Mulss => None,
@@ -511,6 +534,21 @@ impl State {
                     if let Some(address) = address {
                         self.write(image, address, width, None);
                     }
+                }
+                return Ok(());
+            }
+            Bound => {
+                // envi/archs/i386/emu.py:i_bound compares a signed pointer-
+                // sized index with two unsigned bounds from the memory operand.
+                let Some((index, bounds)) = left.zip(right) else {
+                    return Err("unknown bounds");
+                };
+                let size = op.memory_size().size() / 2;
+                let index = index as u32 as i32 as i64;
+                let low = bounds & mask(size);
+                let high = bounds >> (size * 8);
+                if index < 0 || (index as u64) < low || (index as u64) > high {
+                    return Err("bounds check failed");
                 }
                 return Ok(());
             }
@@ -823,7 +861,7 @@ fn evaluate_with_flow(
                     reason: "candidate trace budget exceeded".into(),
                 };
             }
-            if !image.is_executable_address(address) {
+            if image.section_containing(address).is_none() {
                 break;
             }
             // watcher.prehook checks the location type at every instruction.
@@ -835,8 +873,9 @@ fn evaluate_with_flow(
             // runFunction logs a decoder exception as an anomaly; the
             // watcher's badcode flag rejects the entire candidate, even
             // when another queued branch could reach a return.
-            let Ok(decoded) = image.decode_at_compat(address) else {
-                return Verdict::NotCode;
+            let decoded = match image.decode_at_compat(address) {
+                Ok(decoded) => decoded,
+                Err(_) => return Verdict::NotCode,
             };
             let op = decoded.x86_instruction();
             // `envi.ArchitectureModule.archGetBadOps` decodes all-zero bytes
@@ -880,12 +919,31 @@ fn evaluate_with_flow(
                         break;
                     }
                     let target = state.operand(image, op, 0);
+                    if let Some(target) = target.filter(|target| {
+                        analysis.is_some_and(|analysis| {
+                            super::callbacks::is_register_thunk(analysis, *target)
+                        })
+                    }) {
+                        address = target;
+                        continue;
+                    }
                     if target.is_some_and(|target| noreturn.contains(&target)) {
                         return if good_distribution(&counts, total) {
                             Verdict::Code
                         } else {
                             Verdict::NotCode
                         };
+                    }
+                    if let Some(count) =
+                        super::callbacks::import_hook_arguments(image, &state, &decoded)
+                    {
+                        let Some(next) =
+                            state.hooked_call_return(image, decoded.next_address, count)
+                        else {
+                            break;
+                        };
+                        address = next;
+                        continue;
                     }
                     // checkCall does not execute the callee. Only its return
                     // register becomes an unknown API-result taint.
@@ -1019,7 +1077,7 @@ fn evaluate_with_flow(
                 }
                 Flow::Next => {
                     if let Err(reason) = state.step(image, op) {
-                        if reason == "division by zero" {
+                        if matches!(reason, "division by zero" | "bounds check failed") {
                             return Verdict::NotCode;
                         }
                         incomplete = Some((address, format!("{reason}: {:?}", op.mnemonic())));
@@ -1046,6 +1104,45 @@ mod tests {
     fn verdict(bytes: &[u8]) -> Verdict {
         let image = LoadedImage::from_shellcode(bytes, Architecture::X86);
         evaluate(&image, image.image_base, &BTreeSet::new(), &[])
+    }
+
+    #[test]
+    fn bounds_fault_rejects_other_paths_with_returns() {
+        // jz bound; ret; xor eax,eax; bound eax,[ebx]
+        assert_eq!(
+            verdict(&[0x74, 1, 0xc3, 0x31, 0xc0, 0x62, 0x03]),
+            Verdict::NotCode
+        );
+    }
+
+    #[test]
+    fn hooked_returns_require_the_saved_address_without_safe_memory_repair() {
+        let image = LoadedImage::from_shellcode(&[0xc3], Architecture::X86);
+        let mut state = State::entry();
+        assert_eq!(
+            state.hooked_call_return(&image, image.image_base, 2),
+            Some(image.image_base)
+        );
+        assert_eq!(state.register(Register::ESP), Some(STACK_BASE + 8));
+        state.set_register(Register::ESP, Some(0x530042ca));
+        assert_eq!(
+            state.hooked_call_return(&image, image.image_base, 2),
+            Some(0x61616161)
+        );
+    }
+
+    #[test]
+    fn avx_moves_and_logical_operations_allow_candidate_returns() {
+        for bytes in [
+            &[0xc5, 0xf8, 0x10, 0xc0, 0xc3][..],
+            &[0xc5, 0xf8, 0x57, 0xc0, 0xc3],
+        ] {
+            let image = LoadedImage::from_shellcode(bytes, Architecture::X64);
+            assert_eq!(
+                evaluate(&image, image.image_base, &BTreeSet::new(), &[]),
+                Verdict::Code
+            );
+        }
     }
 
     #[test]

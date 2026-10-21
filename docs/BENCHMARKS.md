@@ -5,6 +5,19 @@ README. The measurements are reproducible evidence for a pinned implementation,
 ruleset, corpus, and host. They are not universal rankings.
 
 
+## Complete native match-address parity (2026-10-21)
+
+Fresh release analysis reaches **376/376 identical rule and match-address
+sets (100%)** across every comparable native x86/x64 and shellcode input in
+the pinned corpus. There are zero missing or extra addresses. The raw corpus
+contains 377 inputs; the pinned reference rejects one malformed ELF.
+
+See the [validation report](validation/match-address-parity-2026-10-21.md)
+for reproduction commands and the complete outcome table. This measures
+rule/address sets, not evidence-tree identity or duplicate multiplicity.
+No performance claim is made by this parity update. Earlier checkpoints
+below remain historical.
+
 ## Match-address checkpoint (2026-10-20)
 
 Fresh pinned-corpus comparisons reach 357/376 exact rule/address sets (94.9%),

@@ -196,11 +196,15 @@ fn function_never_returns(analysis: &Analysis, function: &Function) -> bool {
     if import_thunk_location(analysis, function).is_some() {
         return false;
     }
-    for block in function
-        .blocks
-        .iter()
-        .filter(|block| block.succs.is_empty())
-    {
+    // graphutil.buildFunctionGraph omits edges without a code block at the
+    // exact destination. An unresolved jump is therefore a returning leaf.
+    let block_starts: BTreeSet<_> = function.blocks.iter().map(|block| block.addr).collect();
+    for block in function.blocks.iter().filter(|block| {
+        !block
+            .succs
+            .iter()
+            .any(|edge| block_starts.contains(&edge.target))
+    }) {
         let Some(last) = block.insns.last() else {
             continue;
         };
