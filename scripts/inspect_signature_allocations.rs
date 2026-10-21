@@ -1,6 +1,6 @@
 //! Inspect parsed FLIRT storage capacities without adding an allocator wrapper.
 //! Pass signature paths, for example capa-x/sigs/*.sig. Counts exclude allocator
-//! overhead, tail bytes, and matcher indexes. See docs/BENCHMARKS.md.
+//! overhead, tail bytes, and matcher indexes. See docs/benchmarks.md.
 #![forbid(unsafe_code)]
 
 use lancelot_flirt::{FlirtSignature, SigElement, Symbol};

@@ -36,5 +36,5 @@ so a run reports regressions against known diffs rather than the raw presence
 of a diff. Re-record with `--write-expected` only for a deliberate change, in
 the same commit, with the reason stated.
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup, complete checks, and the
+See [`docs/development.md`](docs/development.md) for setup, complete checks, and the
 pull request checklist.

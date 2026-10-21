@@ -1,9 +1,8 @@
 # Accuracy and performance
 
-This page records the methodology behind the summary numbers in the project
-README. The measurements are reproducible evidence for a pinned implementation,
-ruleset, corpus, and host. They are not universal rankings.
-
+Methodology and measurement log behind the numbers in the README. Results are
+reproducible evidence for a pinned implementation, ruleset, corpus, and host,
+not universal rankings. Sections after the first are dated history.
 
 ## Complete native match-address parity (2026-10-21)
 
@@ -15,18 +14,7 @@ contains 377 inputs; the pinned reference rejects one malformed ELF.
 See the [validation report](validation/match-address-parity-2026-10-21.md)
 for reproduction commands and the complete outcome table. This measures
 rule/address sets, not evidence-tree identity or duplicate multiplicity.
-No performance claim is made by this parity update. Earlier checkpoints
-below remain historical.
-
-## Match-address checkpoint (2026-10-20)
-
-Fresh pinned-corpus comparisons reach 357/376 exact rule/address sets (94.9%),
-up from 326, while preserving 376/376 identical rule-name sets. There are
-20 missing and 30 extra addresses, with zero newly introduced discrepancies.
-The reference rejects one malformed input from the raw corpus of 377.
-See the [checkpoint report](validation/match-address-checkpoint-2026-10-20.md)
-for commands, validation, and every remaining address difference. No new
-performance claim is made by this parity checkpoint.
+No performance claim is made by this parity update.
 
 ## Allocation and architecture audit (2026-10-20)
 
@@ -402,7 +390,7 @@ The changes address three causes:
 - Honoring the stored pointer for ELF relative relocations removes the
   `e5e8c139` loop extra. Native mode retains addend-based discovery.
 
-The remaining 18 differences are mapped in `KNOWN_DIVERGENCES.md`: two
+The remaining 18 differences are mapped in `known-divergences.md`: two
 instruction-boundary misses (KD-014/KD-015), eight function-ownership extras
 (KD-008), six reference ELF-import differences (KD-004), and two PE-section
 name differences (KD-009). These results do not establish 100% compatibility.
@@ -714,7 +702,7 @@ are recorded in the release measurement log below.
 Rule-level agreement is the headline because it measures individual rules
 instead of treating a one-rule difference and a hundred-rule difference as the
 same failed sample. Every measured difference is assigned to a root-cause
-class in [`../KNOWN_DIVERGENCES.md`](../KNOWN_DIVERGENCES.md).
+class in [`known-divergences.md`](known-divergences.md).
 
 ### Native backend accuracy
 

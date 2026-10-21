@@ -1161,7 +1161,7 @@ fn feature_presence_matches_upstream_viv_expectations() {
                 // skips it there). Both are equivalent for the actual
                 // Phase 6 acceptance metric (matched rule sets: real capa
                 // rules don't target a thunk's own address), so this is
-                // accepted rather than fixed. See KNOWN_DIVERGENCES.md.
+                // accepted rather than fixed. See docs/known-divergences.md.
                 known_divergences.push(format!(
                     "{sample} {scope}: {feature} (function recognized as a FLIRT library function)"
                 ));

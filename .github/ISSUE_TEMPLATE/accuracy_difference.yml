@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Read KNOWN_DIVERGENCES.md first. Existing backend differences should not be filed again unless new evidence changes their root cause or impact.
+        Read docs/known-divergences.md first. Existing backend differences should not be filed again unless new evidence changes their root cause or impact.
   - type: input
     id: version
     attributes:
@@ -54,7 +54,7 @@ body:
     attributes:
       label: Checks
       options:
-        - label: I checked KNOWN_DIVERGENCES.md for this result class.
+        - label: I checked docs/known-divergences.md for this result class.
           required: true
         - label: I used the pinned rules with both implementations.
           required: true

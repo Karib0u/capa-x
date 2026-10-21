@@ -27,7 +27,7 @@ result or silently excluded from the report.
 This establishes equality of rule/address sets on this pinned corpus.
 Evidence-tree identity, duplicate-match multiplicity, other backend profiles,
 and arbitrary binaries are separate questions. Historical measurements in
-the [previous checkpoint](match-address-checkpoint-2026-10-20.md) remain
+the previous checkpoints remain
 unchanged.
 
 ## Changes

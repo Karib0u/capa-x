@@ -78,7 +78,7 @@ jobs:
       - name: cargo test
         run: cargo test --workspace -- --include-ignored
 
-      # Gate J2 (docs/BENCHMARKS.md): `--jobs N` output must be byte-identical to
+      # Gate J2 (docs/benchmarks.md): `--jobs N` output must be byte-identical to
       # `--jobs 1`. `cargo test` above already runs the library-level half
       # (capa-x/tests/jobs_determinism.rs); this is the CLI half, which
       # additionally covers argument handling and the rendered JSON.

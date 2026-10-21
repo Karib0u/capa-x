@@ -29,7 +29,7 @@ dynamic = ["version"]
 
 [project.urls]
 Repository = "https://github.com/Karib0u/capa-x"
-Documentation = "https://github.com/Karib0u/capa-x/blob/main/docs/ARCHITECTURE.md"
+Documentation = "https://github.com/Karib0u/capa-x/blob/main/docs/architecture.md"
 
 [tool.maturin]
 # Mixed layout: `python/capa_x/__init__.py` re-exports the compiled

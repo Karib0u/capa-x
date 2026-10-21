@@ -5,7 +5,7 @@ Notable changes to capa-x. Format follows
 [semantic versioning](https://semver.org/spec/v2.0.0.html).
 
 Result differences against Python capa are not changelog entries - they are
-tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
+tracked per class in [docs/known-divergences.md](docs/known-divergences.md).
 
 ## [Unreleased]
 
@@ -64,7 +64,7 @@ tracked per class in [KNOWN_DIVERGENCES.md](KNOWN_DIVERGENCES.md).
   addresses, signed hexadecimal values and operand counts in rules, count
   descriptions, and result-document metadata. Refresh
   compatibility fixtures and migrate the fixture generator to upstream JSON
-  manifests. See `docs/BENCHMARKS.md` for the version-specific checks.
+  manifests. See `docs/benchmarks.md` for the version-specific checks.
 
 - The slow acceptance and robustness gates
   (`capa-x/tests/cross_product_matrix.rs`, `aarch64_elf_fuzz.rs`,
@@ -171,11 +171,11 @@ the 200-sample evaluation corpus.
 
 - Every release gate was measured on the release tree against pinned Python
   capa 9.4.0 with the documented corpus denominators. The full evidence table
-  is the release measurement log in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
+  is the release measurement log in [`docs/benchmarks.md`](docs/benchmarks.md).
 - A controlled result-equivalent sample measured 0.959 seconds median for
   capa-x and 3.007 seconds for Python capa.
 - Every measured divergence from Python capa is root-caused and classified in
-  [`KNOWN_DIVERGENCES.md`](KNOWN_DIVERGENCES.md) (13 classes).
+  [`docs/known-divergences.md`](docs/known-divergences.md) (13 classes).
 
 ### Decided
 

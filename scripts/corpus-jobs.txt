@@ -1,5 +1,5 @@
 # Determinism corpus -- the five samples CI compares at `--jobs 1` against
-# `--jobs 2` and `--jobs 4` on every push (docs/BENCHMARKS.md, gate J2).
+# `--jobs 2` and `--jobs 4` on every push (docs/benchmarks.md, gate J2).
 # Paths are relative to tests/testfiles/, same as every other corpus list.
 #
 #   python3 scripts/determinism.py --samples scripts/corpus-jobs.txt \

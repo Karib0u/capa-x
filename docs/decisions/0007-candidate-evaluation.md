@@ -123,4 +123,4 @@ interiors, relocated operands, typed data, API arguments, and pass ordering.
 Pinned samples cover pointer-only ELF roots, callback chains, and shared PE
 function boundaries. Corpus
 comparisons and their deliberately updated baselines are recorded in
-[`../BENCHMARKS.md`](../BENCHMARKS.md).
+[`benchmarks.md`](../benchmarks.md).

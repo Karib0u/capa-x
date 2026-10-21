@@ -1,55 +1,35 @@
 # Known divergences vs Python capa
 
 Every result difference between capa-x and the pinned Python capa
-(`flare-capa` and Vivisect versions in [`PINNED.md`](PINNED.md)),
+(`flare-capa` and Vivisect versions in [`PINNED.md`](../PINNED.md)),
 one entry per *class* of difference. Resolved entries retain their IDs and
 historical causes so earlier measurements remain interpretable.
 
-## Current measured remainder
+## Current status
 
-The latest 2026-10-21 run covers all 377 native x86/x64 and shellcode inputs.
-Original capa rejects one malformed ELF. All 376 comparable inputs have
-identical rule-name and match-address sets: zero missing or extra rules and
-zero missing or extra addresses. Evidence-tree identity and duplicate-match
-multiplicity remain outside this comparison.
+The 2026-10-21 run covers all 377 native x86/x64 and shellcode inputs. The
+reference rejects one malformed ELF; all 376 comparable inputs have identical
+rule-name and match-address sets (zero missing or extra). Evidence-tree
+identity and duplicate-match multiplicity are not covered by this comparison,
+and nothing here asserts identical recovery on arbitrary binaries.
 
-The [match-address report](docs/validation/match-address-parity-2026-10-21.md)
-records the fixes, commands, and every input outcome. The
-[earlier full validation](docs/validation/full-corpus-2026-10-20.md) and
-[complete reference outputs](tests/reference-results/capa-10.0.0/README.md)
-remain unchanged as historical evidence. The resolved mechanisms below
-explain earlier differences rather than current corpus failures.
+Reports: [match-address parity](validation/match-address-parity-2026-10-21.md),
+[full-corpus baseline](validation/full-corpus-2026-10-20.md),
+[reference outputs](../tests/reference-results/capa-10.0.0/README.md). The
+mechanisms below mostly explain *earlier* differences; entries marked resolved
+keep their IDs so older measurements stay interpretable. Commands are in
+[benchmarks.md](benchmarks.md).
 
-The earlier 200-sample regression run has zero rule-name differences,
-with 6,300 reference-matched rules. The four formerly remaining
-differences, KD-008 and KD-014 through KD-016, are resolved in compatibility
-mode. See `docs/BENCHMARKS.md` for commands and validation.
+## Why this document exists
 
-This is measured matched-rule compatibility on the pinned corpus. It does
-not assert identical instruction recovery or JSON evidence locations for
-arbitrary binaries. Historical sample lists below retain earlier causes;
-native recovery intentionally keeps its broader decoder and switch behavior.
+Documented divergence is upstream's own model for a backend. capa ships several
+backends and compares none of them against each other; each is checked against
+hand-maintained expectation tables that encode genuine disagreement
+(`FEATURE_COUNT_TESTS_GHIDRA` in `reference/capa/tests/fixtures.py`, `xfail:`
+expectations in the BinExport, idalib, Ghidra, and dotnetfile tables).
 
-## Why a document like this is the right answer
-
-Documented divergence is upstream's own model for a backend, not a concession
-this port invented. capa ships vivisect, IDA, idalib, Ghidra, Binary Ninja,
-BinExport and dotnetfile backends, and nothing in its test suite compares any
-two backends' capability output. Each is checked against hand-maintained
-expectation tables, and where a backend genuinely disagrees, upstream *encodes
-the disagreement*:
-
-- `reference/capa/tests/fixtures.py:1540` : a separate `FEATURE_COUNT_TESTS_GHIDRA`
-  table, carrying the comment that Ghidra "may render functions as labels, as
-  well as provide differing amounts of call references". Three rows that
-  contradict the vivisect table, kept side by side with it.
-- `xfail:` expectation strings in the BinExport, idalib, Ghidra, dotnetfile and
-  pefile tables (e.g. `"xfail: not implemented yet"`, `"xfail: name demangling
-  is not implemented"`).
-
-capa-x is a new backend and is held to the existing non-regression floor.
-Every measured difference must map to an entry here; that requirement is part
-of this project's release contract.
+capa-x is held to the same floor: every measured difference must map to an
+entry here. That is part of the release contract.
 
 ## Rules for an entry
 
@@ -137,7 +117,7 @@ of this project's release contract.
   Support is bounded, not a claim of complete workspace-emulator parity:
   unsupported operations, unresolved computed branches, and resource limits
   produce contextual diagnostics. See
-  [ADR 0007](docs/decisions/0007-candidate-evaluation.md).
+  [ADR 0007](decisions/0007-candidate-evaluation.md).
 
 ### KD-003: pointer targets classified as code by emulation
 
@@ -736,4 +716,4 @@ of this project's release contract.
   strings, typed relocations, thunks, decoder boundaries, emulation faults,
   root ordering, and unresolved jumps. The complete native corpus has
   **376/376 exact rule/address sets**, with one separate reference rejection.
-  See the [2026-10-21 report](docs/validation/match-address-parity-2026-10-21.md).
+  See the [2026-10-21 report](validation/match-address-parity-2026-10-21.md).
