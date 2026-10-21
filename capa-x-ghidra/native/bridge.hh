@@ -16,6 +16,8 @@ public:
   void add_tail_call(uint64_t caller, uint64_t site, uint64_t target);
   void set_signature(uint64_t address, ValueType result, rust::Slice<const ValueType> parameters);
   void set_preserves_rax(uint64_t address);
+  bool apply_prototype(uint64_t address, rust::Str name);
+  rust::String validate_prototype_pack(uint32_t max_report);
   NativeOutput decompile(uint64_t address, uint32_t timeout_ms, uint32_t max_instructions, uint32_t max_work);
 };
 std::unique_ptr<Session> new_session();

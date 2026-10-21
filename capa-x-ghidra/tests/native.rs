@@ -159,3 +159,20 @@ fn import_jump_thunk_preserves_forwarded_argument() -> Result<(), Box<dyn std::e
     );
     Ok(())
 }
+
+#[test]
+fn packed_archive_types_and_prototypes_decode() {
+    let mut session = Session::new().unwrap();
+    let report = session.validate_prototype_pack(40).unwrap();
+    println!("{report}");
+    // Eight known archive entries (two recursive callback typedef cycles and one
+    // unresolved enum) cannot be rebuilt; everything else must decode.
+    let failures: usize = report
+        .split("failures=")
+        .nth(1)
+        .and_then(|rest| rest.split(|c: char| !c.is_ascii_digit()).next())
+        .and_then(|digits| digits.parse().ok())
+        .unwrap();
+    assert!(failures <= 8, "{report}");
+    assert!(report.contains("functions=28"), "{report}");
+}

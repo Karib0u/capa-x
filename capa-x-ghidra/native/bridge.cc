@@ -6,11 +6,16 @@
 #include "funcdata.hh"
 #include "flow.hh"
 #include "printc.hh"
+#include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <mutex>
 #include <stdexcept>
 #include <limits>
 #include <set>
+#include <map>
+#include <vector>
+#include <zlib.h>
 
 using namespace ghidra;
 namespace {
@@ -126,9 +131,137 @@ public:
     }
   }
 };
+// Prototype and type pack: Ghidra data type archive content exported offline
+// (scripts/decompiler_types) in Ghidra's own decompiler marshalling. Entries are
+// zlib blocks; a lookup inflates one bounded block. Serialized by engine_mutex.
+class PrototypePack {
+  struct Block { uint32_t offset, clength, rlength; std::string first; };
+  std::vector<Block> blocks;
+  const uint8_t *data = nullptr;
+  size_t data_size = 0;
+  std::map<size_t, std::string> cache;
+  static uint32_t u32(const uint8_t *p) { return p[0] | p[1] << 8 | p[2] << 16 | uint32_t(p[3]) << 24; }
+  const std::string &inflated(size_t index) {
+    auto found = cache.find(index);
+    if (found != cache.end()) return found->second;
+    const Block &b = blocks[index];
+    if (b.rlength > 4 * 1024 * 1024) throw std::runtime_error("prototype pack block too large");
+    std::string raw(b.rlength, '\0');
+    uLongf length = b.rlength;
+    if (uncompress(reinterpret_cast<Bytef *>(&raw[0]), &length, data + b.offset, b.clength) != Z_OK || length != b.rlength)
+      throw std::runtime_error("corrupt prototype pack block");
+    if (cache.size() >= 16) cache.clear();
+    return cache.emplace(index, std::move(raw)).first->second;
+  }
+public:
+  PrototypePack(const unsigned char *bytes, size_t size) {
+    const char magic[] = "CXPROTO1";
+    if (size < 12 || memcmp(bytes, magic, 8) != 0) throw std::runtime_error("bad prototype pack header");
+    const uint32_t count = u32(bytes + 8);
+    size_t pos = 12;
+    for (uint32_t i = 0; i < count; i++) {
+      if (size - pos < 14) throw std::runtime_error("truncated prototype pack index");
+      Block b{u32(bytes + pos), u32(bytes + pos + 4), u32(bytes + pos + 8), ""};
+      const size_t key = bytes[pos + 12] | bytes[pos + 13] << 8;
+      pos += 14;
+      if (size - pos < key) throw std::runtime_error("truncated prototype pack key");
+      b.first.assign(reinterpret_cast<const char *>(bytes + pos), key);
+      pos += key;
+      blocks.push_back(std::move(b));
+    }
+    data = bytes + pos;
+    data_size = size - pos;
+    for (const auto &b : blocks)
+      if (b.offset > data_size || b.clength > data_size - b.offset) throw std::runtime_error("prototype pack block out of range");
+  }
+  size_t block_count() const { return blocks.size(); }
+  /// Value after the first tab of the line keyed \p key.
+  bool find(const std::string &key, std::string &value) {
+    auto it = std::upper_bound(blocks.begin(), blocks.end(), key,
+      [](const std::string &k, const Block &b) { return k < b.first; });
+    if (it == blocks.begin()) return false;
+    const std::string &raw = inflated(size_t(it - blocks.begin()) - 1);
+    size_t pos = 0;
+    while (pos < raw.size()) {
+      size_t end = raw.find('\n', pos);
+      if (end == std::string::npos) end = raw.size();
+      const size_t tab = raw.find('\t', pos);
+      if (tab != std::string::npos && tab < end && raw.compare(pos, tab - pos, key) == 0) {
+        value.assign(raw, tab + 1, end - tab - 1);
+        return true;
+      }
+      pos = end + 1;
+    }
+    return false;
+  }
+  /// Every key of every block, for validation.
+  std::vector<std::string> keys() {
+    std::vector<std::string> out;
+    for (size_t i = 0; i < blocks.size(); i++) {
+      const std::string raw = inflated(i);
+      size_t pos = 0;
+      while (pos < raw.size()) {
+        size_t end = raw.find('\n', pos);
+        if (end == std::string::npos) end = raw.size();
+        const size_t tab = raw.find('\t', pos);
+        if (tab != std::string::npos && tab < end) out.push_back(raw.substr(pos, tab - pos));
+        pos = end + 1;
+      }
+    }
+    return out;
+  }
+};
+PrototypePack &prototype_pack() {
+  static PrototypePack pack(pack_bytes, sizeof(pack_bytes));
+  return pack;
+}
+std::string type_key(uint64_t id) {
+  char buffer[32];
+  snprintf(buffer, sizeof buffer, "T:0x%llx", static_cast<unsigned long long>(id));
+  return buffer;
+}
+/// Resolves named types the way Ghidra's decompiler asks its host: on demand.
+class TypeFactoryPack : public TypeFactory {
+  // Recursive definitions end at the stub objects the decoder creates, so
+  // re-entry for an id is legitimate; bound it to protect the native stack.
+  std::map<uint64_t, int> loading;
+  int depth = 0;
+  struct Loading {
+    TypeFactoryPack &owner;
+    uint64_t id;
+    ~Loading() {
+      owner.depth--;
+      if (--owner.loading[id] == 0) owner.loading.erase(id);
+    }
+  };
+public:
+  explicit TypeFactoryPack(Architecture *g) : TypeFactory(g) {}
+  Datatype *resolve(uint64_t id) { return findById("", id, 0); }
+  Datatype *findById(const std::string &n, uint8 id, int4 sz) override {
+    Datatype *known = TypeFactory::findById(n, id, sz);
+    if (known) return known;
+    // Ghidra's untyped bytes; the C++ core types call them xunknown.
+    if (n.size() == 10 && n.compare(0, 9, "undefined") == 0 && n[9] >= '1' && n[9] <= '8' && (n[9] == '1' || n[9] == '2' || n[9] == '4' || n[9] == '8'))
+      return getBase(n[9] - '0', TYPE_UNKNOWN);
+    if (id == 0 || sz > 0) return nullptr;
+    std::string value;
+    if (!prototype_pack().find(type_key(id), value)) return nullptr;
+    if (depth >= 64 || loading[id] >= 3) throw LowlevelError("packed type definition nests too deeply: " + n);
+    loading[id]++;
+    depth++;
+    Loading guard{*this, id};
+    const size_t tab = value.find('\t');
+    if (tab == std::string::npos) throw LowlevelError("malformed packed type: " + n);
+    std::istringstream input(value.substr(tab + 1));
+    DocumentStorage store;
+    XmlDecode decoder(glb, store.parseDocument(input)->getRoot());
+    return decodeType(decoder);
+  }
+};
 class Architecture64 : public SleighArchitecture {
 protected:
   void buildLoader(DocumentStorage &) override { loader = new Image(); }
+  void buildTypegrp(DocumentStorage &) override { types = new TypeFactoryPack(this); }
   void resolveArchitecture() override { archid = "x86:LE:64:default:windows"; }
   void buildSpecFile(DocumentStorage &store) override {
     for (auto pair : {std::make_pair(pspec_bytes, sizeof(pspec_bytes)),
@@ -298,6 +431,36 @@ public:
     if (noreturn) fd->getFuncProto().setNoReturn(true);
     return fd;
   }
+  /// Apply a packed archive prototype to \p fd. Windows x64 has one ABI, so
+  /// archive convention names such as __stdcall map to the default model.
+  bool apply_pack_prototype(Funcdata *fd, const std::string &function) {
+    std::string xml;
+    if (!prototype_pack().find("F:" + function, xml)) return false;
+    const size_t at = xml.find(" model=\"");
+    if (at != std::string::npos) {
+      const size_t start = at + 8, end = xml.find('"', start);
+      if (end != std::string::npos && !arch.getModel(xml.substr(start, end - start)))
+        xml.replace(start, end - start, arch.defaultfp->getName());
+    }
+    std::istringstream input(xml);
+    DocumentStorage store;
+    XmlDecode decoder(&arch, store.parseDocument(input)->getRoot());
+    // A symbol-backed prototype cannot decode a full definition, so decode into a
+    // standalone prototype and transfer its pieces, as set_signature does.
+    FuncProto decoded;
+    decoded.setInternal(arch.defaultfp, arch.types->getTypeVoid());
+    decoded.decode(decoder, &arch);
+    PrototypePieces pieces;
+    decoded.getPieces(pieces);
+    auto &proto = fd->getFuncProto();
+    const bool noreturn = proto.isNoReturn() || decoded.isNoReturn();
+    proto.setPieces(pieces);
+    proto.setInputLock(true);
+    proto.setOutputLock(true);
+    proto.setModelLock(true);
+    proto.setNoReturn(noreturn);
+    return true;
+  }
 };
 Session::Session() : impl(checked([] { return std::unique_ptr<Impl>(new Impl()); })) {}
 Session::~Session() { std::lock_guard<std::mutex> lock(engine_mutex); impl.reset(); }
@@ -351,6 +514,60 @@ void Session::add_import(uint64_t address, rust::Str name, bool noreturn) {
     impl->function(target, identifier(name), noreturn);
     arch.symboltab->getGlobalScope()->addExternalRef(Address(arch.getDefaultCodeSpace(), address),
       Address(arch.getDefaultCodeSpace(), target), identifier(name));
+  });
+}
+bool Session::apply_prototype(uint64_t address, rust::Str name) {
+  std::lock_guard<std::mutex> lock(engine_mutex);
+  return checked([&] {
+    impl->ready();
+    if (name.size() > 256) throw std::runtime_error("function name exceeds 256 bytes");
+    auto &arch = impl->arch;
+    auto *scope = arch.symboltab->getGlobalScope();
+    Address addr(arch.getDefaultCodeSpace(), address);
+    auto *fd = scope->queryFunction(addr);
+    if (!fd) fd = scope->queryExternalRefFunction(addr);
+    if (!fd) throw std::runtime_error("prototype address is not a registered function or import");
+    try {
+      return impl->apply_pack_prototype(fd, std::string(name));
+    } catch (const LowlevelError &) {
+      // A handful of archive types still cannot be reconstructed (see the
+      // validation test); leave the prototype unknown rather than guessed.
+      return false;
+    } catch (const DecoderError &) {
+      return false;
+    }
+  });
+}
+rust::String Session::validate_prototype_pack(uint32_t max_report) {
+  std::lock_guard<std::mutex> lock(engine_mutex);
+  return checked([&] {
+    impl->ready();
+    size_t functions = 0, types = 0, failures = 0;
+    std::string report;
+    auto fail = [&](const std::string &key, const std::string &what) {
+      if (failures++ < max_report) report += "\n  " + key + ": " + what;
+    };
+    for (const auto &key : prototype_pack().keys()) {
+      try {
+        if (key.compare(0, 2, "T:") == 0) {
+          types++;
+          const uint64_t id = std::stoull(key.substr(2), nullptr, 16);
+          if (!static_cast<TypeFactoryPack *>(impl->arch.types)->resolve(id)) fail(key, "not resolved");
+        } else {
+          functions++;
+          if (impl->symbols + 1 > 99999) throw LowlevelError("validation symbol limit");
+          const uint64_t target = 0xffff000000000000ULL + impl->symbols * 16;
+          auto *fd = impl->function(target, "validate_" + std::to_string(functions), false);
+          if (!impl->apply_pack_prototype(fd, key.substr(2))) fail(key, "not found");
+        }
+      } catch (const LowlevelError &e) {
+        fail(key, e.explain);
+      } catch (const DecoderError &e) {
+        fail(key, e.explain);
+      }
+    }
+    return rust::String("functions=" + std::to_string(functions) + " types=" + std::to_string(types) +
+                        " failures=" + std::to_string(failures) + report);
   });
 }
 void Session::add_tail_call(uint64_t caller, uint64_t site, uint64_t target) {

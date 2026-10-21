@@ -2,3 +2,4 @@
 third_party/ghidra/cpp/** -text -whitespace
 third_party/ghidra/specs/** -text -whitespace
 tests/decompiler/reference/*.c -text -whitespace
+capa-x-ghidra/data/*.pack -text -diff

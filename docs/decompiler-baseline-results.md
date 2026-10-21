@@ -89,6 +89,44 @@ lines 17,162 to 16,985, median time 15.2 ms to 13.2 ms). The seven fixture
 references are byte-identical under both versions. So the gaps above are context,
 not the engine version, and the engine-version confounder is closed.
 
+## Phase 2: archive prototypes and types
+
+Imports from Windows system DLLs now take their prototype and types from a packed
+export of Ghidra's Win32 and C library data type archives (see
+[Prototype pack](decompiler.md#prototype-pack)). Same 184 addresses, same
+reference, engine 12.1.4 on both sides:
+
+| Metric | Before | After |
+|---|---:|---:|
+| Native returned text | 179 | 177 |
+| Request errors (all work limit) | 5 | 7 |
+| Flagged incomplete | 159 (88.8%) | 147 (83.1%) |
+| Not flagged incomplete | 20 | 30 |
+| Outputs with unknown-callee warning | 151 | 129 |
+| Argument count agrees on matched callees | 87.4% (318/364) | **98.3% (348/354)** |
+| Return void/non-void agrees | 91.6% | 91.5% |
+| Parameter count agrees | 82.7% | 83.6% |
+| Ghidra's named callees also named by native | 56.8% | 56.2% |
+| Unnamed `FUN_` calls, Ghidra / native | 636 / 1,113 | 628 / 1,104 |
+| Output lines, Ghidra / native | 16,473 / 16,985 | 16,248 / 16,827 |
+
+Ten functions moved from incomplete to complete and two moved from output to a
+work-limit error (both in `dc7cb53c...`, where more typed calls now trigger more
+callee inference inside the shared budget). A typical import-heavy function
+(`592cfd22...` at `0x1400010c0`) went from untyped `xunknown8` parameters and
+calls that dropped their last arguments to `HWND`, `HANDLE`, `LPVOID` and
+`SIZE_T` locals with all arguments present, close to Ghidra's own text.
+
+What did not move, and why: callee *names* and the unknown-callee warnings
+mostly concern internal and C runtime functions that Ghidra names through Function
+ID, not imports. That is phase 4, with function boundaries from phase 3. Remaining
+text differences visible in the example are cosmetic: native prefixes imports
+with the module (`user32_FindWindowW`), prints Ghidra's `undefined1` as
+`xunknown1`, and does not name string literals. Eight of 36,364 packed entries
+still fail to decode and fall back to an unknown prototype (see the decompiler
+documentation). Startup time was not measurably affected (about 37 ms in the
+fixture benchmark); peak memory with the pack was not measured.
+
 ## Not yet done
 
 - Function-set agreement (discovery) between recovery and Ghidra was not

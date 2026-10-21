@@ -49,8 +49,9 @@ Sessions are neither Send nor Sync. Native calls are serialized process-wide
 because Ghidra has shared registries. A native failure poisons the session;
 create another session to continue. Rust-rejected invalid requests leave it
 usable. Native warnings set `incomplete`; consumers should display them.
-The adapter automatically supplies a small module-qualified Windows API
-prototype set, and `from_pe` applies a compact subset of the bundled FLIRT signatures for
+The adapter applies the prototype of every import from a Windows system DLL that
+Ghidra's bundled Windows and C library data type archives describe (see
+[Prototype pack](#prototype-pack)), and `from_pe` applies a compact subset of the bundled FLIRT signatures for
 runtime names. Validated MSVC runtime matches and the PE DLL entry point get
 known calling signatures. Validated security-cookie checks also receive an
 explicit RAX-preservation effect, so their callers retain return values across
@@ -78,37 +79,38 @@ replace general function or exception-handler discovery.
 
 Read-only image sections retain constant/string semantics except for individual
 eight-byte IAT slots. Typed string pointers allow Ghidra to render narrow and
-UTF-16 literals. The adapter includes the Windows x64 layouts of `LUID`,
-`LUID_AND_ATTRIBUTES`, and `TOKEN_PRIVILEGES`; broader type recovery remains
-future work. The last structure's one-element array follows the SDK declaration,
-not an assumed bound on the runtime buffer.
+UTF-16 literals. The adapter keeps small hand-built layouts of `LUID`,
+`LUID_AND_ATTRIBUTES`, and `TOKEN_PRIVILEGES` for explicit `set_signature`
+calls (sizes 8, 12 and 16, alignment 4, `ANYSIZE_ARRAY = 1`, following
+[the SDK](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-token_privileges)).
+Imports get their full types from the prototype pack instead.
 
-The built-in import declarations follow Microsoft's Windows SDK documentation:
-[GetTickCount](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-gettickcount),
-[ExitProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitprocess),
-[process/thread APIs](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/),
-[error APIs](https://learn.microsoft.com/en-us/windows/win32/api/errhandlingapi/),
-[Sleep](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-sleep),
-and [IsDebuggerPresent](https://learn.microsoft.com/en-us/windows/win32/api/debugapi/nf-debugapi-isdebuggerpresent).
-The expanded declarations also cover
-[CreateFile](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew),
-[ReadFile](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-readfile),
-[WriteFile](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-writefile),
-[memory APIs](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/),
-[library APIs](https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/),
-[CloseHandle](https://learn.microsoft.com/en-us/windows/win32/api/handleapi/nf-handleapi-closehandle),
-[OpenProcessToken](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-openprocesstoken),
-[LookupPrivilegeValue](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-lookupprivilegevaluew),
-and [AdjustTokenPrivileges](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-adjusttokenprivileges).
-The layouts follow
-[LUID](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-luid),
-[LUID_AND_ATTRIBUTES](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-luid_and_attributes),
-and [TOKEN_PRIVILEGES](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-token_privileges):
-sizes 8, 12, and 16 bytes, alignment 4, with `ANYSIZE_ARRAY = 1`.
-There are 32 exact export names, restricted to kernel32/kernelbase or advapi32
-as appropriate. Similarly named exports in unrelated DLLs receive no signature.
-Opaque structures and function pointers remain generic pointers unless a
-specific type is modeled. This is a small verified set, not a complete SDK.
+## Prototype pack
+
+`capa-x-ghidra/data/winapi64.pack` (1.3 MB) holds 28,312 function prototypes and
+8,052 named types exported from Ghidra 12.1.4's `windows_vs12_64.gdt` (Win32
+headers, earlier archives win name clashes) and `generic_clib_64.gdt`. They are
+encoded with Ghidra's own decompiler marshalling, so the embedded engine decodes
+what Ghidra's decompiler would receive. Entries are zlib blocks sorted by key.
+A lookup inflates one bounded block, and types are resolved on demand by a
+`TypeFactory` subclass, the way Ghidra's decompiler asks its host. Nothing is
+decoded at startup.
+
+An import is typed when its module is a known Windows system DLL (`kernel32`,
+`user32`, `ntdll`, `ws2_32`, `msvcrt`, `api-ms-win-*` and others, listed in
+`system_import_function`) and its function name is in the pack. A same-named
+export of an unrelated DLL stays untyped, as do names the archives lack, which
+keep the unknown-callee warning. Ghidra itself matches by name only. The
+module check is a deliberate stricter policy. Archive convention names such as
+`__stdcall` map to the single Windows x64 model.
+
+Eight archive entries (two callback typedef cycles and one unresolved enum)
+cannot be rebuilt; their functions keep an unknown prototype instead of an
+error. `capa-x-ghidra`'s `packed_archive_types_and_prototypes_decode` test decodes
+the whole pack through the real engine and fails if that count grows. To
+regenerate the pack, see `scripts/decompiler_types/README.md`. The archives are
+derived from Microsoft SDK and OpenSSL headers by the Ghidra project
+(Apache-2.0); the pack is a transformation of them.
 
 Default limits are 5 seconds, 10,000 instructions and 2,000,000 work units.
 The deadline is cooperative: a native operation between checkpoints can

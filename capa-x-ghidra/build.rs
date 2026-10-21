@@ -63,6 +63,13 @@ mod native {
             }
             embedded.push_str("};\n");
         }
+        let pack = PathBuf::from("data/winapi64.pack");
+        println!("cargo:rerun-if-changed=data/winapi64.pack");
+        embedded.push_str("static const unsigned char pack_bytes[] = {");
+        for byte in fs::read(&pack).unwrap() {
+            embedded.push_str(&format!("{byte},"));
+        }
+        embedded.push_str("};\n");
         fs::write(out.join("specs.hh"), embedded).unwrap();
 
         // Keep vendored sources byte-identical. Apply the documented integration

@@ -30,6 +30,8 @@ mod ffi {
         include!("bridge.hh");
         type Session;
         fn set_preserves_rax(self: Pin<&mut Session>, address: u64) -> Result<()>;
+        fn apply_prototype(self: Pin<&mut Session>, address: u64, name: &str) -> Result<bool>;
+        fn validate_prototype_pack(self: Pin<&mut Session>, max_report: u32) -> Result<String>;
         fn add_tail_call(
             self: Pin<&mut Session>,
             caller: u64,
@@ -116,6 +118,16 @@ impl Session {
         self.inner
             .pin_mut()
             .set_signature(address, result, parameters)
+    }
+    /// Apply the archive prototype named `name` to a registered function or import.
+    /// Returns false when the packed Ghidra data type archives do not know the name.
+    pub fn apply_prototype(&mut self, address: u64, name: &str) -> Result<bool, Error> {
+        self.inner.pin_mut().apply_prototype(address, name)
+    }
+    /// Decode every packed type and prototype; returns a summary with failures.
+    #[doc(hidden)]
+    pub fn validate_prototype_pack(&mut self, max_report: u32) -> Result<String, Error> {
+        self.inner.pin_mut().validate_prototype_pack(max_report)
     }
     /// Explicit ABI fact, used for recognized runtime helpers only.
     pub fn set_preserves_rax(&mut self, address: u64) -> Result<(), Error> {

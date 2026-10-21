@@ -59,10 +59,11 @@ rest of each read-only section retains its constant and string context. Native p
 the loaded image directly and rejects instruction flow outside executable
 mappings. Explicit requests can register entries missed by discovery.
 
-The adapter supplies a small module-qualified Windows API signature set and
+The adapter supplies Windows API prototypes and types from a packed Ghidra data
+type archive export (see the prototype pack in decompiler.md) and
 known prototypes for validated MSVC runtime matches and the DLL entry point.
-Explicit `set_signature` calls can override the defaults. PDB types and a full
-Windows SDK type database are outside this milestone.
+Explicit `set_signature` calls can override the defaults. PDB types and
+non-Windows archives are outside this milestone.
 
 Native analysis of up to 16 supporting direct callees, bounded to four call
 levels and the same request time/work budget, can recover forwarded arguments.

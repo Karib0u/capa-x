@@ -218,10 +218,9 @@ impl DecompilerSession {
             native
                 .add_import(*address, name, analysis.noreturn.contains(address))
                 .map_err(init)?;
-            if let Some((result, parameters)) = windows_import_signature(name) {
-                native
-                    .set_signature(*address, result, parameters)
-                    .map_err(init)?;
+            if let Some(function) = system_import_function(name) {
+                // Unknown names are fine: the call keeps its warning.
+                native.apply_prototype(*address, function).map_err(init)?;
             }
         }
         for (caller, function) in &analysis.functions {
@@ -348,94 +347,54 @@ fn validate_image(image: &LoadedImage) -> Result<(), DecompileError> {
     Ok(())
 }
 
-/// Small, explicit Windows SDK signature set. Module-qualified matching avoids
-/// assigning a Windows prototype to an unrelated DLL's same-named export.
-/// Declarations and structure layouts are linked in docs/DECOMPILER.md.
-/// Windows DWORD/UINT/BOOL remain 32-bit, including on Windows x64.
-fn windows_import_signature(name: &str) -> Option<(ValueType, &'static [ValueType])> {
-    use ValueType as T;
+/// The function name of an import from a Windows system DLL, whose prototype
+/// Ghidra's bundled Windows and C library archives describe. Matching by module
+/// as well as name keeps a same-named export of an unrelated DLL untyped.
+fn system_import_function(name: &str) -> Option<&str> {
+    const MODULES: &[&str] = &[
+        "kernel32",
+        "kernelbase",
+        "advapi32",
+        "user32",
+        "ntdll",
+        "ws2_32",
+        "wsock32",
+        "shell32",
+        "shlwapi",
+        "ole32",
+        "oleaut32",
+        "gdi32",
+        "wininet",
+        "winhttp",
+        "urlmon",
+        "crypt32",
+        "secur32",
+        "netapi32",
+        "iphlpapi",
+        "comctl32",
+        "comdlg32",
+        "psapi",
+        "version",
+        "winmm",
+        "rpcrt4",
+        "bcrypt",
+        "ncrypt",
+        "dbghelp",
+        "imm32",
+        "mpr",
+        "userenv",
+        "wtsapi32",
+        "msvcrt",
+        "ucrtbase",
+        "wintrust",
+        "setupapi",
+        "cfgmgr32",
+        "powrprof",
+        "dnsapi",
+        "ws2help",
+    ];
     let (module, function) = name.rsplit_once('.')?;
-    if module.eq_ignore_ascii_case("advapi32") {
-        return Some(match function {
-            "OpenProcessToken" => (T::I32, &[T::Pointer, T::U32, T::PointerPointer]),
-            "LookupPrivilegeValueA" => (T::I32, &[T::CharPointer, T::CharPointer, T::LuidPointer]),
-            "LookupPrivilegeValueW" => (
-                T::I32,
-                &[T::WideCharPointer, T::WideCharPointer, T::LuidPointer],
-            ),
-            "AdjustTokenPrivileges" => (
-                T::I32,
-                &[
-                    T::Pointer,
-                    T::I32,
-                    T::TokenPrivilegesPointer,
-                    T::U32,
-                    T::TokenPrivilegesPointer,
-                    T::U32Pointer,
-                ],
-            ),
-            _ => return None,
-        });
-    }
-    if !module.eq_ignore_ascii_case("kernel32") && !module.eq_ignore_ascii_case("kernelbase") {
-        return None;
-    }
-    Some(match function {
-        "GetTickCount" | "GetCurrentProcessId" | "GetCurrentThreadId" | "GetLastError" => {
-            (T::U32, &[])
-        }
-        "GetTickCount64" => (T::U64, &[]),
-        "GetCurrentProcess" | "GetCurrentThread" => (T::Pointer, &[]),
-        "ExitProcess" | "ExitThread" | "SetLastError" | "Sleep" => (T::Void, &[T::U32]),
-        "IsDebuggerPresent" => (T::I32, &[]),
-        "CloseHandle" => (T::I32, &[T::Pointer]),
-        "CreateFileA" => (
-            T::Pointer,
-            &[
-                T::CharPointer,
-                T::U32,
-                T::U32,
-                T::Pointer,
-                T::U32,
-                T::U32,
-                T::Pointer,
-            ],
-        ),
-        "CreateFileW" => (
-            T::Pointer,
-            &[
-                T::WideCharPointer,
-                T::U32,
-                T::U32,
-                T::Pointer,
-                T::U32,
-                T::U32,
-                T::Pointer,
-            ],
-        ),
-        "ReadFile" | "WriteFile" => (
-            T::I32,
-            &[T::Pointer, T::Pointer, T::U32, T::U32Pointer, T::Pointer],
-        ),
-        "VirtualAlloc" => (T::Pointer, &[T::Pointer, T::U64, T::U32, T::U32]),
-        "VirtualFree" => (T::I32, &[T::Pointer, T::U64, T::U32]),
-        "VirtualProtect" => (T::I32, &[T::Pointer, T::U64, T::U32, T::U32Pointer]),
-        "LoadLibraryA" | "GetModuleHandleA" => (T::Pointer, &[T::CharPointer]),
-        "LoadLibraryW" | "GetModuleHandleW" => (T::Pointer, &[T::WideCharPointer]),
-        "GetProcAddress" => (T::Pointer, &[T::Pointer, T::CharPointer]),
-        "GetModuleFileNameA" => (T::U32, &[T::Pointer, T::CharPointer, T::U32]),
-        "GetModuleFileNameW" => (T::U32, &[T::Pointer, T::WideCharPointer, T::U32]),
-        "CreateThread" => (
-            T::Pointer,
-            &[
-                T::Pointer,
-                T::U64,
-                T::Pointer,
-                T::Pointer,
-                T::U32,
-                T::U32Pointer,
-            ],
-        ),
-        _ => return None,
-    })
+    let module = module.to_ascii_lowercase();
+    let module = module.strip_suffix(".dll").unwrap_or(&module);
+    (MODULES.contains(&module) || module.starts_with("api-ms-win-")).then_some(function)
 }

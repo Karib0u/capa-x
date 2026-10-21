@@ -101,3 +101,9 @@ association.
 US National Security Agency and Ghidra contributors, under Apache-2.0.
 Original source and parser-generator notices are retained. See
 `third_party/ghidra/LICENSE`, `third_party/ghidra/README.md`, and `PINNED.md`.
+
+`capa-x-ghidra/data/winapi64.pack` is a compact transformation of function and
+type definitions in Ghidra's bundled data type archives (`windows_vs12_64.gdt`
+and `generic_clib_64.gdt`, Ghidra 12.1.4, Apache-2.0). Those archives were
+produced by the Ghidra project from Windows SDK and C library headers.
+Regeneration steps are in `scripts/decompiler_types/README.md`.
