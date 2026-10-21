@@ -136,6 +136,71 @@ Mach-O.
 C++ RTTI and vtables, SEH structure, Go and Rust runtime awareness, PDB and DWARF
 types, wider jump-table coverage.
 
+## Order and status
+
+Order by payoff per effort and dependency, not by phase number:
+
+| Step | Phase | Status |
+|---|---|---|
+| 1 | Phase 0, baseline | Done ([results](decompiler-baseline-results.md)) |
+| 2 | Phase 2, type and prototype pack | Done, with known leftovers (see results) |
+| 3 | Phase 1, failure isolation | Next: it fixes the 5 to 7 work-limit regression |
+| 4 | Phase 4, library names (Function ID) | Largest remaining gap (56% callee names) |
+| 5 | Phase 3, boundaries, thunks, tail calls | Touches shared recovery code: run the difftest loops |
+| 6 | Phase 5, cosmetics and data-flow | Cheap items early, the rest only from baseline clusters |
+| 7 | Phases 6 and 7 | Only after the Windows pipeline is solid, and if the scorecard asks |
+
+Rerun the baseline after every step. A step that does not move its target metric
+is investigated before the next one starts.
+
+## Ghidra analyzers to port
+
+The decompiler engine is Ghidra's own, so the gap is what Ghidra's Java
+auto-analysis supplies. This ranks the analyzers shipped in 12.1.4 by effect on
+decompiler output against effort. Port behavior verified against Ghidra on the
+corpus, not code. An analyzer whose port does not move a metric is dropped.
+Items marked (phase N) are the work of that phase.
+
+**Port first**
+
+| Analyzer | Why | Effort |
+|---|---|---|
+| StackVariableAnalyzer and decompiler parameter ID | Parameter and local detection; the wrapper and parameter-count mismatches (83.6% agreement) | Medium; the embedded engine already does part |
+| FindNoReturnFunctionsAnalyzer, NoReturnFunctionAnalyzer | Non-returning detection changes control flow | Low to medium; extend `noreturn.rs` (phase 3) |
+| SharedReturnAnalyzer, SharedReturnJumpAnalyzer | Tail calls (phase 3) | Medium |
+| CreateThunkAnalyzer | Thunks and IAT stubs (phase 3) | Low |
+| PEExceptionAnalyzer | x64 `.pdata` gives reliable function starts and ends (phase 3) | Low to medium |
+| FidAnalyzer (Function ID) | Names CRT and libc code (phase 4); data lookup, not heuristics | Medium plus a compact index |
+| X86FunctionPurgeAnalyzer | Stack purge, only for x86-32 stdcall | Low, 32-bit only |
+
+**Port next**
+
+| Analyzer | Why |
+|---|---|
+| FunctionStart* (BytePatterns) | Prologue-based discovery in stripped code |
+| MicrosoftDemanglerAnalyzer, GnuDemanglerAnalyzer | Readable C++ names; prefer an existing Rust demangler crate if the dependency policy allows |
+| ConstantPropagationAnalyzer | Resolves computed addresses and some indirect calls; large and risky |
+| DecompilerSwitchAnalyzer | Extend `switch.rs` only where the corpus shows misses |
+| CallFixupAnalyzer | Known helper effects such as the security cookie; already partly hand-modeled (phase 5) |
+| ApplyDataArchiveAnalyzer | Covered by phase 2, with a stricter module policy |
+| DataOperandReference, OperandReference, ScalarOperand | Constant-to-data references, strings and globals |
+
+**Only if the corpus needs them**
+
+RttiAnalyzer and GccExceptionAnalyzer (C++ classes and exceptions); the Go, Rust,
+Swift, Objective-C and CFString analyzers (one per target language); DWARFAnalyzer
+and PdbAnalyzer (types from debug info, rare in malware).
+
+**Not worth porting**
+
+The file-format analyzers (Android, DEX, iOS, DMG, Ext4, YAFFS, boot images),
+EmbeddedMedia, Strings, CondenseFillerBytes, the emulation analyzers, TEB and
+WindowsResourceReference.
+
+Even with all of the above, this is not Ghidra's analysis: there is no program
+database and no fixed-point interaction between analyzers. The goal is the
+context the decompiler needs, checked against Ghidra case by case.
+
 ## Risks
 
 - Licensing of exported data: Ghidra is Apache-2.0. Anything derived from
