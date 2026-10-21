@@ -1,16 +1,10 @@
 # scripts/triage — divergence attribution tools
 
-These answer "*why* does capa-x disagree with the reference here?" for one
-divergence at a time. They are not part of any gate and nothing in CI runs
-them: `scripts/difftest.py` tells you *that* a sample diverges, and these tell
-you *who is at fault*.
+These answer "*why* does capa-x disagree with the reference here?" for one divergence at a time. They are not part of any gate and nothing in CI runs them: `scripts/difftest.py` tells you *that* a sample diverges, and these tell you *who is at fault*.
 
-They are kept because they produced the historical divergence catalogue (removed
-from the tree, see git history); do not casually rewrite their analysis logic.
+They are kept because they produced the historical divergence catalogue (removed from the tree, see git history); do not casually rewrite their analysis logic.
 
-All of them need the pinned Python environment (`scripts/check_env.sh`), and
-the attribution tools additionally need a release build of `capa` to compare
-against. Run them with `.venv/bin/python3`, not the system interpreter.
+All of them need the pinned Python environment (`scripts/check_env.sh`), and the attribution tools additionally need a release build of `capa` to compare against. Run them with `.venv/bin/python3`, not the system interpreter.
 
 | Tool | Question it answers |
 |---|---|
@@ -20,6 +14,4 @@ against. Run them with `.venv/bin/python3`, not the system interpreter.
 | `dump_code_layout.py` | Emits the pinned Vivisect function layout — basic blocks, instruction addresses, CFG edges, call targets, no-return and thunk state — as JSON. The reference side of the layout oracle. |
 | `compare_code_layout.py` | Diffs that dump against capa-x's `--dump-code-layout` per function, so ownership is compared function by function rather than as one flattened address set. The exactness track's measuring instrument. |
 
-`_common.py` holds only what all of them need — repo paths, the pinned
-interpreter, the difftest cache, and capa-x's recovered layout. Analysis and
-classification stay in the individual tools on purpose.
+`_common.py` holds only what all of them need — repo paths, the pinned interpreter, the difftest cache, and capa-x's recovered layout. Analysis and classification stay in the individual tools on purpose.

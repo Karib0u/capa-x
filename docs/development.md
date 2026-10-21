@@ -11,9 +11,7 @@ git submodule update --init --depth 1 rules
 cargo build
 ```
 
-Parity work also needs `uv`, Python, the test corpus, and the pinned reference.
-The script initializes submodules, installs the reference into `.venv`, and
-checks every pin against [`PINNED.md`](../PINNED.md):
+Parity work also needs `uv`, Python, the test corpus, and the pinned reference. The script initializes submodules, installs the reference into `.venv`, and checks every pin against [`PINNED.md`](../PINNED.md):
 
 ```bash
 scripts/setup_dev.sh
@@ -34,19 +32,11 @@ Use the cheapest loop that can observe the change.
 - **Mid** is the smoke regression guard.
 - **Outer** measures rule-level agreement and extra rules across the corpus.
 
-Costs are for a 10-core M1 Max after a code change; treat them as orders of
-magnitude. Results are cached under `.cache/` (Python reference by sample hash,
-capa-x by binary contents), so a rebuild invalidates only the capa-x side. The
-reference side is slow to regenerate (minutes to hours): use `--no-rust-cache`
-to distrust a capa-x result instead of clearing the cache.
+Costs are for a 10-core M1 Max after a code change; treat them as orders of magnitude. Results are cached under `.cache/` (Python reference by sample hash, capa-x by binary contents), so a rebuild invalidates only the capa-x side. The reference side is slow to regenerate (minutes to hours): use `--no-rust-cache` to distrust a capa-x result instead of clearing the cache.
 
-`--jobs 1` is the semantic baseline. Any byte difference at another job count
-is a bug.
+`--jobs 1` is the semantic baseline. Any byte difference at another job count is a bug.
 
-Both corpora have a per-sample baseline (`<corpus>.expected.json`), so the exit
-status reports regressions against known diffs. Re-record with
-`--write-expected` only for a deliberate change, in the same commit, with the
-reason stated.
+Both corpora have a per-sample baseline (`<corpus>.expected.json`), so the exit status reports regressions against known diffs. Re-record with `--write-expected` only for a deliberate change, in the same commit, with the reason stated.
 
 ## Checks
 
@@ -59,9 +49,7 @@ cargo test --workspace
 python3 -m unittest discover -s scripts -p 'test_*.py'
 ```
 
-`cargo test --workspace` takes ~20 s. The slow acceptance and fuzz gates are
-`#[ignore]`d (about 383 s of a ~402 s suite); CI runs them on all three
-platforms with `--include-ignored`.
+`cargo test --workspace` takes ~20 s. The slow acceptance and fuzz gates are `#[ignore]`d (about 383 s of a ~402 s suite); CI runs them on all three platforms with `--include-ignored`.
 
 Before merge or release:
 
@@ -86,17 +74,11 @@ Published measurements and how to reproduce them: [benchmarks.md](benchmarks.md)
 
 ## Rules of the codebase
 
-- Never modify `rules/`, `tests/testfiles/`, or `reference/capa/`. They are
-  pinned submodules; bump them only through `PINNED.md` and the gitlink.
-- Never silently skip an unknown rule construct, field, or input structure:
-  return a contextual error and a nonzero exit.
-- No `unwrap`, `expect`, or unchecked indexing on untrusted sample, rule, or
-  freeze input.
-- Keep `#![forbid(unsafe_code)]` on analysis crates. The binding crate is
-  declarations only; its exception is documented in its manifest.
+- Never modify `rules/`, `tests/testfiles/`, or `reference/capa/`. They are pinned submodules; bump them only through `PINNED.md` and the gitlink.
+- Never silently skip an unknown rule construct, field, or input structure: return a contextual error and a nonzero exit.
+- No `unwrap`, `expect`, or unchecked indexing on untrusted sample, rule, or freeze input.
+- Keep `#![forbid(unsafe_code)]` on analysis crates. The binding crate is declarations only; its exception is documented in its manifest.
 - No Python or external disassembler at runtime.
-- Constants copied from Python (limits, byte caps, windows) name the upstream
-  source file in a nearby comment.
-- Justify new dependencies in one sentence: maintenance, malformed-input,
-  panic, allocation, unsafe, and license properties.
+- Constants copied from Python (limits, byte caps, windows) name the upstream source file in a nearby comment.
+- Justify new dependencies in one sentence: maintenance, malformed-input, panic, allocation, unsafe, and license properties.
 - Output stays deterministic across job counts.

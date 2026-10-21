@@ -1,14 +1,10 @@
 # Benchmarks
 
-The only place measurements live. Each is for a pinned implementation, ruleset,
-corpus, and host, not a universal claim. Re-run before quoting: commands are at
-the bottom.
+The only place measurements live. Each is for a pinned implementation, ruleset, corpus, and host, not a universal claim. Re-run before quoting: commands are at the bottom.
 
 ## Accuracy
 
-**x86/x64 PE, ELF, shellcode vs Python capa 10.0.0** (measured 2026-10-21,
-capa-rules v10.0.0, 377 corpus inputs; the reference rejects one malformed ELF,
-leaving 376 comparable).
+**x86/x64 PE, ELF, shellcode vs Python capa 10.0.0** (measured 2026-10-21, capa-rules v10.0.0, 377 corpus inputs; the reference rejects one malformed ELF, leaving 376 comparable).
 
 | Metric | Result |
 |---|---:|
@@ -33,8 +29,7 @@ Evidence-tree identity and duplicate-match multiplicity are not compared.
 
 Host: MacBook Pro M1 Max, 10 logical CPUs, macOS 26.6, v1.0.0 release build.
 
-**Single sample** (`Practical Malware Analysis Lab 18-03.exe_`, same rules and
-signatures, 1 warm-up + 5 runs):
+**Single sample** (`Practical Malware Analysis Lab 18-03.exe_`, same rules and signatures, 1 warm-up + 5 runs):
 
 | Tool | Median |
 |---|---:|
@@ -50,8 +45,7 @@ signatures, 1 warm-up + 5 runs):
 | 4 | 44.0 s | 1.76x |
 | 10 (default) | 37.2 s | 2.08x |
 
-Median per-sample speedup is 2.03x, worst 1.52x. File loading and recovery are
-serial by design and dominate the largest sample.
+Median per-sample speedup is 2.03x, worst 1.52x. File loading and recovery are serial by design and dominate the largest sample.
 
 ## Reproduce
 
@@ -74,5 +68,4 @@ python3 scripts/determinism.py \
 python3 scripts/bench.py --samples scripts/corpus-bench.txt --markdown
 ```
 
-Older reports, per-sample tables, and the divergence catalogue were removed
-from the tree; they remain in git history before the docs restructure.
+Older reports, per-sample tables, and the divergence catalogue were removed from the tree; they remain in git history before the docs restructure.
