@@ -21,7 +21,7 @@
 //! the same way the `.NET` extractor never touches `recovery.rs` at
 //! all.
 //!
-//! Task 2 adds the AArch64 side of the boundary: `disarm64` (ADR 0004)
+//! Task 2 adds the AArch64 side of the boundary: `disarm64`
 //! decodes a fixed-width 32-bit word into a `disarm64::Opcode`, and
 //! [`from_aarch64`] classifies its `Flow` and resolves `direct_target` from
 //! the small set of PC-relative branch encodings recovery needs (`b`/`bl`,
@@ -536,7 +536,7 @@ mod tests {
         }
         assert!(total_words > 0, "expected at least one executable word");
         // Recorded for the roadmap's D.2 status note, not asserted against a
-        // specific bound: ADR 0004's own spike measured 84.6% on this same
+        // specific bound: an earlier spike measured 84.6% on this same
         // corpus (a different, uncommitted decoder wrapper), and Ghidra's
         // BinExport2 recognizing an opcode `disarm64` does not is a
         // legitimate, root-causeable J9 divergence class, not a bug here.
@@ -551,8 +551,8 @@ mod tests {
         );
     }
 
-    /// Deterministic xorshift64 PRNG, matching ADR 0004's own fuzz
-    /// methodology (`docs/decisions/0004-aarch64-decoder.md`) --
+    /// Deterministic xorshift64 PRNG, matching the original fuzz
+    /// methodology --
     /// reproducible across runs without pulling in a `rand` dependency for a
     /// single test.
     fn xorshift64(state: &mut u64) -> u64 {

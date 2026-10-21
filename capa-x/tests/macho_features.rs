@@ -540,7 +540,7 @@ fn a_macho_extension_format_rule_matches_globally() {
 }
 
 // ---------------------------------------------------------------------
-// Malformed fixtures (ADR 0005): a contextual `Err`, never a
+// Malformed fixtures : a contextual `Err`, never a
 // panic, from every entry point a caller can reach directly.
 // ---------------------------------------------------------------------
 

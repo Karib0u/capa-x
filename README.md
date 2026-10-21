@@ -122,7 +122,7 @@ Details in [capa-x-python/README.md](capa-x-python/README.md).
 
 - [Compatibility](docs/compatibility.md)
 - [Benchmarks](docs/benchmarks.md)
-- [Architecture](docs/architecture.md) and [design decisions](docs/decisions/)
+- [Architecture](docs/architecture.md)
 - [Development guide](docs/development.md) · [Contributing](CONTRIBUTING.md)
 - [Pinned upstream versions](PINNED.md) · [Changelog](CHANGELOG.md)
 - [Security policy](SECURITY.md) · [Code of conduct](CODE_OF_CONDUCT.md)

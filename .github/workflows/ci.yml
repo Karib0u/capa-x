@@ -42,7 +42,7 @@ jobs:
         run: git submodule update --init --depth 1 rules tests/testfiles
 
       # `cargo build`/`cargo test --workspace` includes `capa-x-python`, which
-      # (outside the `python-extension` feature -- see ADR 0006) links pyo3
+      # (outside the `python-extension` feature) links pyo3
       # in its ordinary embedding mode, against a real, discovered
       # `libpython`. Runner images don't reliably ship one linkable without
       # this: Ubuntu's preinstalled `python3` has no `-dev`/shared-library

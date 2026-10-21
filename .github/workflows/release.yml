@@ -182,7 +182,7 @@ jobs:
         env:
           # abi3-py38 (capa-x-python/Cargo.toml): one wheel covers every
           # CPython >= 3.8, so building only against cp38's ABI is correct,
-          # not a narrowing -- see `docs/decisions/0006-python-binding.md`.
+          # not a narrowing.
           CIBW_BUILD: "cp38-*"
           CIBW_SKIP: "*-musllinux*"
           CIBW_ARCHS: ${{ matrix.cibw-archs }}

@@ -51,16 +51,15 @@ md-5 = "0.11.0"
 sha1 = "0.11.0"
 sha2 = "0.11.0"
 # CLR metadata/CIL model for the native .NET backend. Vendored,
-# not the crates.io release: ADR 0003 found a systemic unchecked-indexing
-# panic in upstream 0.5.1's codedindex.rs and requires the fix in tree
-# before this dependency may be added. See third_party/dnfile/PATCH.md.
+# not the crates.io release: a security audit found a systemic unchecked-indexing
+# panic in upstream 0.5.1's codedindex.rs which is fixed in tree. See third_party/dnfile/PATCH.md.
 dnfile = { path = "../third_party/dnfile" }
-# The AArch64 decoder for the native ELF backend, selected in
-# ADR 0004 over yaxpeax-arm and the FFI-based capstone/bad64: #![no_std],
+# The AArch64 decoder for the native ELF backend, chosen
+# over yaxpeax-arm and the FFI-based capstone/bad64: #![no_std],
 # zero panics across ~2.09M fuzzed/real-code words, recognizes more real
 # AArch64 code on the pinned corpus. `full` covers general A64 plus SIMD/FP;
-# excludes SVE/SME server-vector extensions the ADR judged out of scope for
-# malware corpora. See docs/decisions/0004-aarch64-decoder.md.
+# excludes SVE/SME server-vector extensions out of scope for
+# malware corpora.
 disarm64 = { version = "0.2.0", default-features = false, features = ["full"] }
 # disarm64's own instruction-class enum (InsnClass), used to classify
 # control flow -- disarm64 depends on this but does not re-export the type.

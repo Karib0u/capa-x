@@ -3,8 +3,7 @@
 //! This module does not parse CLR metadata itself. The COR20 header,
 //! metadata root, stream headers, `#~`/`#Strings`/`#US`/`#Blob`/`#GUID`
 //! heaps, tables, coded indexes, and tokens are all handled by the vendored
-//! `dnfile` fork (`third_party/dnfile`, pinned per
-//! `docs/decisions/0003-clr-metadata.md`) -- this module is the
+//! `dnfile` fork (`third_party/dnfile`) -- this module is the
 //! integration point between that crate's `Result<T, dnfile::error::Error>`
 //! and capa-x's own error/feature model, plus a lightweight CLR-directory
 //! probe that later phases (task 5's `-f dotnet`/auto-detection) can use

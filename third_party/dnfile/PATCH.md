@@ -1,15 +1,14 @@
 # capa-x patch record
 
 Vendored from `dnfile` 0.5.1 ([crates.io](https://crates.io/crates/dnfile/0.5.1),
-[upstream repo](https://github.com/marirs/dnfile-rs)), per
-[ADR 0003](../../docs/decisions/0003-clr-metadata.md) option (b): a pinned,
+[upstream repo](https://github.com/marirs/dnfile-rs)), as a pinned,
 mechanically-patched fork, since no upstream release had picked up the fix
 when the managed backend needed the dependency.
 
 ## What changed
 
-1. `src/stream/meta_data_tables/mdtables/codedindex.rs` (ADR 0003's own
-   finding): all 14 `impl CodedIndex for ...` blocks' `get_table_name`
+1. `src/stream/meta_data_tables/mdtables/codedindex.rs` (found by the
+   security audit): all 14 `impl CodedIndex for ...` blocks' `get_table_name`
    indexed `self.table_names[index]` directly, where `index` is the tag-bit
    portion of a coded index decoded straight from untrusted file bytes
    (ECMA-335 II.24.2.6). An out-of-range tag panicked instead of returning
@@ -26,7 +25,7 @@ when the managed backend needed the dependency.
    methods) is entirely ordinary, and upstream's code failed to parse *any*
    file containing one, which is not a rare shape in real-world .NET
    binaries. Found by managed-backend row-count validation against pinned
-   Python `dnfile`, not by the ADR 0003 mutation fuzz. Changed both lookups
+   Python `dnfile`, not by the mutation fuzz. Changed both lookups
    from `.ok_or(Error::IncorrectTableRequested(...))?.row_count()` to
    `.map(|t| t.row_count()).unwrap_or(0)`.
 
@@ -247,4 +246,4 @@ before this task.
 - File the same fixes upstream to `marirs/dnfile-rs` regardless of whether
   capa-x keeps vendoring this fork.
 - Drop this vendored copy once upstream releases a version containing all
-  of them, per ADR 0003.
+  of them.

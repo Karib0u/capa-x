@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["capa-x", "capa-x-cli", "capa-x-python"]
-# Vendored dnfile fork (ADR 0003, third_party/dnfile/PATCH.md): kept out of
+# Vendored dnfile fork (third_party/dnfile/PATCH.md): kept out of
 # the workspace so its `cli`-gated bin targets never influence this
 # workspace's feature resolution -- capa-x depends on it as a plain path
 # dependency with dnfile's own default (empty) feature set.

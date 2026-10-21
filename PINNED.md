@@ -10,7 +10,7 @@ and re-runs the full difftest suite.
 | `mandiant/capa-rules` (`rules`) | `v10.0.0` | `805f9eaccfb6a4e1ddffc809d71d1e2b5ccc15e5` |
 | `mandiant/capa-testfiles` (`tests/testfiles`) | `master` | `44e7363ac3a3fb1ffe1c36957188ad3e7683b57f` |
 | `flare-capa` (PyPI, `.venv`) | `10.0.0` | n/a |
-| `dnfile` (`third_party/dnfile`, vendored fork) | `0.5.1-capa.5` | patched from [dnfile 0.5.1](https://crates.io/crates/dnfile/0.5.1) per [ADR 0003](docs/decisions/0003-clr-metadata.md); see `third_party/dnfile/PATCH.md` |
+| `dnfile` (`third_party/dnfile`, vendored fork) | `0.5.1-capa.5` | patched from [dnfile 0.5.1](https://crates.io/crates/dnfile/0.5.1) (unchecked-indexing fix); see `third_party/dnfile/PATCH.md` |
 
 `capa-testfiles` has no release tags; pin a fixed commit and bump
 deliberately since it's a large binary corpus.

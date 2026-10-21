@@ -1,7 +1,7 @@
 [package]
 name = "dnfile"
 version = "0.5.1-capa.5"
-description = ".NET binary extractor (capa-x vendored fork, ADR 0003)"
+description = ".NET binary extractor (capa-x vendored fork)"
 authors = ["Marirs <marirs@gmail.com>", "Andrey Mnatsakanov <andrey@3ig.kiev.ua>", "Jorge Alejandro Durán Royo<jorge.duran.royo@gmail.com>"]
 keywords = ["dotnet", "binary", "extractor", "pe"]
 categories = ["parsing"]

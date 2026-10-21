@@ -1247,7 +1247,7 @@ impl LoadedImage {
 
         // (segname, vmaddr, vmsize, fileoff, filesize, initprot), in
         // load-command order -- collected once so both the overlap check
-        // (ADR 0005) and the mapping loop below share one validated view.
+        // and the mapping loop below share one validated view.
         let mut segments: Vec<(String, u64, u64, u64, u64, u32)> = Vec::new();
         for command in &macho.load_commands {
             let CommandVariant::Segment64(seg) = command.command else {
@@ -2334,7 +2334,7 @@ fn select_fat_macho_slice<'a>(
     Ok((slice, resolved_name))
 }
 
-/// ADR 0005: `goblin`'s own `MachO::parse` bounds `ncmds` against the whole
+/// `goblin`'s own `MachO::parse` bounds `ncmds` against the whole
 /// buffer (`ncmds > sizeofcmds / 8 || sizeofcmds > bytes.len()`) but does not
 /// cross-check that the commands it actually reads stay inside
 /// `header_size + sizeofcmds` -- the `bad-ncmds` fixture (declared `ncmds`
@@ -2383,7 +2383,7 @@ fn validate_macho_load_commands(macho: &MachO, slice: &[u8]) -> Result<(), Image
     Ok(())
 }
 
-/// ADR 0005's second check: no two `LC_SEGMENT_64`s' `[fileoff, fileoff +
+/// Second check: no two `LC_SEGMENT_64`s' `[fileoff, fileoff +
 /// filesize)` ranges may overlap (the `overlapping-segments` fixture moves
 /// `__DATA_CONST.fileoff` inside `__TEXT`'s range; `goblin` accepts it
 /// without complaint).

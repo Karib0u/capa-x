@@ -5,9 +5,8 @@ upstream capa-rules.
 
 ## Before you start
 
-- [Architecture](docs/architecture.md) and the relevant
-  [ADR](docs/decisions/) when touching a parser, decoder, dependency, or API
-  boundary.
+- [Architecture](docs/architecture.md) when touching a parser, decoder,
+  dependency, or API boundary.
 - The pinned Python source in `reference/capa/` defines behavior. Read it; do
   not recall it. Versions live in [`PINNED.md`](PINNED.md).
 - [Development guide](docs/development.md) for setup, feedback loops, checks,
@@ -22,8 +21,7 @@ One focused change per PR. Include:
 - exact commands run, with differential results for behavior changes;
 - benchmark method and before/after values for performance claims.
 
-Use relative links. Public claims belong in the README, design choices in the
-ADRs, and measurements in [`docs/benchmarks.md`](docs/benchmarks.md).
+Use relative links. Public claims belong in the README and measurements in [`docs/benchmarks.md`](docs/benchmarks.md).
 
 ## Issues
 

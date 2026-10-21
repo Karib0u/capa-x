@@ -112,7 +112,6 @@ to the shared freeze and matching layers.
   uses pefile section names. File-only PE/ELF format features have file scope.
   x86/x64 compatibility recovery uses registered entry signatures rather than broad
   prologue and raw call scans; native recovery retains those fallbacks.
-  See [ADR 0007](decisions/0007-candidate-evaluation.md).
 - **Raw shellcode:** the shellcode loader supplies an explicitly selected
   architecture, then uses the shared recovery and x86 feature pipeline without
   a container loader.
@@ -129,6 +128,4 @@ to the shared freeze and matching layers.
   enters at the shared matching stage.
 
 Adding a backend therefore changes format dispatch and extraction modules. It
-does not require a second rule engine, result schema, or renderer. Durable
-dependency choices and parser boundaries are recorded in the ADRs under
-[`decisions/`](decisions/).
+does not require a second rule engine, result schema, or renderer.

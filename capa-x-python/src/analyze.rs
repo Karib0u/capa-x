@@ -121,7 +121,7 @@ pub fn analyze(
     })?;
 
     // Parsed via Python's own `json` module rather than a second Rust JSON
-    // -> PyObject converter (ADR 0006): the object graph handed back to
+    // -> PyObject converter: the object graph handed back to
     // Python is built by CPython's own decoder, not a crate that could
     // disagree with it on an edge case.
     let json_module = PyModule::import_bound(py, "json")?;
