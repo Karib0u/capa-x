@@ -1,5 +1,7 @@
 # Function ID data for the decompiler
 
+Two packs: `fid-x64.pack` (below) and `fid-x86.pack` (the x86-32 section at the end).
+
 `fid-x64.pack` is a compact, generated export of the Function ID databases that
 ship with Ghidra 12.1.4 (`Ghidra_12.1.4_build`, commit
 `8b6bbb857accdfa20dc5b2f5dea471178c2e9fbc`, Apache-2.0, like the rest of the
@@ -51,3 +53,34 @@ Ghidra's in 2,628 of 2,676 functions that both name (98.2%).
 - FID never renames a function that already has an export, FLIRT or DLL entry name.
 - Ghidra's bundled databases carry only names. Calling convention and no-return
   facts come from the prototype pack when the name matches.
+
+## x86-32: `fid-x86.pack`
+
+Same Ghidra 12.1.4 release, same layout and generator (`scripts/decompiler_fid/pack_fid.py`), built from
+the x86 databases:
+
+| Source database (`Ghidra/Features/FunctionID/data`) | SHA-256 |
+|---|---|
+| `vs2012_x86.fidbf` | `73137dd52c3890d07bb2d49de3482391f93662bc0c45af2ea7065980cfed57ab` |
+| `vs2015_x86.fidbf` | `1717ed4dc96dc85552659ccbe5b2aaf4293f75833f36caf43ba7412a1ccf28bd` |
+| `vs2017_x86.fidbf` | `3699761cfdb0b2f2eb78bbc427fab476ad8dbacd15e3db447a87a9b81e52cdbc` |
+| `vs2019_x86.fidbf` | `8dba1df1a64d4ac46448581a02bcac7b791754f9a5a3f1dd04c922a7e0695d91` |
+| `vsOlder_x86.fidbf` | `d0adaf196a97b7f22bcb8e4fc38c2e9f1924e30a3a0b87f25ef41f470d056da8` |
+
+- Contents: 267,524 records (Release variants), 65,100 distinct names, 1,599,708 call-relation keys,
+  12,566,505 bytes. Pack SHA-256: `6da97e5846cd9286531f66443993ad59cd4d8b95b3b7ed0a6691a5a590d62a84`.
+- Hasher against Ghidra, measured on 3,560 functions (196,552 instructions) of six x86-32 PEs: 3,367 function
+  hashes agree (94.6%). The x64 check on three PEs now gives 1,564 of 1,567 (99.8%). What differs on x86-32:
+  `PEXTRW`-style SSE forms, AVX (VEX) masks and a few immediates that Ghidra types as addresses for reasons
+  not reproduced. Where Ghidra reads `fwait` plus an x87 no-wait form (`FSTSW`, `FSTCW`) as one instruction,
+  the matcher merges them.
+- End to end, on the same six samples: of the functions that both Ghidra and this matcher name, 824 of 826
+  names are equal (99.8%). Ghidra names 1,093 and the matcher 892; the rest is function discovery, ambiguous
+  names and C++ names that need a demangler.
+- Operands in 32-bit code differ from 64-bit code in ways that matter to the hash: general registers are 4
+  bytes apart in the register space, `inc`/`dec` take the register in the opcode, `[index*scale+disp32]`
+  lists the displacement last (first in 64-bit), a segment override keeps a zero displacement, string
+  instructions show the `ES` override, and an immediate that points into the image is an address, not a
+  value. The x87 two-byte forms that `ia.sinc` defines as fixed constructors (47 of them, derived from the
+  spec) are matched whole with no operand. Each rule was derived from Ghidra's own output on the truth
+  samples and is covered by `fid_truth --bits=32`.

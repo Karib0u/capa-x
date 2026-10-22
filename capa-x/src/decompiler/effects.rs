@@ -78,21 +78,30 @@ mod tests {
         assert_eq!(call_fixup("___chkstk_ms", true), Some("alloca_probe"));
         assert_eq!(call_fixup("_alloca_probe_16", true), None);
         assert_eq!(call_fixup("_alloca_probe_16", false), Some("alloca_probe"));
-        assert_eq!(call_fixup("__EH_prolog3_catch_GS", false), Some("EH_prolog3"));
+        assert_eq!(
+            call_fixup("__EH_prolog3_catch_GS", false),
+            Some("EH_prolog3")
+        );
         assert_eq!(call_fixup("memcpy", true), None);
         assert_eq!(call_fixup("memcpy", false), None);
     }
 
     /// The (target, fixup) pairs of a compiler spec, leading underscores removed.
     fn spec_pairs(path: &str) -> BTreeSet<(String, String)> {
-        let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../third_party/ghidra/specs/").to_owned() + path)
-            .expect("vendored compiler spec");
+        let text = std::fs::read_to_string(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../third_party/ghidra/specs/").to_owned() + path,
+        )
+        .expect("vendored compiler spec");
         let mut pairs = BTreeSet::new();
         for block in text.split("<callfixup name=\"").skip(1) {
             let (fixup, rest) = block.split_once('"').expect("fixup name");
             let body = rest.split("</callfixup>").next().expect("fixup body");
             for target in body.split("<target name=\"").skip(1) {
-                let name = target.split('"').next().expect("target name").trim_start_matches('_');
+                let name = target
+                    .split('"')
+                    .next()
+                    .expect("target name")
+                    .trim_start_matches('_');
                 if !name.starts_with("thunk_") && !name.starts_with("FID_conflict") {
                     pairs.insert((name.to_owned(), fixup.to_owned()));
                 }
@@ -102,7 +111,10 @@ mod tests {
     }
 
     fn table(entries: &[(&str, &str)]) -> BTreeSet<(String, String)> {
-        entries.iter().map(|(a, b)| (a.to_string(), b.to_string())).collect()
+        entries
+            .iter()
+            .map(|(a, b)| (a.to_string(), b.to_string()))
+            .collect()
     }
 
     #[test]

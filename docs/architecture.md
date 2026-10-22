@@ -78,4 +78,4 @@ Adding a backend therefore changes format dispatch and extraction modules. It do
 
 ## Optional function decompilation
 
-The `decompiler` feature provides a separate `Decompilation` result for one explicitly requested x86-64 PE function. Existing recovery supplies discovery metadata; native SLEIGH translates the bytes and Ghidra performs decompilation. The bridge crate owns the FFI boundary while analysis crates forbid unsafe code. Normal capability analysis never initializes the engine. See [usage](decompiler.md) and [ownership, integration and resource policy](decompiler-design.md).
+The `decompiler` feature provides a separate `Decompilation` result for one explicitly requested x86 or x86-64 PE function. Existing recovery supplies discovery metadata; native SLEIGH translates the bytes and Ghidra performs decompilation. The bridge crate owns the FFI boundary while analysis crates forbid unsafe code. Normal capability analysis never initializes the engine. See [usage](decompiler.md) and [ownership, integration and resource policy](decompiler-design.md).

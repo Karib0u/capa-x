@@ -1,6 +1,6 @@
 # Optional native Ghidra decompiler
 
-Status: implemented for explicit x86-64 PE function requests.
+Status: implemented for explicit x86-64 and x86-32 PE function requests.
 
 The decompiler uses the pinned Ghidra C++ implementation and native SLEIGH
 translation. iced-x86 recovery supplies discovery metadata only. This keeps
@@ -51,7 +51,10 @@ functions are copied into the session. Symbols become valid C identifiers;
 the original selected name remains in the structured result. The embedded
 `x86-64.pspec` initializes long-mode context and `x86-64-win.cspec` selects
 Windows x64 argument registers, shadow space, stack rules and data sizes.
-The first API deliberately offers only `CallingConvention::WindowsX64`.
+`CallingConvention::WindowsX64` selects the x86-64 language and `WindowsX86` the x86-32 one; a session
+has the language of its image and `from_analysis` rejects a mismatch. In x86-32 the specs are `x86.slaspec`,
+`x86.pspec` and `x86win.cspec`, whose default model is `__stdcall` with the stack purge inferred per
+function. See [x86-32](decompiler.md#x86-32).
 
 Imports are external-reference symbols at IAT addresses, pointing to function
 symbols in a reserved unmapped address range. Only eight-byte import slots lose read-only constant-folding semantics; the

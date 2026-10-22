@@ -1,6 +1,6 @@
 # Prototype pack generation (development only)
 
-Regenerates `capa-x-ghidra/data/winapi64.pack` from Ghidra's bundled data type
+Regenerates `capa-x-ghidra/data/winapi64.pack` and `winapi32.pack` from Ghidra's bundled data type
 archives. Java runs only here, never in the build or at runtime. Use the same
 Ghidra release as `PINNED.md`.
 
@@ -18,3 +18,13 @@ cargo test --release -p capa-x-ghidra --features native packed_archive
 `ProbeArchive.java` prints a summary of any `.gdt` archive. The export skips
 intrinsics headers (`*intrin.h`) and keeps the first definition of each function
 name, in the order the archives are listed.
+
+x86-32: import any PE32 (for example a sample from `tests/testfiles`) instead of `fixtures.dll`, so the
+script reads the x86-32 compiler specification, and list the 32-bit archives:
+
+```sh
+"$GHIDRA_HOME/support/analyzeHeadless" "$(mktemp -d)" p -import PE32_SAMPLE -noanalysis \
+  -scriptPath scripts/decompiler_types -postScript ExportPrototypes.java \
+  "$PWD/scripts/decompiler_types/out/proto32.tsv" "$T/win32/windows_vs12_32.gdt" "$T/generic/generic_clib.gdt" -deleteProject
+python3 -I scripts/decompiler_types/pack_prototypes.py scripts/decompiler_types/out/proto32.tsv capa-x-ghidra/data/winapi32.pack
+```

@@ -547,6 +547,72 @@ conventions the decompiler will have to model: of 188 functions, 58 print `__cde
 `__thiscall`, 15 `__fastcall`, 2 `__stdcall` and 95 print no convention; 680 of their 1,229
 callees are named.
 
+## x86-32 decompiler (phase 6a)
+
+Measured 2026-10-22, same machine and Ghidra 12.1.4 as above. The decompiler accepts PE32 now (see
+[x86-32](decompiler.md#x86-32)). Reference: the 188 functions Ghidra decompiled in the x86-32 baseline
+(`reference/ghidra-12.1.4-x86/decompile/`), chosen from Ghidra's list before any native output existed;
+native runs the same addresses. Comparison with the same script and `--any-module` matching as the
+x64 sets.
+
+How the scorecard moved as the pieces were added:
+
+| Step | Texts (of 188) | Callee names | Void agree | Params agree |
+|---|---:|---:|---:|---:|
+| PE32 accepted, specs only | 183 | 65.0% | 87.4% | 89.1% |
+| + Function ID x86 pack | 183 | 75.7% | 89.1% | 89.6% |
+| + callee failures tolerated, FID-conflict fixups | 186 | 76.2% | 88.7% | 89.8% |
+| + import thunks, typed exports (final) | 186 | **89.2%** | **91.4%** | **91.9%** |
+
+Final x86-32 against the two x64 sets (all three rerun with the final build):
+
+| Metric | x86-32 (188) | x64 baseline (184) | x64 held-out (192) |
+|---|---:|---:|---:|
+| Native returned text | 186 | 181 | 191 |
+| Request errors | 2 (work limit) | 3 | 1 |
+| Flagged incomplete | 69.9% | 70.7% | 62.8% |
+| Incomplete from unknown callee prototypes | 67.7% | 69.1% | 60.7% |
+| Return void/non-void agrees | 91.4% | 94.5% | 97.3% |
+| Parameter count agrees | 91.9% | 87.8% | 83.2% |
+| Ghidra's named callees also named by native | 89.2% (536/601) | 82.0% (524/639) | 73.0% (430/589) |
+| Argument count agrees on matched callees | 97.2% | 97.1% | 97.4% |
+| Gotos, Ghidra / native | 576 / 553 | 421 / 426 | 558 / 546 |
+| Output lines, Ghidra / native | 21,014 / 18,962 | 18,864 / 19,106 | 20,701 / 19,979 |
+| Unnamed calls, Ghidra / native | 1,154 / 1,330 | 770 / 1,002 | 811 / 1,055 |
+| Median request time, Ghidra / native | 9.1 / 13.4 ms | 11.6 / 9.6 ms | 8.4 / 6.9 ms |
+
+The x86-32 callee naming is above the x64 sets because the sample selection differs (the 32-bit
+files are mostly Visual C, which the Function ID data covers), not because the code is better.
+The x86-32 numbers use only Ghidra's own list of functions, as the x64 baseline did, so they share
+its selection bias; a held-out x86-32 set drawn from native's function set has not been made.
+
+Side effects on x64, from the two changes that are not language specific: import thunks named
+after their import and exports typed by name. Callee names on the baseline rose from 77.6% to 82.0%
+and on the held-out set from 65.9% to 73.0%; the other metrics did not move. x64 output was
+byte-identical to the previous build before those two changes (376 functions).
+
+Data symbols on x86-32: of Ghidra's symbols, 43.2% are named, but one function (`0x4026a0` in `2c83f152`,
+7,955 bytes, 3.9 s) dominates the count: its second analysis exceeds the 5 s deadline, so the
+request falls back to the plain analysis and prints engine placeholder names. Without it, 91.3% (491 of 538)
+are named and 93.9% referenced; of the names native prints, 98.6% of strings and 87.3% of globals agree
+with Ghidra, 19 more are inside a larger Ghidra symbol.
+
+Function ID on x86-32: Ghidra's hash agrees on 94.6% of 3,560 functions, and 824 of 826 names
+both sides give are equal ([`FID.md`](../capa-x/sigs/FID.md)).
+
+Robustness, outside the 188 functions: 100 random x86-32 PEs from `tests/testfiles`, 25 random
+functions of at least 16 bytes each (2,229 in all): 2,223 returned text (99.7%); 6 errors (4 work limit,
+1 instruction limit, 1 engine error); no initialization failure, no crash, none slower than 3 s.
+This sweep runs the same seeded draw before and after changes and is not a held-out comparison with Ghidra.
+
+Function discovery, the phase's exit criterion of 90% recall, is **not met**: 88.4% (94.1% without
+one sample whose Ghidra functions are mostly jump stubs and hot-patch prologues that native folds into
+other functions). Seeding code pointers found in data of x86 executables without relocations (the kind
+Ghidra turns into functions from the data reference) was tried and measured: recall 88.4% to 89.0%,
+precision 85.0% to 84.5%. That is a wash, so it was not adopted. Where native has functions Ghidra
+lacks, the ones looked at were real code (stdcall methods after `ret N`, and SEH funclets). Both
+numbers compare against Ghidra only.
+
 ## Not yet done
 
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).

@@ -279,7 +279,9 @@ fn output_does_not_depend_on_request_order() -> anyhow::Result<()> {
     // Deterministic shuffles of the same requests on a single session.
     for rotation in 0..names.len() {
         for reversed in [false, true] {
-            let mut order: Vec<usize> = (0..names.len()).map(|i| (i + rotation) % names.len()).collect();
+            let mut order: Vec<usize> = (0..names.len())
+                .map(|i| (i + rotation) % names.len())
+                .collect();
             if reversed {
                 order.reverse();
             }
@@ -309,7 +311,14 @@ fn malformed_import_directory_loads_without_imports() -> anyhow::Result<()> {
     let mut session = DecompilerSession::from_pe(&bytes)?;
     let output = session.decompile_function(address("arithmetic")?)?;
     assert!(output.text.contains("arithmetic"), "{}", output.text);
-    assert!(output.warnings.iter().any(|w| w.contains("import directory ignored")), "{:?}", output.warnings);
+    assert!(
+        output
+            .warnings
+            .iter()
+            .any(|w| w.contains("import directory ignored")),
+        "{:?}",
+        output.warnings
+    );
     assert!(output.incomplete);
     Ok(())
 }
@@ -472,14 +481,21 @@ fn stack_probe_and_cookie_helpers_use_their_modeled_effects() -> anyhow::Result<
 }
 
 #[test]
-fn data_and_string_symbols_are_named_like_ghidra_and_do_not_leak_between_requests() -> anyhow::Result<()> {
+fn data_and_string_symbols_are_named_like_ghidra_and_do_not_leak_between_requests(
+) -> anyhow::Result<()> {
     let sample = include_bytes!("../../tests/testfiles/592cfd22bba96ef3aab566fe7bf82aff5e1b4130856d1f7f847d03d4689af7e7.exe_");
     let (main, gs_failure) = (0x1400012d0, 0x14000178c);
     let mut session = DecompilerSession::from_pe(sample)?;
     let main_text = session.decompile_function(main)?.text;
     // Wide string literals: `u_<text>_<address>`, text capped, other characters as `_`.
-    assert!(main_text.contains("u_unable_to_read_from__s_140004060"), "{main_text}");
-    assert!(main_text.contains("u_usage__T1181_EWMI_<payload>_140004020"), "{main_text}");
+    assert!(
+        main_text.contains("u_unable_to_read_from__s_140004060"),
+        "{main_text}"
+    );
+    assert!(
+        main_text.contains("u_usage__T1181_EWMI_<payload>_140004020"),
+        "{main_text}"
+    );
     let gs_text = session.decompile_function(gs_failure)?.text;
     // Globals: `DAT_<address>`, never the engine's `uRam...` placeholders.
     assert!(gs_text.contains("DAT_140004098"), "{gs_text}");
@@ -491,5 +507,49 @@ fn data_and_string_symbols_are_named_like_ghidra_and_do_not_leak_between_request
     let mut fresh = DecompilerSession::from_pe(sample)?;
     assert_eq!(fresh.decompile_function(gs_failure)?.text, gs_text);
     assert_eq!(fresh.decompile_function(main)?.text, main_text);
+    Ok(())
+}
+
+#[test]
+fn x86_32_pe_decompiles_with_imports_thunks_and_ghidra_names() -> anyhow::Result<()> {
+    // A 32-bit MSVC executable: imports through the IAT, stdcall callees, SEH helpers.
+    let sample = include_bytes!("../../tests/testfiles/b7b5e1253710d8927cbe07d52d2d2e10.exe_");
+    let mut session = DecompilerSession::from_pe(sample)?;
+    let output = session.decompile_function(0x404dd0)?;
+    assert_eq!(
+        serde_json::to_value(output.calling_convention)?,
+        serde_json::json!("windows_x86")
+    );
+    // Named default function, imports with their module, archive types for the import.
+    assert!(output.text.contains("FUN_00404dd0"), "{}", output.text);
+    assert!(output.text.contains("shlwapi_StrStrIA("), "{}", output.text);
+    assert!(
+        output.text.contains("kernel32_CloseHandle(pvVar3)")
+            || output.text.contains("CloseHandle("),
+        "{}",
+        output.text
+    );
+    assert!(output.text.contains("HANDLE"), "{}", output.text);
+    // Another request order, and a fresh session, print the same text.
+    let other = session.decompile_function(0x414a70)?.text;
+    assert_eq!(session.decompile_function(0x404dd0)?.text, output.text);
+    let mut fresh = DecompilerSession::from_pe(sample)?;
+    assert_eq!(fresh.decompile_function(0x414a70)?.text, other);
+    assert_eq!(fresh.decompile_function(0x404dd0)?.text, output.text);
+    Ok(())
+}
+
+#[test]
+fn x86_32_seh_prolog_helpers_use_their_modeled_effects() -> anyhow::Result<()> {
+    // `_WinMainCRTStartup` of a 32-bit MSVC executable calls `__SEH_prolog4`, which Function
+    // ID can only name as one of several equivalent candidates. Its fixup still applies.
+    let sample = include_bytes!("../../tests/testfiles/bc452cc1128ccf7fa9f76d83cda79132740414973600fed14509749fe946816e.exe_");
+    let mut session = DecompilerSession::from_pe(sample)?;
+    let output = session.decompile_function(0x409631)?;
+    assert!(
+        output.warnings.iter().any(|w| w.contains("SEH_prolog4")),
+        "{:?}",
+        output.warnings
+    );
     Ok(())
 }

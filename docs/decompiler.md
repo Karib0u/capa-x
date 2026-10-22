@@ -9,7 +9,9 @@ cargo build --release -p capa-x-cli --features decompiler
 ./target/release/capa-x sample.exe --decompile-function 0x140001000 --json --timing
 ```
 
-The initial scope is native x86-64 PE files and Windows x64 calling convention.
+The scope is native x86-64 and x86-32 PE files (managed images and other formats are rejected).
+The x86-64 path uses the Windows x64 calling convention; the x86-32 path is described under
+[x86-32](#x86-32).
 Addresses are hexadecimal virtual addresses, including the image base, not
 file offsets or RVAs. One function is requested per call. The CLI emits C-like
 text, or a dedicated JSON result with address, optional name, convention,
@@ -40,7 +42,7 @@ println!("{}", first.text);
 ```
 
 A session owns one loaded image. `from_analysis(&analysis, &names,
-CallingConvention::WindowsX64)` reuses existing recovery metadata and accepts
+CallingConvention::WindowsX64)` (`WindowsX86` for a 32-bit image) reuses existing recovery metadata and accepts
 additional symbols. Specifications are initialized once per session; function
 analysis is released after each request, including temporary inferred callee prototypes. The Rust result always includes
 timings, even when the CLI omits them for deterministic JSON.
@@ -139,13 +141,21 @@ Imports get their full types from the prototype pack instead.
 ## Function ID names
 
 `from_pe` hashes every recovered function the way Ghidra's Function ID analyzer does
-and looks it up in a pack built from Ghidra's Visual Studio x64 databases
-(`capa-x/sigs/fid-x64.pack`, about 9.9 MB, embedded only with the `decompiler`
-feature; provenance and validation in [`FID.md`](../capa-x/sigs/FID.md)). Lookup is
+and looks it up in a pack built from Ghidra's Visual Studio databases
+(`capa-x/sigs/fid-x64.pack`, about 9.9 MB, and `fid-x86.pack`, about 12.6 MB, embedded
+only with the `decompiler` feature; provenance and validation in [`FID.md`](../capa-x/sigs/FID.md)). Lookup is
 hash-bucketed and nothing is decoded until a hash matches. Matches are scored with
 the callee and caller relations like Ghidra's `FidProgramSeeker`, and a name is
 applied only when it is unambiguous. Exports, FLIRT names and the DLL entry keep
 their names. Naming depends only on the image, never on request order.
+
+An ambiguous match is left unnamed, but Ghidra labels each of its candidates `FID_conflict:`
+and its call fixups list those labels. So when every candidate selects the same fixup
+(`__SEH_prolog4` and `__SEH_prolog4_GS`), the fixup is applied anyway.
+
+A function that is only `jmp [import slot]` is named after the import and typed like it (as
+Ghidra does for thunks), and an export takes the archive prototype of its own name when the
+archives know it (a proxy DLL's `GetFileVersionInfoA`). Decorated C++ export names never match.
 
 ## Effect models
 
@@ -212,6 +222,41 @@ carry (the unpacked sections of a packed file, zero-filled tails beyond the raw 
 placeholders; and a global that the analysis only discovers during callee-prototype inference
 is named by the engine, not by this pass.
 
+## x86-32
+
+A PE32 image gets the x86-32 language: `x86.slaspec` (compiled at build time next to the x64 one),
+`x86.pspec` and `x86win.cspec`. Everything that differs lives in one `Spec` in `native/bridge.cc`:
+the specifications, the prototype pack, the pointer width (4 bytes: import slots, `ValueType::Pointer`,
+data symbols for pointer cells), and the unmapped range used for import targets
+(`0xf0000000` upward). Sessions of both languages coexist in one process.
+
+- **Conventions.** `x86win.cspec` defaults to `__stdcall` with the stack purge unknown, so the engine
+  infers it per function; `__cdecl`, `__fastcall` and `__thiscall` are defined too. Imports take the
+  convention recorded in the pack. Output names it as Ghidra does (`__fastcall FUN_00414a70(...)`).
+  The result's `calling_convention` is `windows_x86`.
+- **Types.** `capa-x-ghidra/data/winapi32.pack` (1.3 MB; 28,186 functions, 8,006 types) comes from
+  `windows_vs12_32.gdt` and `generic_clib.gdt` through the same export as the x64 pack
+  (`scripts/decompiler_types/README.md`).
+- **Library names.** `capa-x/sigs/fid-x86.pack` (12.6 MB) from the x86 Visual Studio databases;
+  the matcher hashes 32-bit code (`fid::x86::describe_in`). See [`FID.md`](../capa-x/sigs/FID.md)
+  for how closely it reproduces Ghidra's hashes.
+- **Effect models.** `x86win.cspec` declares 10 call fixups with 27 target names (`__EH_prolog3`,
+  `__SEH_prolog4`, `__alloca_probe`, `__RTC_CheckEsp`, `__security_check_cookie`, ...). A table in
+  `capa-x/src/decompiler/effects.rs` maps recognized names to them, and a test compares both tables
+  with the vendored specs.
+- **Names.** Default function names are padded to the address width, as Ghidra prints them
+  (`FUN_00404dd0`); data symbols use the same width (`DAT_0041b028`).
+- **Discovery.** There is no `.pdata`, so function discovery relies on the capability path's sources
+  plus the native additions that do not need it. See the x86-32 results.
+
+Two robustness changes came with it and apply to both languages. A flow that leaves executable memory
+is now Ghidra's own "bad instruction" warning (the rest of the function stays) instead of a failed
+request, and a callee whose analysis cannot be translated costs only its own inferred prototype.
+
+Not done for x86-32: Delphi and Borland register conventions (`x86delphi.cspec`, `x86borland.cspec`),
+MinGW-specific runtime names (no FLIRT or Function ID data), `fwait` plus x87 forms beyond the
+merge in the hasher, and AVX/VEX instructions in the Function ID masks.
+
 ## Prototype pack
 
 `capa-x-ghidra/data/winapi64.pack` (1.3 MB) holds 28,312 function prototypes and
@@ -229,7 +274,8 @@ An import is typed when its module is a known Windows system DLL (`kernel32`,
 export of an unrelated DLL stays untyped, as do names the archives lack, which
 keep the unknown-callee warning. Ghidra itself matches by name only. The
 module check is a deliberate stricter policy. Archive convention names such as
-`__stdcall` map to the single Windows x64 model.
+`__stdcall` map to the single Windows x64 model. The x86-32 pack keeps each prototype's own
+model, since `x86win.cspec` defines `__stdcall`, `__cdecl`, `__fastcall` and `__thiscall`.
 
 Eight archive entries (two callback typedef cycles and one unresolved enum)
 cannot be rebuilt; their functions keep an unknown prototype instead of an

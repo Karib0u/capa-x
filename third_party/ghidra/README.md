@@ -10,17 +10,18 @@ Generated parser sources retain their upstream parser-generator notices.
 
 `cpp/` comes from `Ghidra/Features/Decompiler/src/decompile/cpp/`.
 `specs/` comes from `Ghidra/Processors/x86/data/languages/` and contains the
-x86-64 SLEIGH input, included instruction definitions, processor context and
-Windows x64 compiler specification. Upstream `x86.ldefs` identifies this
-language as `x86:LE:64:default`, version 4.6, and compiler `windows`.
+x86-64 and x86-32 SLEIGH inputs, included instruction definitions, both processor
+contexts and both Windows compiler specifications (`x86-64-win.cspec`, `x86win.cspec`).
+Upstream `x86.ldefs` identifies the languages as `x86:LE:64:default` and
+`x86:LE:32:default`, version 4.6, compiler `windows`.
 Both are pinned to the same source commit. No JVM components are included.
 
 Vendored files are unmodified. `SHA256SUMS` records their original contents.
 From this directory, verify with `shasum -a 256 -c SHA256SUMS`.
 The build compiles only CORE, DECCORE, SLEIGH, `sleigh_arch`, and
 `inject_sleigh`, using the source groups in the upstream Makefile. The
-SLEIGH compiler is a build-time executable; it compiles the pinned x86-64
-specification into a binary embedded in the final library with the XML specs.
+SLEIGH compiler is a build-time executable; it compiles the pinned x86-64 and
+x86-32 specifications into binaries embedded in the final library with the XML specs.
 
 ## Build-directory integration patches
 

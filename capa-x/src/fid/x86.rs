@@ -78,7 +78,55 @@ pub fn register_offset_in(wide: bool, register: Register) -> Option<u32> {
 /// example `FLDZ` = D9 EE, and `FCOM` = D8 D1, which has an implicit ST1). They are
 /// matched whole, so the second byte is part of the pattern and no operand is listed.
 /// Every other mod=3 form has an `st(i)` field in the low three bits.
-const FIXED_X87: &[(u8, u8)] = &[(0xd8, 0xd1), (0xd8, 0xd9), (0xd9, 0xc9), (0xd9, 0xd0), (0xd9, 0xe0), (0xd9, 0xe1), (0xd9, 0xe4), (0xd9, 0xe5), (0xd9, 0xe8), (0xd9, 0xe9), (0xd9, 0xea), (0xd9, 0xeb), (0xd9, 0xec), (0xd9, 0xed), (0xd9, 0xee), (0xd9, 0xf0), (0xd9, 0xf1), (0xd9, 0xf2), (0xd9, 0xf3), (0xd9, 0xf4), (0xd9, 0xf5), (0xd9, 0xf6), (0xd9, 0xf7), (0xd9, 0xf8), (0xd9, 0xf9), (0xd9, 0xfa), (0xd9, 0xfb), (0xd9, 0xfc), (0xd9, 0xfd), (0xd9, 0xfe), (0xd9, 0xff), (0xda, 0xe9), (0xdb, 0xe0), (0xdb, 0xe1), (0xdb, 0xe2), (0xdb, 0xe3), (0xdb, 0xe4), (0xdd, 0xe1), (0xdd, 0xe9), (0xde, 0xc1), (0xde, 0xc9), (0xde, 0xd9), (0xde, 0xe1), (0xde, 0xe9), (0xde, 0xf1), (0xde, 0xf9), (0xdf, 0xe0)];
+const FIXED_X87: &[(u8, u8)] = &[
+    (0xd8, 0xd1),
+    (0xd8, 0xd9),
+    (0xd9, 0xc9),
+    (0xd9, 0xd0),
+    (0xd9, 0xe0),
+    (0xd9, 0xe1),
+    (0xd9, 0xe4),
+    (0xd9, 0xe5),
+    (0xd9, 0xe8),
+    (0xd9, 0xe9),
+    (0xd9, 0xea),
+    (0xd9, 0xeb),
+    (0xd9, 0xec),
+    (0xd9, 0xed),
+    (0xd9, 0xee),
+    (0xd9, 0xf0),
+    (0xd9, 0xf1),
+    (0xd9, 0xf2),
+    (0xd9, 0xf3),
+    (0xd9, 0xf4),
+    (0xd9, 0xf5),
+    (0xd9, 0xf6),
+    (0xd9, 0xf7),
+    (0xd9, 0xf8),
+    (0xd9, 0xf9),
+    (0xd9, 0xfa),
+    (0xd9, 0xfb),
+    (0xd9, 0xfc),
+    (0xd9, 0xfd),
+    (0xd9, 0xfe),
+    (0xd9, 0xff),
+    (0xda, 0xe9),
+    (0xdb, 0xe0),
+    (0xdb, 0xe1),
+    (0xdb, 0xe2),
+    (0xdb, 0xe3),
+    (0xdb, 0xe4),
+    (0xdd, 0xe1),
+    (0xdd, 0xe9),
+    (0xde, 0xc1),
+    (0xde, 0xc9),
+    (0xde, 0xd9),
+    (0xde, 0xe1),
+    (0xde, 0xe9),
+    (0xde, 0xf1),
+    (0xde, 0xf9),
+    (0xdf, 0xe0),
+];
 
 fn is_fixed_x87(opcode: u8, modrm: u8) -> bool {
     FIXED_X87.contains(&(opcode, modrm))
@@ -415,7 +463,8 @@ fn operands(
                         }
                     } else if base == Register::None
                         && ((index_register == Register::None
-                            && (displacement != 0 || instruction.segment_prefix() != Register::None))
+                            && (displacement != 0
+                                || instruction.segment_prefix() != Register::None))
                             || (wide && displacement != 0))
                     {
                         // A segment override keeps even a zero displacement, as in `fs:[0]`.
@@ -423,7 +472,9 @@ fn operands(
                         operand.objects.push(Obj::Scalar(displacement));
                     }
                     if base != Register::None {
-                        operand.objects.push(Obj::Register(register_offset_in(wide, base)?));
+                        operand
+                            .objects
+                            .push(Obj::Register(register_offset_in(wide, base)?));
                     }
                     if index_register != Register::None {
                         operand
@@ -450,7 +501,9 @@ fn operands(
             OpKind::MemoryESRDI | OpKind::MemoryESEDI => {
                 if !wide {
                     // The 32-bit constructor shows the ES override that 64-bit mode drops.
-                    operand.objects.push(Obj::Register(register_offset_in(wide, Register::ES)?));
+                    operand
+                        .objects
+                        .push(Obj::Register(register_offset_in(wide, Register::ES)?));
                 }
                 operand.objects.push(Obj::Register(register_offset_in(
                     wide,

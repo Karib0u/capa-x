@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cctype>
+#include <iomanip>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
@@ -174,7 +175,8 @@ std::string hexAddress(uint64_t address) {
 bool placeholderName(const std::string &name) {
   size_t i = 0;
   while (i < 8 && i < name.size() && std::isalpha(static_cast<unsigned char>(name[i])) && name.compare(i, 3, "Ram") != 0) ++i;
-  if (name.compare(i, 3, "Ram") != 0 || name.size() != i + 3 + 16) return false;
+  // The address prints with two hex digits per address byte: 16 in x86-64, 8 in x86-32.
+  if (name.compare(i, 3, "Ram") != 0 || (name.size() != i + 3 + 16 && name.size() != i + 3 + 8)) return false;
   for (size_t k = i + 3; k < name.size(); ++k)
     if (!((name[k] >= '0' && name[k] <= '9') || (name[k] >= 'a' && name[k] <= 'f'))) return false;
   return true;
@@ -227,12 +229,14 @@ public:
       char text[80];
       std::snprintf(text, sizeof(text), "code flow left executable mapped memory at 0x%llx",
                     static_cast<unsigned long long>(address.getOffset()));
-      throw LowlevelError(text);
+      // Ghidra's flow analysis turns this error into a warning and truncates the flow, which
+      // keeps the rest of the function instead of failing the request.
+      throw BadDataError(text);
     }
     const auto length = Sleigh::oneInstruction(emit, address);
     if (length <= 0 || address.getOffset() > UINT64_MAX - uint64_t(length - 1) ||
         !image->executable(address.getOffset() + length - 1))
-      throw LowlevelError("instruction crosses executable mapping boundary");
+      throw BadDataError("instruction crosses executable mapping boundary");
     return length;
   }
 };
@@ -568,7 +572,7 @@ public:
         for (int guard = 0; guard < 8; ++guard) {
           auto *found = scope->queryContainer(Address(space, at), 1, Address());
           if (!found) return false;
-          if (!replace || !(found->getSymbol()->isNameUndefined() || placeholderName(found->getSymbol()->getName()))) return true;
+                  if (!replace || !(found->getSymbol()->isNameUndefined() || placeholderName(found->getSymbol()->getName()))) return true;
           scope->removeSymbol(found->getSymbol());
         }
         return true;
@@ -1043,7 +1047,9 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
     auto *fd = arch.symboltab->getGlobalScope()->queryFunction(Address(arch.getDefaultCodeSpace(), address));
     if (!fd) {
       std::ostringstream name;
-      name << "FUN_" << std::hex << address;
+      name << "FUN_" << std::hex;
+      if (!impl->spec.wide) name << std::setw(8) << std::setfill('0');
+      name << address;
       fd = impl->function(address, name.str(), false);
       impl->invalidateInferred();
     }

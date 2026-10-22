@@ -80,7 +80,7 @@ target/release/capa-x --version
 
 ## Optional native decompiler
 
-Build with `cargo build --release -p capa-x-cli --features decompiler` on macOS or Linux, then request an x86-64 PE function:
+Build with `cargo build --release -p capa-x-cli --features decompiler` on macOS or Linux, then request an x86 or x86-64 PE function:
 
 ```sh
 capa-x sample.exe --decompile-function 0x140001000

@@ -53,7 +53,10 @@ mod native {
         ] {
             let sla = out.join(format!("{arch}.sla"));
             run(Command::new(&executable).arg(specs.join(slaspec)).arg(&sla));
-            let pack = PathBuf::from(format!("data/winapi{}.pack", if arch == "x64" { "64" } else { "32" }));
+            let pack = PathBuf::from(format!(
+                "data/winapi{}.pack",
+                if arch == "x64" { "64" } else { "32" }
+            ));
             println!("cargo:rerun-if-changed={}", pack.display());
             for (name, path) in [
                 ("sla", sla),
@@ -62,7 +65,9 @@ mod native {
                 ("pack", pack),
             ] {
                 let bytes = fs::read(path).unwrap();
-                embedded.push_str(&format!("static const unsigned char {name}_{arch}_bytes[] = {{"));
+                embedded.push_str(&format!(
+                    "static const unsigned char {name}_{arch}_bytes[] = {{"
+                ));
                 for byte in bytes {
                     embedded.push_str(&format!("{byte},"));
                 }

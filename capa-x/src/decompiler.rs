@@ -201,11 +201,14 @@ impl DecompilerSession {
         }
         for (address, import) in &thunks {
             if let Some(function) = system_import_function(import) {
-                session.native.apply_prototype(*address, function).map_err(|error| {
-                    DecompileError::Initialization(format!(
-                        "prototype for thunk {import} at {address:#x}: {error}"
-                    ))
-                })?;
+                session
+                    .native
+                    .apply_prototype(*address, function)
+                    .map_err(|error| {
+                        DecompileError::Initialization(format!(
+                            "prototype for thunk {import} at {address:#x}: {error}"
+                        ))
+                    })?;
             }
         }
         // Ghidra also types a function by its exported name when the archives know it
@@ -214,11 +217,14 @@ impl DecompilerSession {
             // Decorated C++ names never match an archive function, and the lookup key is bounded.
             let plain = name.len() <= 256 && !name.contains(['?', '@']);
             if plain && !thunks.contains_key(address) && !recognized.contains_key(address) {
-                session.native.apply_prototype(*address, name).map_err(|error| {
-                    DecompileError::Initialization(format!(
-                        "prototype for export {name} at {address:#x}: {error}"
-                    ))
-                })?;
+                session
+                    .native
+                    .apply_prototype(*address, name)
+                    .map_err(|error| {
+                        DecompileError::Initialization(format!(
+                            "prototype for export {name} at {address:#x}: {error}"
+                        ))
+                    })?;
             }
         }
         for (address, name) in &libraries {
@@ -254,7 +260,9 @@ impl DecompilerSession {
         // fixups list those labels. Here a function is left unnamed, but when every candidate
         // selects the same fixup (`__SEH_prolog4` and `__SEH_prolog4_GS`), the effect is known.
         for (address, candidates) in &conflicts {
-            let mut fixups = candidates.iter().map(|name| effects::call_fixup(name, wide));
+            let mut fixups = candidates
+                .iter()
+                .map(|name| effects::call_fixup(name, wide));
             if let Some(Some(fixup)) = fixups.next() {
                 if fixups.all(|other| other == Some(fixup)) {
                     session
@@ -333,10 +341,14 @@ impl DecompilerSession {
             }
         }
         for address in analysis.functions.keys().chain(names.keys()) {
-            let name = names
-                .get(address)
-                .cloned()
-                .unwrap_or_else(|| format!("FUN_{address:x}"));
+            let name = names.get(address).cloned().unwrap_or_else(|| {
+                // Ghidra pads default names to the address width of the image.
+                if wide {
+                    format!("FUN_{address:x}")
+                } else {
+                    format!("FUN_{address:08x}")
+                }
+            });
             native
                 .add_function(*address, &name, analysis.noreturn.contains(address))
                 .map_err(init)?;

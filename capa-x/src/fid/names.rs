@@ -61,9 +61,9 @@ pub fn name_functions_with_conflicts(
     let sections = &analysis.image.sections;
     // Ghidra types a 32-bit immediate as an address when it points into the program.
     let is_address = |value: u64| {
-        sections
-            .iter()
-            .any(|section| section.address <= value && value - section.address < section.virtual_size)
+        sections.iter().any(|section| {
+            section.address <= value && value - section.address < section.virtual_size
+        })
     };
     let relocations = &analysis.image.relocation_locations;
     let has_relocation = |low: u64, high: u64| {

@@ -35,7 +35,11 @@ fn main() {
     let mut classes: BTreeMap<String, (usize, String)> = BTreeMap::new();
     let (mut funcs, mut good, mut bad_funcs) = (0_usize, 0_usize, 0_usize);
     let arguments: Vec<String> = std::env::args().skip(1).collect();
-    let bits: u32 = if arguments.iter().any(|a| a == "--bits=32") { 32 } else { 64 };
+    let bits: u32 = if arguments.iter().any(|a| a == "--bits=32") {
+        32
+    } else {
+        64
+    };
     for path in arguments.iter().filter(|a| !a.starts_with("--")) {
         let text = std::fs::read_to_string(path).unwrap_or_default();
         // 32-bit operands are typed as addresses when they point into the image, so the
@@ -43,12 +47,29 @@ fn main() {
         let ranges: Vec<(u64, u64)> = std::env::var("FID_SAMPLES")
             .ok()
             .and_then(|dir| {
-                let stem = std::path::Path::new(path).file_name()?.to_str()?.strip_suffix(".tsv")?.to_owned();
-                let image = capa_x::extract::image::LoadedImage::parse(&std::fs::read(format!("{dir}/{stem}")).ok()?).ok()?;
-                Some(image.sections.iter().map(|s| (s.address, s.address + s.virtual_size)).collect())
+                let stem = std::path::Path::new(path)
+                    .file_name()?
+                    .to_str()?
+                    .strip_suffix(".tsv")?
+                    .to_owned();
+                let image = capa_x::extract::image::LoadedImage::parse(
+                    &std::fs::read(format!("{dir}/{stem}")).ok()?,
+                )
+                .ok()?;
+                Some(
+                    image
+                        .sections
+                        .iter()
+                        .map(|s| (s.address, s.address + s.virtual_size))
+                        .collect(),
+                )
             })
             .unwrap_or_default();
-        let is_address = |value: u64| ranges.iter().any(|(start, end)| *start <= value && value < *end);
+        let is_address = |value: u64| {
+            ranges
+                .iter()
+                .any(|(start, end)| *start <= value && value < *end)
+        };
         let mut current: Option<(String, Vec<String>)> = None;
         let mut block: Vec<Instruction> = Vec::new();
         let mut block_ok = true;

@@ -188,14 +188,15 @@ Steps:
    `reference/ghidra-12.1.4-x86/`, measure function-set agreement. No code before this.
    Done ([results](decompiler-baseline-results.md#x86-32-baseline-phase-6a-step-1)): recall 88.4%,
    precision 85.0%, from the existing recovery with no x86-32 work.
-2. `from_pe` accepts PE32 and selects language and specs by machine type.
-3. `winapi32.pack` and the 32-bit effect table.
-4. x86-32 discovery sources and the Function ID pack.
-5. Full scorecard plus the capa difftest loops; the capability path stays byte-identical.
+2. `from_pe` accepts PE32 and selects language and specs by machine type. Done.
+3. `winapi32.pack` and the 32-bit effect table. Done.
+4. Function ID pack. Done. Further discovery sources: one tried and not adopted; the rest not done.
+5. Full scorecard plus the capa difftest loops; the capability path stays byte-identical. The scorecard is done;
+   the difftest loops were not run, because the capability path was not touched (`features_parity` passes).
 
 Exit: 0 initialization errors on non-packed native PE32; function recall at or above 90%;
 callee-name coverage, argument-count and void/non-void agreement within 10 points of the
-x64 numbers. Effort: large; steps 1 and 2 are small, the pack, Function ID and discovery
+x64 numbers. Result: met except recall (88.4%; 94.1% without one sample). Effort: large; steps 1 and 2 are small, the pack, Function ID and discovery
 are most of it.
 
 ### 6b. Extract `Platform`
@@ -267,7 +268,7 @@ Order by payoff per effort and dependency, not by phase number:
 | 5 | Phase 3, boundaries, thunks, tail calls | Done ([results](decompiler-baseline-results.md#phase-3-function-boundaries)): function recall against Ghidra 79.6% to 93.4% (97.8% without the packed sample); difftest loops unchanged. Gated on the native backend, so the capability path is untouched |
 | 6 | Phase 5, cosmetics and data-flow | Done ([results](decompiler-baseline-results.md#phase-5-effect-models-and-data-flow)): call fixups for the cookie check and stack probes; incomplete flag 80.1% to 70.7%; parameter-ID variants measured and not adopted. Gated on the native backend |
 | 7 | Held-out benchmark | Done ([results](decompiler-baseline-results.md#held-out-benchmark)): callee naming 65.5% against 77.5% on the tuned set, robustness and structure generalize. A data and string symbol metric is still to add |
-| 8 | Phase 6a, x86-32 PE | After the x86-32 Ghidra baseline (about 62% of sampled PE files are x86-32) |
+| 8 | Phase 6a, x86-32 PE | Done, one exit criterion missed ([results](decompiler-baseline-results.md#x86-32-decompiler-phase-6a)): decompiles PE32; callee names 89.2%, void 91.4%, params 91.9%, arity 97.2%; 99.7% of 2,229 random functions decompile; function recall 88.4% (target 90%) |
 | 9 | Phase 7, string and data symbols | Done ([results](decompiler-baseline-results.md#data-and-string-symbol-naming)): data symbols named 0% to 90% (baseline) and 98% (held-out), 94% to 96% of native's names agree with Ghidra's; string literals 36% to 88% of Ghidra's on the held-out set; about 30% more request time. |
 | 10 | Phase 6b, `Platform` extraction | After 6a, from the two implementations |
 | 11 | Phases 6c to 6f and the rest of 7 | Only if the scorecard or the corpus asks |
