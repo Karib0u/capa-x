@@ -179,12 +179,15 @@ Not a copy of the 64-bit path:
 | Compiler variants | MSVC, MinGW (`x86gcc`), Borland and Delphi (`x86delphi`, register convention) | Detect and record per sample; MSVC and MinGW first, Delphi as an explicit follow-up |
 | Conventions | `thiscall` (`ecx`), `fs:[0]` SEH frames | Rely on the spec; verify on samples |
 
-Main risk: function recall starts well below the x64 93%.
+Main risk, now measured: recall starts at 88.4% (94.1% without one sample) against x64's
+93.4%, and precision at 85.0% against 97.1%, so the cost is mostly spurious functions.
 
 Steps:
 
 1. Baseline first: select 24 x86-32 samples, export Ghidra references into
    `reference/ghidra-12.1.4-x86/`, measure function-set agreement. No code before this.
+   Done ([results](decompiler-baseline-results.md#x86-32-baseline-phase-6a-step-1)): recall 88.4%,
+   precision 85.0%, from the existing recovery with no x86-32 work.
 2. `from_pe` accepts PE32 and selects language and specs by machine type.
 3. `winapi32.pack` and the 32-bit effect table.
 4. x86-32 discovery sources and the Function ID pack.

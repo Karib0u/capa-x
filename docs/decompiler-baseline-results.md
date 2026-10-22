@@ -499,6 +499,54 @@ minimum cost nothing on these sets and has no evidence behind it either way. A n
 for the file's own symbols (COFF symbol tables, as in MinGW builds) is the visible next gain
 for globals.
 
+## x86-32 baseline (phase 6a, step 1)
+
+Measured 2026-10-22 on the same machine and Ghidra 12.1.4 as above, before any x86-32
+decompiler work. The decompiler rejects PE32 today ("only native x86-64 PE images"), so
+there is no native decompile column. What can be measured is function discovery, because
+the capability recovery already handles 32-bit code, and what Ghidra produces, which is the
+target.
+
+- Samples: 24 native x86-32 PE files from `tests/testfiles` (237 eligible; no .NET, 8 KiB to
+  6 MiB; EXE/DLL x size tercile; seed 20261023), hashes in
+  `scripts/decompiler_baseline/samples-x86.json`. Four are the Practical Malware Analysis
+  labs and one is a kernel driver (`.sys`). Packers were not filtered out.
+- Ghidra: every function of each sample (`functions/`) and eight decompiled functions per
+  sample chosen by the same rule as the x64 baseline (`decompile/`, 188 functions, all of
+  which Ghidra decompiled). Stored in `reference/ghidra-12.1.4-x86/`.
+- Native: the `function_set` example, i.e. the capability path's recovery, including the
+  phase 3 sources that do not depend on `.pdata`.
+
+| | x64 (after phase 3) | x86-32 |
+|---|---:|---:|
+| Ghidra functions | 15,777 | 14,182 |
+| Ghidra functions also found by native (recall) | 14,737 (93.4%) | 12,543 (88.4%) |
+| Native functions Ghidra also has (precision) | 97.1% | 85.0% |
+| Ghidra-only / native-only | 1,040 / 444 | 1,639 / 2,208 |
+| Recall without the single worst sample | 97.8% (packed sample) | 94.1% (`3b13b6f1`) |
+
+Ghidra-only functions by what recovery knew:
+
+| First cause | Count |
+|---|---:|
+| Folded into another native function | 1,194 (965 in `3b13b6f1`) |
+| Never discovered | 410 (137 in `bc452cc1`, 140 in `d9630c17`, 95 in `1e9fc7f3`) |
+| Thunks | 32 |
+| Decoded but not made a function | 3 |
+
+Native-only functions: 1,196 lie outside any Ghidra function and 1,012 lie inside one.
+Large parts are single samples: 112 of the 150 native functions in the driver
+`493167e8` sit inside one 8,910-byte Ghidra function that is probably not ordinary code.
+None of these clusters has been looked at beyond their counts, and the packer status of the
+large samples is unknown.
+
+What this says about the work: discovery is not the blocker. Recall is 88% to 94% before any
+x86-32 source, such as `.pdata` (absent here), prologue patterns or SEH tables, has been
+added, and the larger cost is precision (85%). The Ghidra decompile exports show the calling
+conventions the decompiler will have to model: of 188 functions, 58 print `__cdecl`, 18
+`__thiscall`, 15 `__fastcall`, 2 `__stdcall` and 95 print no convention; 680 of their 1,229
+callees are named.
+
 ## Not yet done
 
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).

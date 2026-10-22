@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Development-only: pick the baseline samples from PE headers alone.
 
-Eligible: native AMD64 PE files (no CLR directory) of 8 KiB..6 MiB. Strata are
+Eligible: native AMD64 PE files (or x86-32 PE files with a fifth argument "x86") (no CLR directory) of 8 KiB..6 MiB. Strata are
 (EXE|DLL) x size tercile; the seeded sample is spread evenly over the strata.
 No decompiler output is consulted.
 """
 import hashlib, json, os, random, struct, sys
 
-def pe_info(path):
+def pe_info(path, arch="amd64"):
     with open(path, "rb") as f:
         head = f.read(4096)
         if head[:2] != b"MZ" or len(head) < 64:
@@ -20,13 +20,17 @@ def pe_info(path):
     machine, = struct.unpack_from("<H", nt, 4)
     chars, = struct.unpack_from("<H", nt, 22)
     magic, = struct.unpack_from("<H", nt, 24)
-    if machine != 0x8664 or magic != 0x20B:
+    if (machine, magic) != ((0x14C, 0x10B) if arch == "x86" else (0x8664, 0x20B)):
         return None
-    nrva, = struct.unpack_from("<I", nt, 24 + 108)
+    # The data directories start at 96 (PE32) or 112 (PE32+) bytes into the optional header.
+    count_at, dirs_at = (24 + 92, 24 + 96) if magic == 0x10B else (24 + 108, 24 + 112)
+    nrva, = struct.unpack_from("<I", nt, count_at)
     clr = (0, 0)
-    if nrva > 14:
-        clr = struct.unpack_from("<II", nt, 24 + 112 + 14 * 8)
+    if nrva > 14 and len(nt) >= dirs_at + 15 * 8:
+        clr = struct.unpack_from("<II", nt, dirs_at + 14 * 8)
     return {"dll": bool(chars & 0x2000), "clr": clr[0] != 0}
+
+ARCH = sys.argv[5] if len(sys.argv) > 5 else "amd64"
 
 def main():
     root, count, seed, out = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
@@ -38,7 +42,7 @@ def main():
         size = os.path.getsize(p)
         if not 8192 <= size <= 6 * 1024 * 1024:
             continue
-        info = pe_info(p)
+        info = pe_info(p, ARCH)
         if info and not info["clr"]:
             cands.append({"name": name, "size": size, "dll": info["dll"]})
     sizes = sorted(c["size"] for c in cands)

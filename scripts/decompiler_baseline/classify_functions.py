@@ -12,7 +12,7 @@ testfiles, names, g_dir, binary, out_dir = sys.argv[1:6]
 out_dir = pathlib.Path(out_dir); out_dir.mkdir(parents=True, exist_ok=True)
 gcl, ncl = collections.Counter(), collections.Counter()
 per = {}
-for name in pathlib.Path(names).read_text().split():
+for name in pathlib.Path(names).read_text().splitlines():
     g = json.loads((pathlib.Path(g_dir) / f"{name}.json").read_text())["functions"]
     gm = {f["entry"]: f for f in g}
     base = subprocess.run([binary, f"{testfiles}/{name}"], capture_output=True, text=True, check=True)

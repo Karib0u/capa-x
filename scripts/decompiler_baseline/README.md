@@ -55,3 +55,14 @@ Data and string symbols (needs the `--any-module` comparison files of the sets a
 ```sh
 python3 -I scripts/decompiler_baseline/data_symbols.py $O/comparison.json   # add --examples to list misses
 ```
+
+x86-32 PE (phase 6a baseline; the native decompiler does not accept PE32 yet, so only the function set
+and Ghidra's own outputs are compared). Sample names may contain spaces; quote them.
+
+```sh
+python3 -I scripts/decompiler_baseline/select_samples.py $T 24 20261023 scripts/decompiler_baseline/samples-x86.json x86
+# per sample: run_ghidra_functions.sh and run_ghidra.sh as above, into $O/g and $O/decompile
+python3 -I scripts/decompiler_baseline/compare_functions.py $O/g $O/n $O/functions.json
+```
+
+Stored references: `reference/ghidra-12.1.4-x86/{functions,decompile}/`.

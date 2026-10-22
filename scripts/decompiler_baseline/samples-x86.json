@@ -1,0 +1,154 @@
+{
+ "eligible": 237,
+ "seed": 20261023,
+ "tiers": [
+  65588,
+  232677
+ ],
+ "samples": [
+  {
+   "name": "009c2377b67997b0da1579f4bbc822c1.exe_",
+   "size": 94720,
+   "dll": false,
+   "sha256": "f58c502a1f26f8e754caa1adb73df3714e54b256383becaedc4166aacad15a57"
+  },
+  {
+   "name": "1e2791877da02d49998dea79515a89ca.dll_",
+   "size": 49384,
+   "dll": true,
+   "sha256": "3e3d82ea4764b117b71119e7c2eecf46b7c2126617eafccdfc6e96e13da973b1"
+  },
+  {
+   "name": "1e9fc7f32bd5522dd0222932eb9f1d8bd0a2e132c7b46cfcc622ad97831e6128.exe_",
+   "size": 360448,
+   "dll": false,
+   "sha256": "1e9fc7f32bd5522dd0222932eb9f1d8bd0a2e132c7b46cfcc622ad97831e6128"
+  },
+  {
+   "name": "26beba7352a32b803aa19e0782011a383a1df19549910e7b2f2f244e49678524.dll_",
+   "size": 320000,
+   "dll": true,
+   "sha256": "26beba7352a32b803aa19e0782011a383a1df19549910e7b2f2f244e49678524"
+  },
+  {
+   "name": "2c83f152e09d0abaa3a3784669e75276784e50e1e202d16ab27e5741eef9ab4f.exe_",
+   "size": 2494464,
+   "dll": false,
+   "sha256": "2c83f152e09d0abaa3a3784669e75276784e50e1e202d16ab27e5741eef9ab4f"
+  },
+  {
+   "name": "36f506a34b99bf4c199b3c9ec8aa02bd631feafdca20e69e33e714c269ddb8c5.dll_",
+   "size": 136192,
+   "dll": true,
+   "sha256": "36f506a34b99bf4c199b3c9ec8aa02bd631feafdca20e69e33e714c269ddb8c5"
+  },
+  {
+   "name": "3aa7ee4d67f562933bc998f352b1f319.dll_",
+   "size": 25088,
+   "dll": true,
+   "sha256": "03ab39504a0c03581dc9da8c145463e2d5ac0b5c4e3e2b4b5aa704ae68a25094"
+  },
+  {
+   "name": "3b13b6f1d7cd14dc4a097a12e2e505c0a4cff495262261e2bfc991df238b9b04.dll_",
+   "size": 799744,
+   "dll": true,
+   "sha256": "3b13b6f1d7cd14dc4a097a12e2e505c0a4cff495262261e2bfc991df238b9b04"
+  },
+  {
+   "name": "493167e85e45363d09495d0841c30648.sys_",
+   "size": 33744,
+   "dll": false,
+   "sha256": "1237c07961310c82e55f7679c79f45863608c21b0c43a79851f7e92954638717"
+  },
+  {
+   "name": "64d9f7d96b99467f36e22fada623c3bb.dll_",
+   "size": 34816,
+   "dll": true,
+   "sha256": "fb33384042a7ee3f988be70a7903ca14613ef4c2be0e25919990c96fe4a3762a"
+  },
+  {
+   "name": "946a99f36a46d335dec080d9a4371940.dll_",
+   "size": 172032,
+   "dll": true,
+   "sha256": "8849070e8a076f717243d7f7a93f952cdbd8394cb7d141383ffff6e845b2d397"
+  },
+  {
+   "name": "Practical Malware Analysis Lab 01-04.exe_",
+   "size": 36864,
+   "dll": false,
+   "sha256": "0fa1498340fca6c562cfa389ad3e93395f44c72fd128d7ba08579a69aaf3b126"
+  },
+  {
+   "name": "Practical Malware Analysis Lab 05-01.dll_",
+   "size": 134085,
+   "dll": true,
+   "sha256": "eb1079bdd96bc9cc19c38b76342113a09666aad47518ff1a7536eebff8aadb4a"
+  },
+  {
+   "name": "Practical Malware Analysis Lab 10-03.exe_",
+   "size": 24576,
+   "dll": false,
+   "sha256": "d66e15eea51ebd4bfd13f8c97646253740b1e6a99328d22232fd01ae13ef5d05"
+  },
+  {
+   "name": "Practical Malware Analysis Lab 17-02.dll_",
+   "size": 134160,
+   "dll": true,
+   "sha256": "7f26bcad404867f92ee0f3de9257758132b2ea06884f436e7900e820ddd6646a"
+  },
+  {
+   "name": "a4f1f09a2b9bc87de90891da6c0fca28e2f88fd67034648060cef9862af9a3bf.dll_",
+   "size": 283648,
+   "dll": true,
+   "sha256": "a4f1f09a2b9bc87de90891da6c0fca28e2f88fd67034648060cef9862af9a3bf"
+  },
+  {
+   "name": "acd2d663799e8919b09e188adbb55ac655e5409bcd073e6a4b6576163e6e65d5.exe_",
+   "size": 9778,
+   "dll": false,
+   "sha256": "acd2d663799e8919b09e188adbb55ac655e5409bcd073e6a4b6576163e6e65d5"
+  },
+  {
+   "name": "b7b5e1253710d8927cbe07d52d2d2e10.exe_",
+   "size": 103424,
+   "dll": false,
+   "sha256": "eae876886f19ba384f55778634a35a1d975414e83f22f6111e3e792f706301fe"
+  },
+  {
+   "name": "bc452cc1128ccf7fa9f76d83cda79132740414973600fed14509749fe946816e.exe_",
+   "size": 805888,
+   "dll": false,
+   "sha256": "bc452cc1128ccf7fa9f76d83cda79132740414973600fed14509749fe946816e"
+  },
+  {
+   "name": "c29513e5a51dd24ca840f7628b872cba921976cba89dcbffd5028ba15481108c.dll_",
+   "size": 9216,
+   "dll": true,
+   "sha256": "c29513e5a51dd24ca840f7628b872cba921976cba89dcbffd5028ba15481108c"
+  },
+  {
+   "name": "c2ba065654f13612ae63bca7f972ea91c6fe97291caeaaa3a28a180fb1912b3a.dll_",
+   "size": 556032,
+   "dll": true,
+   "sha256": "c2ba065654f13612ae63bca7f972ea91c6fe97291caeaaa3a28a180fb1912b3a"
+  },
+  {
+   "name": "ce8d7590182db2e51372a4a04d6a0927a65b2640739f9ec01cfd6c143b1110da.exe_",
+   "size": 104448,
+   "dll": false,
+   "sha256": "ce8d7590182db2e51372a4a04d6a0927a65b2640739f9ec01cfd6c143b1110da"
+  },
+  {
+   "name": "d9630c174b8ff5c0aa26168df523e63e.exe_",
+   "size": 2783232,
+   "dll": false,
+   "sha256": "600b6da5ea47aab014f775698183d73e571323bf64a577deb013ccc21d24da6c"
+  },
+  {
+   "name": "daa13ae302fe8b618ddbf590537443ef.exe_",
+   "size": 200704,
+   "dll": false,
+   "sha256": "0a56d2b98fa1b4fc96833e58b1d9b8c3a04b0336cff2919f5af91ef5f3ca2580"
+  }
+ ]
+}
