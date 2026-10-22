@@ -24,7 +24,7 @@ two parity levels and both goals matter; the last two parity levels are tracked,
 | P3 structure | same statement skeleton, readable control flow | A little | gotos within 4% to 8% of Ghidra; identical skeleton on 13% to 32% of functions |
 | P4 text | byte-identical text | No | 0% to 4% (comments and whitespace ignored) |
 | C compilable | output compiles as C, and can be recompiled with a generated header and declarations | Yes (new) | 42% to 50% pass a crude syntax check (see Steps 12 and 13) |
-| T trustworthy | when native is unsure it says so; "complete" means right | Yes (new) | flags exist; never audited (Step 14) |
+| T trustworthy | when native is unsure it says so; "complete" means right | Yes (new) | flags exist; not audited |
 
 100% parity (P4) is not a target. Ghidra's output depends on its program database and on analyzers
 that run to a fixed point and depend on each other. Here each part of that context is rebuilt by a
@@ -87,7 +87,6 @@ held-out sets and, where one exists, the tuned set.
 | latency | N request time versus G decompile time, excluding setup |
 | P3, P4 | identical token skeleton and identical text, as a share of compared functions (tracked only) |
 | compile rate | share of N outputs that pass the compile check (Step 12) |
-| flag reliability | for a hand-checked sample, share of "complete" outputs that are right (Step 14) |
 
 Each differing function is classed by first cause as **context** (missing prototype, type, name or
 boundary), **recovery** (function discovery, thunk or tail call) or **engine** (reproduced identically in
@@ -162,35 +161,6 @@ minority of functions (not measured), and is not a gate. Host execution is not p
 The output language is C. Ghidra prints C; classes, virtual calls and templates stay C-level until RTTI is
 recovered (phase 7).
 
-## Step 14: flag audit and review app (proposed)
-
-The audit tests whether "complete" can be trusted: for about 50 outputs each from "complete" and
-"incomplete", read the output against the machine code (or, for the known-source corpus, against the
-source) and record errors (wrong arguments, dropped returns, wrong control flow). It needs a place to do
-that reading, so the step includes a small local review app, which is also the tool for comparing our
-output with Ghidra's by eye.
-
-- **What it shows:** for one function, our output and Ghidra's side by side with differences highlighted,
-  the disassembly (or the source, for the known-source corpus), our flags and warnings, the callees Ghidra
-  names that we do not, and the sample, report and year.
-- **What it records:** a verdict (correct, wrong arguments, dropped or invented return, wrong control flow,
-  missing or wrong name, other), tags and a free-text comment, per function, with the reviewer, the time,
-  the sample SHA-256, the address and the versions of the decompiler and of Ghidra. Stored as append-only
-  JSON lines next to the data; an export gives the audit numbers (the share of "complete" outputs that are
-  right, and the share of wrong outputs that were flagged).
-- **Blind mode:** the incomplete flag and warnings are hidden until a verdict is saved, and the order is
-  random and stratified, so the reviewer is not led by the flag being audited.
-- **How it is built:** development tooling under `scripts/decompiler_review/`, no dependencies beyond the
-  Python standard library: one script builds a review set from the comparison files and the disassembly,
-  one serves a single static page on `127.0.0.1` and appends reviews. It runs locally. Text that comes from
-  a sample (strings, names) is always escaped, because a malware string can contain markup, and no sample
-  text is sent to a hosted service.
-- **Not in scope:** editing the decompiler, publishing results, accounts. The first version is one
-  reviewer.
-- **State:** a first version exists, `scripts/decompiler_review/` (one Python file, no dependencies):
-  side-by-side diff, verdicts, comments, blind mode and the audit summary. It has no disassembly or source
-  pane yet; that is the next addition when the audit starts.
-
 ## Step 15: corpora (proposed)
 
 The capa test files are a good base for breadth and regression, but they were chosen to test capa, not
@@ -246,7 +216,7 @@ tiny images and two large leak archives, which are ignored.
 **What makes it more useful than a bag of files:** every sample belongs to a dated report that names a
 campaign or family, so samples can be grouped (splits that do not leak a campaign between tuning and
 test), dated (by report and by PE timestamp, which tracks the compiler era), and described (the report
-text says what the sample does, which gives candidates for the flag audit in step 14).
+text says what the sample does).
 
 - **Handling.** Only `Samples/` folders are read; the generated `analysis/` folder, the `.agents` folder
   and the image-only folders are not. Samples are never executed and never extracted into the repository
@@ -273,7 +243,6 @@ text says what the sample does, which gives candidates for the flag audit in ste
   - The scorecard against Ghidra on a stratified subset of a few hundred samples (Ghidra costs about a
     minute per sample, so this is hours, not days), reported per year bucket and per compiler guess.
   - Share of packed, managed and unsupported files, which shows what the tool cannot reach.
-  - Candidates for the flag audit (step 14), chosen from reports that describe the sample.
 - **Limits.** It is not ground truth (Ghidra stays the only reference), malware skews toward packed and
   obfuscated code, a few large reports can dominate a year, and the dump's own counts are unverified until
   the triage reproduces them.
@@ -444,7 +413,6 @@ Order by payoff per effort and dependency, not by phase number:
 | 11 | Gaps left by 6a | Done, two items open ([results](decompiler-baseline-results.md#step-11-gaps-left-by-6a)): x86-32 function recall 88.4% to 96.7%, precision 85.0% to 90.8%; callee names 89.2% to 92.4% (baseline) and 78.4% to 84.4% (held-out); held-out errors 7 to 1; cookie check, `operator new/delete`, `FID_conflict` and `name@N` names. Open: incomplete from unknown callee prototypes (relaxing inference measured and rejected), names outside Visual C (MinGW, Nim, Qt) and the C runtime assembly routines (`memset`, `memcpy`) |
 | 12 | Compile check with a real header | After step 11, or alongside it (does not touch the same code). Says which non-compilable constructs matter |
 | 13 | Self-contained unit for recompiling extracted functions | After steps 11 and 12 |
-| 14 | Flag audit and local review app | The review page exists (`scripts/decompiler_review/`, side by side with verdicts, comments and blind mode); the disassembly pane and the audit itself are still to do. Can start at any time |
 | 15 | Corpora: 15a known-source corpus, 15b VX Underground triage and splits | Proposed. 15b: the dump is on the maintainer's machine; triage streams archive headers without extracting. 15a: MSVC builds on the Windows lab, MinGW and clang as a second set |
 | 16 | Platforms and compilers: Delphi/Borland or ELF | Decided by the step 15b triage |
 | 17 | Phase 6b `Platform` extraction, parity tracking | After step 11 and the triage in step 15b |
