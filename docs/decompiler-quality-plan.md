@@ -126,9 +126,14 @@ only names.
 Driven strictly by the baseline clusters.
 
 - A table of known effect models (RAX-preserving helpers, `__chkstk`,
-  `__GSHandlerCheck`), extending the security-cookie mechanism.
-- Parameter identification from call sites as well as callee bodies.
-- Stack-argument and shadow-space handling in unusual patterns.
+  `__GSHandlerCheck`), extending the security-cookie mechanism. Done: compiler-spec
+  call fixups, see [Effect models](decompiler.md#effect-models).
+- Parameter identification from call sites as well as callee bodies. Investigated;
+  no variant moved the metrics without regressing others, so nothing shipped (see
+  [results](decompiler-baseline-results.md#phase-5-effect-models-and-data-flow)).
+- Stack-argument and shadow-space handling in unusual patterns. The `__chkstk` fixup
+  removed the one clear cluster (`stack0x` addresses); the remaining differences are
+  naming conventions of Ghidra's Java layer and callee-prototype knowledge.
 
 ## Phase 6: platforms
 
@@ -152,7 +157,7 @@ Order by payoff per effort and dependency, not by phase number:
 | 3 | Phase 1, failure isolation | Done (`00143de`): request errors 7 to 3 on the baseline, session no longer poisoned by limits; 3 work-limit errors remain |
 | 4 | Phase 4, library names (Function ID) | In progress; largest remaining gap (56% callee names) |
 | 5 | Phase 3, boundaries, thunks, tail calls | Done ([results](decompiler-baseline-results.md#phase-3-function-boundaries)): function recall against Ghidra 79.6% to 93.4% (97.8% without the packed sample); difftest loops unchanged. Gated on the native backend, so the capability path is untouched |
-| 6 | Phase 5, cosmetics and data-flow | Cheap items early, the rest only from baseline clusters |
+| 6 | Phase 5, cosmetics and data-flow | Done ([results](decompiler-baseline-results.md#phase-5-effect-models-and-data-flow)): call fixups for the cookie check and stack probes; incomplete flag 80.1% to 70.7%; parameter-ID variants measured and not adopted. Gated on the native backend |
 | 7 | Phases 6 and 7 | Only after the Windows pipeline is solid, and if the scorecard asks |
 
 Rerun the baseline after every step. A step that does not move its target metric
@@ -186,7 +191,7 @@ Items marked (phase N) are the work of that phase.
 | MicrosoftDemanglerAnalyzer, GnuDemanglerAnalyzer | Readable C++ names; prefer an existing Rust demangler crate if the dependency policy allows |
 | ConstantPropagationAnalyzer | Resolves computed addresses and some indirect calls; large and risky |
 | DecompilerSwitchAnalyzer | Extend `switch.rs` only where the corpus shows misses |
-| CallFixupAnalyzer | Known helper effects such as the security cookie; already partly hand-modeled (phase 5) |
+| CallFixupAnalyzer | Known helper effects such as the security cookie. Done in phase 5 through the spec's `<callfixup>` entries |
 | ApplyDataArchiveAnalyzer | Covered by phase 2, with a stricter module policy |
 | DataOperandReference, OperandReference, ScalarOperand | Constant-to-data references, strings and globals |
 
@@ -217,7 +222,7 @@ are exported once, offline, and embedded in compact form.
 | Function ID databases (`FunctionID/data/vs2012` to `vs2019` x64 `.fidbf`, `common_symbols_win64.txt`) | CRT and static library names | Phase 4, in progress |
 | Non-returning lists (`PEFunctionsThatDoNotReturn`, `Elf...`, `Golang...`, `Rust...`, `MachO...`, `noReturnFunctionConstraints.xml`) | Curated `exit`/`abort`-style functions; control flow after them. Cheap, high value | Phase 3, next to the noreturn analyzers |
 | Ordinal and export tables (`symbols/win64/*.exports`, `*.hints`) | Names for ordinal imports, which currently get no prototype | Phase 3 or 5 |
-| Call fixups and p-code injection in the compiler spec (6 `callfixup` entries in `x86-64-win.cspec`) | Helpers such as `__security_check_cookie` and `__chkstk` replaced by injected p-code. Once phase 4 names the helper, the vendored spec's fixups can replace the hand-written RAX-preservation hack and cover more helpers | Phase 5, depends on phase 4 |
+| Call fixups and p-code injection in the compiler spec (3 `callfixup` entries, 7 targets, in `x86-64-win.cspec`) | Helpers such as `__security_check_cookie` and `__chkstk` replaced by injected p-code | Done in phase 5: the fixups replace the hand-written RAX hack and apply to any recognized name |
 | Function-start patterns (BytePatterns module data) | Prologue-based discovery in stripped code; not yet inspected | Phase 3, after `.pdata` |
 | String n-gram model (`stringngrams/StringModel.sng`) | Better detection of real strings in data; optional | Phase 5 |
 | Other compiler specs (`x86-64-gcc`, `-golang`, `-swift`, `x86win`, `x86gcc`, `x86borland`, `x86delphi`) and processor SLEIGH specs | Calling conventions, register effects and instruction semantics per target | Phase 6 |

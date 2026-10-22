@@ -765,6 +765,21 @@ void Session::set_preserves_rax(uint64_t address) {
     proto.decode(decoder, &arch);
   });
 }
+void Session::set_call_fixup(uint64_t address, rust::Str fixup) {
+  std::lock_guard<std::mutex> lock(engine_mutex);
+  checked([&] {
+    impl->ready();
+    auto &arch = impl->arch;
+    auto *fd = arch.symboltab->getGlobalScope()->queryFunction(Address(arch.getDefaultCodeSpace(), address));
+    if (!fd) throw std::runtime_error("call fixup requires a registered function");
+    if (fixup.size() > 64) throw std::runtime_error("call fixup name exceeds 64 bytes");
+    const std::string name(fixup.data(), fixup.size());
+    const int4 id = arch.pcodeinjectlib->getPayloadId(InjectPayload::CALLFIXUP_TYPE, name);
+    if (id < 0) throw std::runtime_error("unknown call fixup: " + name);
+    impl->invalidateInferred();
+    fd->getFuncProto().setInjectId(id);
+  });
+}
 NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t max_instructions, uint32_t max_work) {
   std::lock_guard<std::mutex> lock(engine_mutex);
   return checked([&] {
@@ -837,7 +852,11 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
       }
       if (!skipped.empty())
         response.warnings.push_back("Callee prototype inference skipped (" + skipped + "); callee prototypes remain unknown.");
-      response.incomplete = result < 0 || !response.warnings.empty();
+      // An applied call fixup is a modeled effect, not a gap in the analysis.
+      bool only_informational = true;
+      for (const auto &warning : response.warnings)
+        if (std::string(warning).find(" replaced with injection: ") == std::string::npos) only_informational = false;
+      response.incomplete = result < 0 || !only_informational;
       if (inferred) response.warnings.push_back("Direct callee prototypes inferred from bounded native analysis; validate against machine code.");
       impl->release(fd);
       return response;

@@ -422,3 +422,43 @@ fn function_id_names_and_types_a_static_runtime_function() -> anyhow::Result<()>
     assert_eq!(session.decompile_function(0x1400aa420)?.text, output.text);
     Ok(())
 }
+
+#[test]
+fn stack_probe_and_cookie_helpers_use_their_modeled_effects() -> anyhow::Result<()> {
+    let sample = include_bytes!("../../tests/testfiles/10ebcf8c20403457a08762200015b151.exe_");
+    let mut session = DecompilerSession::from_pe(sample)?;
+    // A large frame: `__chkstk` must not leave the stack pointer unknown, which
+    // used to turn every local into an `stack0x...` address.
+    let output = session.decompile_function(0x140006954)?;
+    for expected in [
+        "replaced with injection: alloca_probe",
+        "replaced with injection: security_check_cookie",
+    ] {
+        assert!(
+            output.text.contains(expected),
+            "{expected}\n{}",
+            output.text
+        );
+    }
+    assert!(!output.text.contains("stack0x"), "{}", output.text);
+    assert!(!output.text.contains("__chkstk()"), "{}", output.text);
+    assert!(
+        !output.text.contains("__security_check_cookie("),
+        "{}",
+        output.text
+    );
+    assert_eq!(session.decompile_function(0x140006954)?.text, output.text);
+
+    // A cookie check is only a modeled effect: the handler below has nothing else
+    // to report, and the dead cookie computation no longer shapes its parameters.
+    let sample = include_bytes!("../../tests/testfiles/6cd1315f6f2fa4f8ee2b98bb3ca0a994.exe_");
+    let mut session = DecompilerSession::from_pe(sample)?;
+    let output = session.decompile_function(0x1400018f0)?;
+    assert!(
+        !output.text.contains("__security_check_cookie("),
+        "{}",
+        output.text
+    );
+    assert!(!output.incomplete, "{:?}", output.warnings);
+    Ok(())
+}

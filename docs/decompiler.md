@@ -54,9 +54,9 @@ The adapter applies the prototype of every import from a Windows system DLL that
 Ghidra's bundled Windows and C library data type archives describe (see
 [Prototype pack](#prototype-pack)), and `from_pe` applies a compact subset of the bundled FLIRT signatures for
 runtime names. Validated MSVC runtime matches and the PE DLL entry point get
-known calling signatures. Validated security-cookie checks also receive an
-explicit RAX-preservation effect, so their callers retain return values across
-the check. An arbitrary caller-supplied name does not enable that effect.
+known calling signatures. Runtime helpers with a modeled effect then get their
+compiler-spec call fixup (see [Effect models](#effect-models)). An export name or an
+arbitrary caller-supplied name does not enable one, and `from_analysis` applies none.
 Functions that no other source names are then matched against Ghidra's Function ID
 databases (see [Function ID names](#function-id-names)); a recognized name also
 applies the packed prototype of that name, so `memset`, `strlen` and the other
@@ -143,6 +143,29 @@ hash-bucketed and nothing is decoded until a hash matches. Matches are scored wi
 the callee and caller relations like Ghidra's `FidProgramSeeker`, and a name is
 applied only when it is unambiguous. Exports, FLIRT names and the DLL entry keep
 their names. Naming depends only on the image, never on request order.
+
+## Effect models
+
+Some runtime helpers break ordinary calling-convention rules: `__security_check_cookie`
+preserves RAX and has no visible effect, and `__chkstk` moves the stack pointer. Ghidra
+replaces calls to them with the p-code snippets of the `<callfixup>` entries in
+`x86-64-win.cspec` (3 entries, 7 target names). `from_pe` does the same. The table in
+`capa-x/src/decompiler/effects.rs` maps a recognized name, without leading underscores,
+to a fixup: `security_check_cookie`; `alloca_probe` for `_alloca_probe`,
+`_alloca_probe2`, `__chkstk`, `__chkstk2` and `___chkstk_ms`; `guard_dispatch_icall`.
+Only names from FLIRT or Function ID select a model: an export is a claim by the image
+itself, and `from_analysis` leaves effects to its caller.
+
+Native `Session::set_call_fixup` applies a fixup by name and rejects unknown names. The
+call disappears from the pseudocode, which gains Ghidra's
+`replaced with injection` comment. That comment is informational: it does not set
+`incomplete`, because it records a modeled effect, not a gap. Effects: callers keep RAX
+across a cookie check, the dead cookie computation no longer shapes parameters
+(`__GSHandlerCheckCommon` loses a spurious parameter and a void return), and a function
+with a probed frame keeps a correct stack pointer instead of printing every local as an
+`&stack0x...` address. `__GSHandlerCheck` itself needs no entry: it is ordinary code that
+calls the cookie check. The older `set_preserves_rax` stays in the native API for a
+helper that has a RAX effect but no fixup.
 
 ## Prototype pack
 

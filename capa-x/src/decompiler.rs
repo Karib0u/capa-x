@@ -17,6 +17,8 @@ use crate::extract::recovery::flirt::{self, Signatures};
 use crate::extract::recovery::{self, Analysis};
 use crate::fid;
 
+mod effects;
+
 /// Ghidra 12.1.4 Function ID data for x64 Visual Studio runtimes; see `sigs/FID.md`.
 static FID_PACK: &[u8] = include_bytes!("../sigs/fid-x64.pack");
 
@@ -156,7 +158,7 @@ impl DecompilerSession {
                     ))
                 })?;
         }
-        for (address, name) in libraries {
+        for (address, name) in &libraries {
             // Apply runtime prototypes only to validated FLIRT matches.
             let prototype = match name.trim_start_matches('_') {
                 "security_init_cookie" => Some((ValueType::Void, vec![])),
@@ -168,16 +170,21 @@ impl DecompilerSession {
                 _ => None,
             };
             if let Some((result, parameters)) = prototype {
-                session.set_signature(address, result, &parameters)?;
+                session.set_signature(*address, result, &parameters)?;
             }
-            if name.trim_start_matches('_') == "security_check_cookie" {
-                // The MSVC x64 cookie helper preserves RAX on normal return.
-                // An ordinary void Windows x64 call instead kills that register.
-                session.native.set_preserves_rax(address).map_err(|error| {
-                    DecompileError::Initialization(format!(
-                        "cookie helper at {address:#x}: {error}"
-                    ))
-                })?;
+        }
+        // Effect models need a name from a validated source, FLIRT or Function ID.
+        // An export is only a claim by the image, so it never selects a model.
+        for (address, name) in libraries.iter().chain(recognized.iter()) {
+            if let Some(fixup) = effects::call_fixup(name) {
+                session
+                    .native
+                    .set_call_fixup(*address, fixup)
+                    .map_err(|error| {
+                        DecompileError::Initialization(format!(
+                            "{fixup} fixup for {name} at {address:#x}: {error}"
+                        ))
+                    })?;
             }
         }
         if let Some(entry) = dll_entry {
@@ -350,9 +357,10 @@ impl DecompilerSession {
                 self.limits.max_work,
             )
             .map_err(error)?;
+        // The native layer decides which of its own warnings mean incomplete.
+        let incomplete = output.incomplete || !self.warnings.is_empty();
         let mut warnings = self.warnings.clone();
         warnings.extend(output.warnings);
-        let incomplete = output.incomplete || !warnings.is_empty();
         // Inferred types remain a quality limitation even without native errors.
         warnings.push("Types and prototypes without supplied signatures are inferred; validate pseudocode against machine code.".into());
         Ok(Decompilation {

@@ -264,6 +264,83 @@ for the 184 functions, `functions/` for every function of the 23 samples with bo
 ranges and incoming reference types). They depend only on the sample and the Ghidra
 version, so rerun Ghidra only when either changes.
 
+## Phase 5: effect models and data flow
+
+Same 184 addresses and the same full-Ghidra reference outputs, both columns rerun on
+one machine (engine 12.1.4; "before" is the Phase 3 commit `fa89615`). The change:
+calls to `__security_check_cookie` and to the stack probes (`__chkstk` and relatives)
+now use the compiler spec's call fixups (see [Effect models](decompiler.md#effect-models)),
+replacing the hand-written RAX-preservation effect for the cookie check.
+
+| Metric | Before | After |
+|---|---:|---:|
+| Native returned text | 181 | 181 |
+| Flagged incomplete | 145 (80.1%) | **128 (70.7%)** |
+| Not flagged incomplete | 36 | 53 |
+| Return void/non-void agrees | 93.9% | 94.5% |
+| Parameter count agrees | 87.3% | 87.8% |
+| Ghidra's named callees also named by native | 75.7% (484/639) | 75.7% (484/639) |
+| Argument count agrees on matched callees | 97.1% | 97.1% |
+| Gotos, Ghidra / native | 421 / 439 | 421 / 426 |
+| Output lines, Ghidra / native | 18,864 / 19,229 | 18,864 / 19,102 |
+| `stack0x` address expressions, Ghidra / native | 5 / 63 | 5 / 5 |
+
+23 of the 184 texts changed; the three work-limit errors are unchanged. Three effects:
+
+- **Cookie check.** The notice appears in 22 of the 181 texts. The call and the dead `cookie ^ frame`
+  computation disappear, as in Ghidra, so a callee such as `__GSHandlerCheckCommon`
+  loses a spurious parameter and a void return (`void (uint8, int8, uint4 *)` to
+  `uint8 (xunknown8, int8)`, Ghidra: `ulonglong (undefined8, longlong)`).
+- **Stack probe.** A function with a large frame (`_write_nolock` in `10ebcf8c...`)
+  used to print every local as `&stack0x...` and as `iStackX_8` slots because the
+  probe left the stack pointer unknown. It now prints a normal frame, close to Ghidra's.
+- **Incomplete flag.** Ghidra's `replaced with injection` comment is informational and no
+  longer sets `incomplete`: 17 fewer functions are flagged. The comment itself is still in
+  the text and the warnings.
+
+The flag drop is a definition change as much as an improvement: those functions still
+have the generic "types are inferred" note, and remaining gaps (unknown callee
+prototypes) still set the flag.
+
+### Parameters from callees and call sites: measured, not adopted
+
+Callee-body inference rejects a callee when any call inside it has an unlocked
+prototype. Debug counts on this selection: 2,978 of 3,338 rejection events were that
+reason (callees with an indirect call, an import without a prototype, or a function
+without an inferred one), and the other 360 were decompiler warnings. That is the cluster behind `__acrt_FlsGetValue()`
+and `_invalid_parameter(...)` losing arguments (Ghidra infers the arity from the callee body).
+Three relaxations were tried and measured against the table above:
+
+| Variant | Void | Params | Arity | Changed texts | Verdict |
+|---|---:|---:|---:|---:|---|
+| Accept callees with any unlocked call | 93.9% | 87.8% | 97.5% | 53 | Lost a return value (`FUN_18000adc4` became void) and gained spurious forwarded parameters in two float routines |
+| Same, lock inputs only | 94.5% | 87.8% | 97.5% | 46 | Two functions gain agreement, two lose it (forwarded `xmm`/`rdx` registers become parameters) |
+| Accept only callees whose unlocked calls are indirect | 94.5% | 87.8% | 97.1% | 8 | No metric moves |
+
+None is better than neutral on the selected metrics and each adds failure modes that
+are hard to see (extra parameters on callees that never read them), so inference stays
+strict. A real fix needs to tell a register a callee reads from one it only forwards to an
+unknown call; that is a change to how the engine's trial analysis is used, not a table.
+
+Two other findings from the same pass:
+
+- Several apparent argument-count mismatches were comparison artifacts. The checker
+  reads the first call of each name, and Ghidra also prints `Process32NextW()` without
+  arguments for the second call of a loop, exactly as native does.
+- `_invalid_parameter(..., 0)`: Ghidra passes a fifth, stack-passed argument and native
+  drops it. The callee's prototype is not in the packed archives (Ghidra infers it from
+  the callee body), so the stack trial is judged by the same alias and local-range rules
+  as any unknown callee. Same root cause as above.
+
+The remaining shadow-space and local naming differences (`iStackX_10` against Ghidra's
+`local_res10`, `xunknown8` against `undefined8`) are Ghidra's Java layer naming
+conventions; they were left alone because renaming changes every consumer's output
+without changing the analysis.
+
+The capability path was checked: `cargo test --workspace` and the `decompiler` feature
+tests (which include `features_parity`), and the smoke corpus (23 of 23 identical, 0
+divergences over 731 reference-matched rules). The outer corpus was not rerun.
+
 ## Not yet done
 
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).

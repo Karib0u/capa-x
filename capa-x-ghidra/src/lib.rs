@@ -30,6 +30,7 @@ mod ffi {
         include!("bridge.hh");
         type Session;
         fn set_preserves_rax(self: Pin<&mut Session>, address: u64) -> Result<()>;
+        fn set_call_fixup(self: Pin<&mut Session>, address: u64, fixup: &str) -> Result<()>;
         fn apply_prototype(self: Pin<&mut Session>, address: u64, name: &str) -> Result<bool>;
         fn validate_prototype_pack(self: Pin<&mut Session>, max_report: u32) -> Result<String>;
         fn add_tail_call(
@@ -132,6 +133,12 @@ impl Session {
     /// Explicit ABI fact, used for recognized runtime helpers only.
     pub fn set_preserves_rax(&mut self, address: u64) -> Result<(), Error> {
         self.inner.pin_mut().set_preserves_rax(address)
+    }
+    /// Replace calls to the function at `address` with one of the compiler
+    /// specification's `<callfixup>` p-code snippets (for example
+    /// `security_check_cookie`). Unknown fixup names are an error.
+    pub fn set_call_fixup(&mut self, address: u64, fixup: &str) -> Result<(), Error> {
+        self.inner.pin_mut().set_call_fixup(address, fixup)
     }
     pub fn decompile(
         &mut self,

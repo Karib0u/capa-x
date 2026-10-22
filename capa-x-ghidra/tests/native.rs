@@ -28,6 +28,37 @@ fn explicit_register_effect_preserves_return_without_changing_ordinary_calls(
 }
 
 #[test]
+fn call_fixup_models_a_helper_and_is_not_an_analysis_gap() -> Result<(), Box<dyn std::error::Error>>
+{
+    // mov eax,42; call helper; ret; padding; helper: ret
+    let mut bytes = vec![0xb8, 42, 0, 0, 0, 0xe8, 6, 0, 0, 0, 0xc3];
+    bytes.resize(16, 0x90);
+    bytes.push(0xc3);
+    let mut session = Session::new()?;
+    session.add_section(0x1000, &bytes, true, true)?;
+    session.add_function(0x1000, "caller", false)?;
+    session.add_function(0x1010, "helper", false)?;
+    assert!(session.set_call_fixup(0, "security_check_cookie").is_err());
+    assert!(session.set_call_fixup(0x1010, "no_such_fixup").is_err());
+    session.set_call_fixup(0x1010, "security_check_cookie")?;
+    let modeled = session.decompile(0x1000, 5000, 1000, 100_000)?;
+    // The injected snippet leaves RAX alone, so the constant survives the call,
+    // the call itself disappears, and the notice does not mark the result incomplete.
+    assert!(modeled.text.contains("return 0x2a"), "{}", modeled.text);
+    assert!(!modeled.text.contains("helper("), "{}", modeled.text);
+    assert!(
+        modeled
+            .warnings
+            .iter()
+            .any(|w| w.contains("replaced with injection")),
+        "{:?}",
+        modeled.warnings
+    );
+    assert!(!modeled.incomplete, "{:?}", modeled.warnings);
+    Ok(())
+}
+
+#[test]
 fn deadline_is_checked_during_translation() -> Result<(), Box<dyn std::error::Error>> {
     let mut session = Session::new()?;
     let mut bytes = vec![0x90; 60_000];
