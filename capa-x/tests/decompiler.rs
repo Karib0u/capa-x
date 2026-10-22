@@ -173,10 +173,17 @@ fn unsupported_and_invalid_requests_are_controlled() -> anyhow::Result<()> {
             .get_mut(nt + 4..nt + 6)
             .ok_or_else(|| anyhow::anyhow!("missing machine field"))?
             .copy_from_slice(&machine.to_le_bytes());
-        assert!(matches!(
-            DecompilerSession::from_pe(&other_architecture),
-            Err(capa_x::decompiler::DecompileError::Unsupported(_))
-        ));
+        let result = DecompilerSession::from_pe(&other_architecture);
+        if machine == 0xaa64 {
+            assert!(matches!(
+                result,
+                Err(capa_x::decompiler::DecompileError::Unsupported(_))
+            ));
+        } else {
+            // x86 is supported now; a PE32+ body behind an i386 machine field is
+            // inconsistent input and must be an error or a session, never a panic.
+            let _ = result;
+        }
     }
     for length in [0, 2, 64, 256, 512] {
         assert!(DecompilerSession::from_pe(FIXTURE.get(..length).unwrap_or_default()).is_err());

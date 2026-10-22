@@ -1,4 +1,4 @@
-//! Per-instruction FID inputs for x86-64: the instruction mask and Ghidra's
+//! Per-instruction FID inputs for x86 and x86-64: the instruction mask and Ghidra's
 //! operand object lists, derived with iced-x86 instead of Sleigh.
 //!
 //! Anything that cannot be described confidently yields `None`; the caller
@@ -10,10 +10,18 @@ use iced_x86::{
 
 /// Register offset in Ghidra's x86-64 register space.
 pub fn register_offset(register: Register) -> Option<u32> {
+    register_offset_in(true, register)
+}
+
+/// Register offset in Ghidra's x86-64 (`wide`) or x86-32 register space. The general
+/// registers are 8 bytes apart in the first and 4 bytes apart in the second; the high
+/// byte registers sit one byte into their parent, and everything else is shared.
+pub fn register_offset_in(wide: bool, register: Register) -> Option<u32> {
     use Register::*;
+    let (stride, high) = if wide { (8, 8) } else { (4, 4) };
     let gpr = |index: u32| {
         if index < 8 {
-            index * 8
+            index * stride
         } else {
             128 + (index - 8) * 8
         }
@@ -28,9 +36,9 @@ pub fn register_offset(register: Register) -> Option<u32> {
         RSI | ESI | SI | SIL => gpr(6),
         RDI | EDI | DI | DIL => gpr(7),
         AH => 1,
-        CH => 9,
-        DH => 17,
-        BH => 25,
+        CH => 1 + high,
+        DH => 1 + 2 * high,
+        BH => 1 + 3 * high,
         R8 | R8D | R8W | R8L => gpr(8),
         R9 | R9D | R9W | R9L => gpr(9),
         R10 | R10D | R10W | R10L => gpr(10),
@@ -66,6 +74,16 @@ pub fn register_offset(register: Register) -> Option<u32> {
     })
 }
 
+/// Two-byte x87 instructions that Ghidra's `ia.sinc` defines as fixed constructors (for
+/// example `FLDZ` = D9 EE, and `FCOM` = D8 D1, which has an implicit ST1). They are
+/// matched whole, so the second byte is part of the pattern and no operand is listed.
+/// Every other mod=3 form has an `st(i)` field in the low three bits.
+const FIXED_X87: &[(u8, u8)] = &[(0xd8, 0xd1), (0xd8, 0xd9), (0xd9, 0xc9), (0xd9, 0xd0), (0xd9, 0xe0), (0xd9, 0xe1), (0xd9, 0xe4), (0xd9, 0xe5), (0xd9, 0xe8), (0xd9, 0xe9), (0xd9, 0xea), (0xd9, 0xeb), (0xd9, 0xec), (0xd9, 0xed), (0xd9, 0xee), (0xd9, 0xf0), (0xd9, 0xf1), (0xd9, 0xf2), (0xd9, 0xf3), (0xd9, 0xf4), (0xd9, 0xf5), (0xd9, 0xf6), (0xd9, 0xf7), (0xd9, 0xf8), (0xd9, 0xf9), (0xd9, 0xfa), (0xd9, 0xfb), (0xd9, 0xfc), (0xd9, 0xfd), (0xd9, 0xfe), (0xd9, 0xff), (0xda, 0xe9), (0xdb, 0xe0), (0xdb, 0xe1), (0xdb, 0xe2), (0xdb, 0xe3), (0xdb, 0xe4), (0xdd, 0xe1), (0xdd, 0xe9), (0xde, 0xc1), (0xde, 0xc9), (0xde, 0xd9), (0xde, 0xe1), (0xde, 0xe9), (0xde, 0xf1), (0xde, 0xf9), (0xdf, 0xe0)];
+
+fn is_fixed_x87(opcode: u8, modrm: u8) -> bool {
+    FIXED_X87.contains(&(opcode, modrm))
+}
+
 fn signed_immediate(instruction: &Instruction, operand: u32) -> Option<i64> {
     let value = instruction.try_immediate(operand).ok()?;
     Some(match instruction.try_op_kind(operand).ok()? {
@@ -88,9 +106,22 @@ fn is_prefix(byte: u8) -> bool {
     )
 }
 
-/// Decode `bytes` at `address` and describe it for hashing.
+/// Decode 64-bit code at `address` and describe it for hashing.
 pub fn describe(address: u64, bytes: &[u8]) -> Option<Hashed> {
-    let mut decoder = Decoder::with_ip(64, bytes, address, DecoderOptions::NONE);
+    describe_in(64, address, bytes, &|_| false)
+}
+
+/// Decode `bytes` at `address` as 32- or 64-bit code and describe it for hashing.
+/// `is_address` says whether a 32-bit immediate points into the program's memory:
+/// Ghidra then types the operand as an address and the specific hash ignores its value.
+pub fn describe_in(
+    bits: u32,
+    address: u64,
+    bytes: &[u8],
+    is_address: &dyn Fn(u64) -> bool,
+) -> Option<Hashed> {
+    let wide = bits == 64;
+    let mut decoder = Decoder::with_ip(bits, bytes, address, DecoderOptions::NONE);
     let instruction = decoder.decode();
     if instruction.is_invalid() {
         return None;
@@ -108,7 +139,12 @@ pub fn describe(address: u64, bytes: &[u8]) -> Option<Hashed> {
         position += 1;
     }
     let first = *raw.get(position)?;
-    let vex = first == 0xc5 || first == 0xc4;
+    // In 32-bit mode C4 and C5 are also LES and LDS, so ask the decoder.
+    let vex = if wide {
+        first == 0xc5 || first == 0xc4
+    } else {
+        instruction.encoding() == iced_x86::EncodingKind::VEX
+    };
     let mut index_extension = false;
     let mut map = 0_u8;
     if vex {
@@ -125,13 +161,13 @@ pub fn describe(address: u64, bytes: &[u8]) -> Option<Hashed> {
             set(position + 2, 0x03)?;
             position += 3;
         }
-    } else if (0x40..=0x4f).contains(&first) {
+    } else if wide && (0x40..=0x4f).contains(&first) {
         index_extension = first & 2 != 0;
         set(position, 0xf8)?;
         position += 1;
     }
     let mut last = *raw.get(position)?;
-    if !vex && last == 0x62 {
+    if instruction.encoding() == iced_x86::EncodingKind::EVEX {
         return None; // EVEX is not described yet.
     }
     set(position, 0xff)?;
@@ -152,7 +188,8 @@ pub fn describe(address: u64, bytes: &[u8]) -> Option<Hashed> {
     }
     let opcode_end = position;
     if !vex
-        && matches!((map, last), (0, 0x50..=0x5f | 0x91..=0x97 | 0xb0..=0xbf) | (1, 0xc8..=0xcf))
+        && (matches!((map, last), (0, 0x50..=0x5f | 0x91..=0x97 | 0xb0..=0xbf) | (1, 0xc8..=0xcf))
+            || (!wide && map == 0 && (0x40..=0x4f).contains(&last)))
     {
         set(opcode_end.checked_sub(1)?, 0xf8)?; // register encoded in the opcode
     }
@@ -189,6 +226,10 @@ pub fn describe(address: u64, bytes: &[u8]) -> Option<Hashed> {
         let mut modrm_mask = 0xc0;
         if reg_extension {
             modrm_mask |= 0x38;
+        }
+        let fixed_x87 = map == 0 && mode == 3 && is_fixed_x87(last, modrm);
+        if fixed_x87 {
+            modrm_mask = 0xff;
         }
         if mode != 3 {
             if rm == 4 || (mode == 0 && rm == 5) {
@@ -231,7 +272,17 @@ pub fn describe(address: u64, bytes: &[u8]) -> Option<Hashed> {
         instruction.flow_control(),
         FlowControl::Call | FlowControl::IndirectCall
     );
-    let mut operands = operands(&instruction, &offsets)?;
+    let mut operands = operands(wide, &instruction, &offsets, is_address)?;
+    if map == 0
+        && !vex
+        && matches!(
+            (raw.get(opcode_end - 1), raw.get(opcode_end)),
+            (Some(op @ 0xd8..=0xdf), Some(modrm)) if is_fixed_x87(*op, *modrm)
+        )
+        && !matches!(raw.get(opcode_end - 1..=opcode_end), Some([0xdf, 0xe0]))
+    {
+        operands.clear(); // the implied ST(1) is not an operand
+    }
     // CMPxx with a predicate below 8 (32 for VEX) is a distinct Sleigh
     // constructor: the immediate belongs to the pattern, not to an operand.
     if map == 1 && last == 0xc2 && offsets.has_immediate() {
@@ -260,8 +311,10 @@ pub fn describe(address: u64, bytes: &[u8]) -> Option<Hashed> {
 }
 
 fn operands(
+    wide: bool,
     instruction: &Instruction,
     offsets: &iced_x86::ConstantOffsets,
+    is_address: &dyn Fn(u64) -> bool,
 ) -> Option<Vec<Operand>> {
     let mut out = Vec::new();
     let string_operation = matches!(
@@ -295,7 +348,7 @@ fn operands(
                 let register = instruction.try_op_register(index).ok()?;
                 operand
                     .objects
-                    .push(Obj::Register(register_offset(register)?));
+                    .push(Obj::Register(register_offset_in(wide, register)?));
             }
             OpKind::Immediate8
             | OpKind::Immediate8_2nd
@@ -307,9 +360,9 @@ fn operands(
             | OpKind::Immediate8to64
             | OpKind::Immediate32to64 => {
                 operand.whole_scalar = true;
-                operand
-                    .objects
-                    .push(Obj::Scalar(signed_immediate(instruction, index)?));
+                let value = signed_immediate(instruction, index)?;
+                operand.address = !wide && is_address(u64::from(value as u32));
+                operand.objects.push(Obj::Scalar(value));
                 let (start, size) = if matches!(kind, OpKind::Immediate8_2nd) {
                     (offsets.immediate_offset2(), offsets.immediate_size2())
                 } else {
@@ -326,7 +379,8 @@ fn operands(
                 let base = instruction.memory_base();
                 let index_register = instruction.memory_index();
                 if instruction.segment_prefix() != Register::None {
-                    operand.objects.push(Obj::Register(register_offset(
+                    operand.objects.push(Obj::Register(register_offset_in(
+                        wide,
                         instruction.segment_prefix(),
                     )?));
                 }
@@ -351,22 +405,40 @@ fn operands(
                         && index_register == Register::None
                         && instruction.segment_prefix() == Register::None
                     {
-                        operand.objects.push(Obj::Address);
-                    } else if base == Register::None && displacement != 0 {
+                        if instruction.mnemonic() == Mnemonic::Lea && !wide {
+                            // As for RIP-relative LEA, Sleigh turns the address into a scalar.
+                            operand.whole_scalar = true;
+                            operand.address = is_address(u64::from(displacement as u32));
+                            operand.objects.push(Obj::Scalar(displacement));
+                        } else {
+                            operand.objects.push(Obj::Address);
+                        }
+                    } else if base == Register::None
+                        && ((index_register == Register::None
+                            && (displacement != 0 || instruction.segment_prefix() != Register::None))
+                            || (wide && displacement != 0))
+                    {
+                        // A segment override keeps even a zero displacement, as in `fs:[0]`.
+                        // In 64-bit code `[index*scale+disp]` lists the displacement first.
                         operand.objects.push(Obj::Scalar(displacement));
                     }
                     if base != Register::None {
-                        operand.objects.push(Obj::Register(register_offset(base)?));
+                        operand.objects.push(Obj::Register(register_offset_in(wide, base)?));
                     }
                     if index_register != Register::None {
                         operand
                             .objects
-                            .push(Obj::Register(register_offset(index_register)?));
+                            .push(Obj::Register(register_offset_in(wide, index_register)?));
                         operand
                             .objects
                             .push(Obj::Scalar(i64::from(instruction.memory_index_scale())));
                     }
-                    if base != Register::None && displacement != 0 {
+                    // With a base, Ghidra lists the displacement last; with only an
+                    // index (`[index*scale+disp]`) it also follows the scale.
+                    // A SIB without base always carries an explicit disp32, even when it is zero.
+                    if (base != Register::None && displacement != 0)
+                        || (!wide && base == Register::None && index_register != Register::None)
+                    {
                         operand.objects.push(Obj::Scalar(displacement));
                     }
                 }
@@ -375,12 +447,19 @@ fn operands(
                     operand.span = (start, start + offsets.displacement_size());
                 }
             }
-            OpKind::MemoryESRDI => operand
-                .objects
-                .push(Obj::Register(register_offset(Register::RDI)?)),
-            OpKind::MemorySegRSI => operand
-                .objects
-                .push(Obj::Register(register_offset(Register::RSI)?)),
+            OpKind::MemoryESRDI | OpKind::MemoryESEDI => {
+                if !wide {
+                    // The 32-bit constructor shows the ES override that 64-bit mode drops.
+                    operand.objects.push(Obj::Register(register_offset_in(wide, Register::ES)?));
+                }
+                operand.objects.push(Obj::Register(register_offset_in(
+                    wide,
+                    if wide { Register::RDI } else { Register::EDI },
+                )?));
+            }
+            OpKind::MemorySegRSI | OpKind::MemorySegESI => operand.objects.push(Obj::Register(
+                register_offset_in(wide, if wide { Register::RSI } else { Register::ESI })?,
+            )),
             _ => return None,
         }
         out.push(operand);
@@ -388,8 +467,10 @@ fn operands(
     if matches!(
         instruction.mnemonic(),
         Mnemonic::Cmpsb | Mnemonic::Cmpsw | Mnemonic::Cmpsd | Mnemonic::Cmpsq
-    ) && instruction.op_kind(0) == OpKind::MemorySegRSI
-        && out.len() == 2
+    ) && matches!(
+        instruction.op_kind(0),
+        OpKind::MemorySegRSI | OpKind::MemorySegESI
+    ) && out.len() == 2
     {
         out.swap(0, 1);
     }

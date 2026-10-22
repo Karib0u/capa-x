@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::hash::{hash_function, Instruction, Quad};
 use super::matcher::{match_name, Family};
 use super::pack::Pack;
-use super::x86::describe;
+use super::x86::describe_in;
 use crate::extract::decoder::Flow;
 use crate::extract::recovery::{Analysis, Function};
 
@@ -47,6 +47,14 @@ pub fn name_functions(
     pack: &Pack<'_>,
     named: &dyn Fn(u64) -> bool,
 ) -> BTreeMap<u64, String> {
+    let bits = analysis.image.architecture.bitness();
+    let sections = &analysis.image.sections;
+    // Ghidra types a 32-bit immediate as an address when it points into the program.
+    let is_address = |value: u64| {
+        sections
+            .iter()
+            .any(|section| section.address <= value && value - section.address < section.virtual_size)
+    };
     let relocations = &analysis.image.relocation_locations;
     let has_relocation = |low: u64, high: u64| {
         let first = relocations.partition_point(|location| *location < low);
@@ -86,9 +94,32 @@ pub fn name_functions(
             }
         }
         calls.insert(*address, targets);
-        let described: Option<Vec<Instruction>> = all
+        // Ghidra reads `fwait` plus the no-wait x87 form (FSTSW, FSTCW...) as one
+        // instruction; the decoder here yields two.
+        let mut merged: Vec<(u64, Vec<u8>)> = Vec::with_capacity(all.len());
+        let mut index = 0;
+        while index < all.len() {
+            let insn = all[index];
+            match all.get(index + 1) {
+                Some(next)
+                    if insn.bytes == [0x9b]
+                        && next.address == insn.address + 1
+                        && matches!(next.bytes.first(), Some(0xd9 | 0xdb | 0xdd | 0xdf)) =>
+                {
+                    let mut bytes = insn.bytes.clone();
+                    bytes.extend_from_slice(&next.bytes);
+                    merged.push((insn.address, bytes));
+                    index += 2;
+                }
+                _ => {
+                    merged.push((insn.address, insn.bytes.clone()));
+                    index += 1;
+                }
+            }
+        }
+        let described: Option<Vec<Instruction>> = merged
             .iter()
-            .map(|insn| describe(insn.address, &insn.bytes))
+            .map(|(address, bytes)| describe_in(bits, *address, bytes, &is_address))
             .collect();
         if let Some(described) = described {
             if let Some(quad) = hash_function(&described, &has_relocation) {

@@ -1,4 +1,4 @@
-//! Optional, serial, in-process x86-64 PE decompilation.
+//! Optional, serial, in-process x86 and x86-64 PE decompilation.
 //!
 //! A session owns one image and its native SLEIGH translator. Reuse it for
 //! explicit function requests. Native failures poison the session; construct
@@ -19,12 +19,13 @@ use crate::fid;
 
 mod effects;
 
-/// Ghidra 12.1.4 Function ID data for x64 Visual Studio runtimes; see `sigs/FID.md`.
-static FID_PACK: &[u8] = include_bytes!("../sigs/fid-x64.pack");
+/// Ghidra 12.1.4 Function ID data for x64 and x86 Visual Studio runtimes; see `sigs/FID.md`.
+static FID_PACK_X64: &[u8] = include_bytes!("../sigs/fid-x64.pack");
+static FID_PACK_X86: &[u8] = include_bytes!("../sigs/fid-x86.pack");
 
 #[derive(Debug, thiserror::Error)]
 pub enum DecompileError {
-    #[error("decompilation supports only native x86-64 PE images: {0}")]
+    #[error("decompilation supports only native x86 and x86-64 PE images: {0}")]
     Unsupported(String),
     #[error("preparing decompiler image: {0}")]
     Input(String),
@@ -54,12 +55,26 @@ impl Default for ResourceLimits {
     }
 }
 
-/// Windows x64 uses Ghidra's x86-64-win.cspec default __fastcall model.
+/// Windows x64 uses Ghidra's x86-64-win.cspec default __fastcall model. Windows x86
+/// has several conventions; `x86win.cspec` defaults to __stdcall with the stack
+/// purge inferred per function, and the packed archives name each import's own.
 #[derive(Clone, Copy, Debug, Default, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CallingConvention {
     #[default]
     WindowsX64,
+    WindowsX86,
+}
+impl CallingConvention {
+    fn of(architecture: Architecture) -> Self {
+        match architecture {
+            Architecture::X86 => Self::WindowsX86,
+            _ => Self::WindowsX64,
+        }
+    }
+    fn wide(self) -> bool {
+        matches!(self, Self::WindowsX64)
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -94,6 +109,7 @@ pub struct DecompilerSession {
     warnings: Vec<String>,
     initialization_ms: f64,
     limits: ResourceLimits,
+    convention: CallingConvention,
 }
 impl DecompilerSession {
     /// Parse and recover once. Native SLEIGH, not iced-x86, translates the
@@ -125,6 +141,8 @@ impl DecompilerSession {
         }
         let analysis = recovery::analyze_partial_pe(bytes)
             .map_err(|e| DecompileError::Input(e.to_string()))?;
+        let convention = CallingConvention::of(analysis.image.architecture);
+        let wide = convention.wide();
         let signatures =
             Signatures::decompiler_runtime().map_err(|e| DecompileError::Input(e.to_string()))?;
         let libraries = flirt::identify_library_functions(&analysis, &signatures)
@@ -144,14 +162,14 @@ impl DecompilerSession {
         if let Some(entry) = dll_entry {
             names.entry(entry).or_insert_with(|| "DllEntryPoint".into());
         }
-        let pack =
-            fid::pack::Pack::parse(FID_PACK).map_err(|e| DecompileError::Input(e.to_string()))?;
+        let pack = fid::pack::Pack::parse(if wide { FID_PACK_X64 } else { FID_PACK_X86 })
+            .map_err(|e| DecompileError::Input(e.to_string()))?;
         let recognized =
             fid::names::name_functions(&analysis, &pack, &|address| names.contains_key(&address));
         for (address, name) in &recognized {
             names.insert(*address, name.clone());
         }
-        let mut session = Self::from_analysis(&analysis, &names, CallingConvention::WindowsX64)?;
+        let mut session = Self::from_analysis(&analysis, &names, convention)?;
         for (address, name) in &recognized {
             // Naming a runtime function also types it when the archives know it.
             session
@@ -167,7 +185,7 @@ impl DecompilerSession {
             // Apply runtime prototypes only to validated FLIRT matches.
             let prototype = match name.trim_start_matches('_') {
                 "security_init_cookie" => Some((ValueType::Void, vec![])),
-                "security_check_cookie" => Some((ValueType::Void, vec![ValueType::U64])),
+                "security_check_cookie" if wide => Some((ValueType::Void, vec![ValueType::U64])),
                 "DllMainCRTStartup" | "DllMain" => Some((
                     ValueType::I32,
                     vec![ValueType::Pointer, ValueType::U32, ValueType::Pointer],
@@ -181,7 +199,7 @@ impl DecompilerSession {
         // Effect models need a name from a validated source, FLIRT or Function ID.
         // An export is only a claim by the image, so it never selects a model.
         for (address, name) in libraries.iter().chain(recognized.iter()) {
-            if let Some(fixup) = effects::call_fixup(name) {
+            if let Some(fixup) = effects::call_fixup(name, wide) {
                 session
                     .native
                     .set_call_fixup(*address, fixup)
@@ -208,13 +226,20 @@ impl DecompilerSession {
     pub fn from_analysis(
         analysis: &Analysis,
         names: &BTreeMap<u64, String>,
-        _convention: CallingConvention,
+        convention: CallingConvention,
     ) -> Result<Self, DecompileError> {
         let started = Instant::now();
         let image = &analysis.image;
         validate_image(image)?;
+        let wide = image.architecture == Architecture::X64;
+        if convention.wide() != wide {
+            return Err(DecompileError::Request(format!(
+                "{convention:?} does not match the {:?} image",
+                image.architecture
+            )));
+        }
         let init = |e: capa_x_ghidra::Error| DecompileError::Initialization(e.to_string());
-        let mut native = capa_x_ghidra::Session::new().map_err(init)?;
+        let mut native = capa_x_ghidra::Session::new(wide).map_err(init)?;
         let mut executable_ranges = Vec::new();
         for section in &image.sections {
             if section.virtual_size == 0 {
@@ -301,6 +326,7 @@ impl DecompilerSession {
             warnings,
             initialization_ms: started.elapsed().as_secs_f64() * 1000.0,
             limits: ResourceLimits::default(),
+            convention,
         })
     }
 
@@ -371,7 +397,7 @@ impl DecompilerSession {
         Ok(Decompilation {
             address,
             name,
-            calling_convention: CallingConvention::WindowsX64,
+            calling_convention: self.convention,
             text: output.text,
             warnings,
             incomplete,
@@ -384,7 +410,9 @@ impl DecompilerSession {
     }
 }
 fn validate_image(image: &LoadedImage) -> Result<(), DecompileError> {
-    if image.format != ImageFormat::Pe || image.architecture != Architecture::X64 {
+    if image.format != ImageFormat::Pe
+        || !matches!(image.architecture, Architecture::X64 | Architecture::X86)
+    {
         return Err(DecompileError::Unsupported(format!(
             "{:?} {:?}",
             image.format, image.architecture

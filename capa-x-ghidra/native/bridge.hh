@@ -8,7 +8,7 @@ class Session {
   class Impl;
   std::unique_ptr<Impl> impl;
 public:
-  Session();
+  explicit Session(bool wide);
   ~Session();
   void add_section(uint64_t address, rust::Slice<const uint8_t> bytes, bool executable, bool readonly);
   void add_function(uint64_t address, rust::Str name, bool noreturn);
@@ -21,5 +21,5 @@ public:
   rust::String validate_prototype_pack(uint32_t max_report);
   NativeOutput decompile(uint64_t address, uint32_t timeout_ms, uint32_t max_instructions, uint32_t max_work);
 };
-std::unique_ptr<Session> new_session();
+std::unique_ptr<Session> new_session(bool wide);
 }

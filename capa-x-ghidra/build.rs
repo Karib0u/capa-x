@@ -46,30 +46,29 @@ mod native {
             .arg("-lz")
             .arg("-o")
             .arg(&executable));
-        let sla = out.join("x86-64.sla");
-        run(Command::new(&executable)
-            .arg(specs.join("x86-64.slaspec"))
-            .arg(&sla));
         let mut embedded = String::new();
-        for (name, path) in [
-            ("sla", sla),
-            ("pspec", specs.join("x86-64.pspec")),
-            ("cspec", specs.join("x86-64-win.cspec")),
+        for (arch, slaspec, pspec, cspec) in [
+            ("x64", "x86-64.slaspec", "x86-64.pspec", "x86-64-win.cspec"),
+            ("x86", "x86.slaspec", "x86.pspec", "x86win.cspec"),
         ] {
-            let bytes = fs::read(path).unwrap();
-            embedded.push_str(&format!("static const unsigned char {name}_bytes[] = {{"));
-            for byte in bytes {
-                embedded.push_str(&format!("{byte},"));
+            let sla = out.join(format!("{arch}.sla"));
+            run(Command::new(&executable).arg(specs.join(slaspec)).arg(&sla));
+            let pack = PathBuf::from(format!("data/winapi{}.pack", if arch == "x64" { "64" } else { "32" }));
+            println!("cargo:rerun-if-changed={}", pack.display());
+            for (name, path) in [
+                ("sla", sla),
+                ("pspec", specs.join(pspec)),
+                ("cspec", specs.join(cspec)),
+                ("pack", pack),
+            ] {
+                let bytes = fs::read(path).unwrap();
+                embedded.push_str(&format!("static const unsigned char {name}_{arch}_bytes[] = {{"));
+                for byte in bytes {
+                    embedded.push_str(&format!("{byte},"));
+                }
+                embedded.push_str("};\n");
             }
-            embedded.push_str("};\n");
         }
-        let pack = PathBuf::from("data/winapi64.pack");
-        println!("cargo:rerun-if-changed=data/winapi64.pack");
-        embedded.push_str("static const unsigned char pack_bytes[] = {");
-        for byte in fs::read(&pack).unwrap() {
-            embedded.push_str(&format!("{byte},"));
-        }
-        embedded.push_str("};\n");
         fs::write(out.join("specs.hh"), embedded).unwrap();
 
         // Keep vendored sources byte-identical. Apply the documented integration

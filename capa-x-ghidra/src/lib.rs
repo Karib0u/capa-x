@@ -46,7 +46,7 @@ mod ffi {
             result: ValueType,
             parameters: &[ValueType],
         ) -> Result<()>;
-        fn new_session() -> Result<UniquePtr<Session>>;
+        fn new_session(wide: bool) -> Result<UniquePtr<Session>>;
         fn add_section(
             self: Pin<&mut Session>,
             address: u64,
@@ -84,9 +84,10 @@ pub struct Session {
     _serial: PhantomData<Rc<()>>,
 }
 impl Session {
-    pub fn new() -> Result<Self, Error> {
+    /// `wide` selects the x86-64 language, otherwise x86-32.
+    pub fn new(wide: bool) -> Result<Self, Error> {
         Ok(Self {
-            inner: ffi::new_session()?,
+            inner: ffi::new_session(wide)?,
             _serial: PhantomData,
         })
     }

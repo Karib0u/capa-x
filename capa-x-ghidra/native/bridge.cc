@@ -73,6 +73,32 @@ protected:
 public:
   const std::string &str() const { return text; }
 };
+// One entry per supported language. Everything that differs between x86-32 and
+// x86-64 (language, specs, prototype pack, pointer width, the unmapped range used for
+// import targets) lives here; the rest of the bridge reads it from the session.
+struct Spec {
+  bool wide;
+  const char *archid;
+  const unsigned char *sla; size_t sla_size;
+  const unsigned char *pspec; size_t pspec_size;
+  const unsigned char *cspec; size_t cspec_size;
+  const unsigned char *pack; size_t pack_size;
+  int pointer;
+  uint64_t external_base;
+  uint64_t address_limit;
+};
+const Spec &spec_for(bool wide) {
+  static const Spec x64{true, "x86:LE:64:default:windows", sla_x64_bytes, sizeof(sla_x64_bytes),
+    pspec_x64_bytes, sizeof(pspec_x64_bytes), cspec_x64_bytes, sizeof(cspec_x64_bytes),
+    pack_x64_bytes, sizeof(pack_x64_bytes), 8, 0xffff000000000000ULL, 0xffff000000000000ULL};
+  static const Spec x86{false, "x86:LE:32:default:windows", sla_x86_bytes, sizeof(sla_x86_bytes),
+    pspec_x86_bytes, sizeof(pspec_x86_bytes), cspec_x86_bytes, sizeof(cspec_x86_bytes),
+    pack_x86_bytes, sizeof(pack_x86_bytes), 4, 0xf0000000ULL, 0xf0000000ULL};
+  return wide ? x64 : x86;
+}
+// Set under engine_mutex around architecture construction, where the SLEIGH hook
+// asks for the compiled specification.
+const Spec *constructing_spec = nullptr;
 struct Section {
   uint64_t address;
   std::vector<uint8_t> bytes;
@@ -82,8 +108,10 @@ class Image : public LoadImage {
 public:
   std::vector<Section> sections;
   size_t total = 0;
-  Image() : LoadImage("capa-x image") {}
-  std::string getArchType() const override { return "x86:LE:64:default"; }
+  std::string arch_type;
+  explicit Image(const Spec &spec)
+    : LoadImage("capa-x image"), arch_type(spec.wide ? "x86:LE:64:default" : "x86:LE:32:default") {}
+  std::string getArchType() const override { return arch_type; }
   void adjustVma(long) override { throw LowlevelError("image relocation is unsupported"); }
   bool executable(uint64_t address) const {
     for (const auto &s : sections)
@@ -302,9 +330,10 @@ public:
     return out;
   }
 };
-PrototypePack &prototype_pack() {
-  static PrototypePack pack(pack_bytes, sizeof(pack_bytes));
-  return pack;
+PrototypePack &prototype_pack(const Spec &spec) {
+  static PrototypePack x64(spec_for(true).pack, spec_for(true).pack_size);
+  static PrototypePack x86(spec_for(false).pack, spec_for(false).pack_size);
+  return spec.wide ? x64 : x86;
 }
 std::string type_key(uint64_t id) {
   char buffer[32];
@@ -326,7 +355,8 @@ class TypeFactoryPack : public TypeFactory {
     }
   };
 public:
-  explicit TypeFactoryPack(Architecture *g) : TypeFactory(g) {}
+  const Spec &spec;
+  TypeFactoryPack(Architecture *g, const Spec &s) : TypeFactory(g), spec(s) {}
   Datatype *resolve(uint64_t id) { return findById("", id, 0); }
   Datatype *findById(const std::string &n, uint8 id, int4 sz) override {
     Datatype *known = TypeFactory::findById(n, id, sz);
@@ -336,7 +366,7 @@ public:
       return getBase(n[9] - '0', TYPE_UNKNOWN);
     if (id == 0 || sz > 0) return nullptr;
     std::string value;
-    if (!prototype_pack().find(type_key(id), value)) return nullptr;
+    if (!prototype_pack(spec).find(type_key(id), value)) return nullptr;
     if (depth >= 64 || loading[id] >= 3) throw LowlevelError("packed type definition nests too deeply: " + n);
     loading[id]++;
     depth++;
@@ -349,14 +379,14 @@ public:
     return decodeType(decoder);
   }
 };
-class Architecture64 : public SleighArchitecture {
+class ArchitectureX86 : public SleighArchitecture {
+  const Spec &spec;
 protected:
-  void buildLoader(DocumentStorage &) override { loader = new Image(); }
-  void buildTypegrp(DocumentStorage &) override { types = new TypeFactoryPack(this); }
-  void resolveArchitecture() override { archid = "x86:LE:64:default:windows"; }
+  void buildLoader(DocumentStorage &) override { loader = new Image(spec); }
+  void buildTypegrp(DocumentStorage &) override { types = new TypeFactoryPack(this, spec); }
+  void resolveArchitecture() override { archid = spec.archid; }
   void buildSpecFile(DocumentStorage &store) override {
-    for (auto pair : {std::make_pair(pspec_bytes, sizeof(pspec_bytes)),
-                      std::make_pair(cspec_bytes, sizeof(cspec_bytes))}) {
+    for (auto pair : {std::make_pair(spec.pspec, spec.pspec_size), std::make_pair(spec.cspec, spec.cspec_size)}) {
       std::istringstream stream(std::string(reinterpret_cast<const char *>(pair.first), pair.second));
       store.registerTag(store.parseDocument(stream)->getRoot());
     }
@@ -366,12 +396,13 @@ protected:
   Translate *buildTranslator(DocumentStorage &) override { return new ImageSleigh(static_cast<Image *>(loader), context); }
   void modifySpaces(Translate *) override {}
 public:
-  explicit Architecture64(std::ostream *errors) : SleighArchitecture("", "x86:LE:64:default:windows", errors) {
+  ArchitectureX86(const Spec &s, std::ostream *errors) : SleighArchitecture("", s.archid, errors), spec(s) {
     if (!dynamic_cast<PrintC *>(print)) throw LowlevelError("C printer unavailable");
   }
-  ~Architecture64() override { delete translate; translate = nullptr; }
-  std::string getDescription() const override { return "x86-64 Windows"; }
+  ~ArchitectureX86() override { delete translate; translate = nullptr; }
+  std::string getDescription() const override { return spec.wide ? "x86-64 Windows" : "x86-32 Windows"; }
   Image &image() { return *static_cast<Image *>(loader); }
+  const Spec &language() const { return spec; }
 };
 std::string identifier(rust::Str input) {
   if (input.size() > 1024) throw std::runtime_error("symbol exceeds 1024 bytes");
@@ -386,7 +417,8 @@ std::string identifier(rust::Str input) {
 }
 }
 std::string capax_sla() {
-  return std::string(reinterpret_cast<const char *>(sla_bytes), sizeof(sla_bytes));
+  if (!constructing_spec) throw std::runtime_error("no language selected for the SLEIGH specification");
+  return std::string(reinterpret_cast<const char *>(constructing_spec->sla), constructing_spec->sla_size);
 }
 void capax_check() {
   if (!budget.active) return;
@@ -412,14 +444,16 @@ namespace capax {
 class Session::Impl {
 public:
   std::ostringstream errors;
-  Architecture64 arch;
+  const Spec &spec;
+  ArchitectureX86 arch;
+  int ptr() const { return spec.pointer; }
   bool poisoned = false;
   size_t symbols = 0;
   size_t edges = 0;
   std::set<uint64_t> supplied_entries;
   TypeStruct *luid;
   TypeStruct *token_privileges;
-  Impl() : arch(&errors) {
+  explicit Impl(const Spec &s) : spec(s), arch(s, &errors) {
     DocumentStorage store;
     arch.init(store);
     arch.setPrintLanguage("c-language");
@@ -548,14 +582,15 @@ public:
         std::string target = "DAT";
         std::string label;
         const auto [bytes, available] = image.bytesAt(address);
-        if ((ref.size == 8 || ref.size == 0) && address % 8 == 0 && available >= 8) {
+        const int width = ptr();
+        if ((ref.size == width || ref.size == 0) && address % width == 0 && available >= size_t(width)) {
           uint64_t value = 0;
-          for (int i = 7; i >= 0; --i) value = (value << 8) | bytes[i];
+          for (int i = width - 1; i >= 0; --i) value = (value << 8) | bytes[i];
           if (image.executable(value)) {
             target = "PTR_FUN";
-            size = 8;
+            size = width;
           } else if (image.mapped(value)) {
-            size = 8;
+            size = width;
             StringLiteral pointee;
             target = detectString(image, value, pointee)
                          ? std::string("PTR_") + (pointee.wide ? "u_" : "s_") + pointee.label
@@ -727,7 +762,7 @@ public:
   /// archive convention names such as __stdcall map to the default model.
   bool apply_pack_prototype(Funcdata *fd, const std::string &function) {
     std::string xml;
-    if (!prototype_pack().find("F:" + function, xml)) return false;
+    if (!prototype_pack(spec).find("F:" + function, xml)) return false;
     const size_t at = xml.find(" model=\"");
     if (at != std::string::npos) {
       const size_t start = at + 8, end = xml.find('"', start);
@@ -754,15 +789,19 @@ public:
     return true;
   }
 };
-Session::Session() : impl(checked([] { return std::unique_ptr<Impl>(new Impl()); })) {}
+Session::Session(bool wide) : impl(checked([wide] {
+  const Spec &spec = spec_for(wide);
+  constructing_spec = &spec;
+  return std::unique_ptr<Impl>(new Impl(spec));
+})) {}
 Session::~Session() { std::lock_guard<std::mutex> lock(engine_mutex); impl.reset(); }
-std::unique_ptr<Session> new_session() {
+std::unique_ptr<Session> new_session(bool wide) {
   std::lock_guard<std::mutex> lock(engine_mutex);
-  return checked([] {
+  return checked([wide] {
     std::call_once(initialized, [] {
       AttributeId::initialize(); ElementId::initialize(); CapabilityPoint::initializeAll();
     });
-    return std::unique_ptr<Session>(new Session());
+    return std::unique_ptr<Session>(new Session(wide));
   });
 }
 void Session::add_section(uint64_t address, rust::Slice<const uint8_t> bytes, bool executable, bool readonly) {
@@ -771,7 +810,7 @@ void Session::add_section(uint64_t address, rust::Slice<const uint8_t> bytes, bo
     impl->ready();
     auto &image = impl->arch.image();
     if (bytes.empty() || bytes.size() > 256 * 1024 * 1024 - image.total ||
-        address >= 0xffff000000000000ULL || bytes.size() >= 0xffff000000000000ULL - address || image.sections.size() >= 4096)
+        address >= impl->spec.address_limit || bytes.size() >= impl->spec.address_limit - address || image.sections.size() >= 4096)
       throw std::runtime_error("invalid section range or mapped image limit exceeded");
     for (const auto &s : image.sections)
       if (address < s.address + s.bytes.size() && s.address < address + bytes.size())
@@ -797,14 +836,14 @@ void Session::add_import(uint64_t address, rust::Str name, bool noreturn) {
     impl->ready();
     impl->invalidateInferred();
     auto &arch = impl->arch;
-    if (address > UINT64_MAX - 7) throw std::runtime_error("import slot address overflow");
+    if (address > UINT64_MAX - 7 || address + impl->ptr() > impl->spec.address_limit) throw std::runtime_error("import slot address overflow");
     // Only the IAT slot is mutable. Preserve read-only strings/constants in
     // the rest of the section instead of disabling the whole section.
     arch.symboltab->clearPropertyRange(Varnode::readonly,
-      Range(arch.getDefaultCodeSpace(), address, address + 7));
+      Range(arch.getDefaultCodeSpace(), address, address + impl->ptr() - 1));
     // ExternRefSymbol's address is the IAT slot. Its target names a function
     // in a reserved unmapped range, never executable sample bytes.
-    const uint64_t target = 0xffff000000000000ULL + impl->symbols * 16;
+    const uint64_t target = impl->spec.external_base + impl->symbols * 16;
     impl->function(target, identifier(name), noreturn);
     arch.symboltab->getGlobalScope()->addExternalRef(Address(arch.getDefaultCodeSpace(), address),
       Address(arch.getDefaultCodeSpace(), target), identifier(name));
@@ -842,7 +881,7 @@ rust::String Session::validate_prototype_pack(uint32_t max_report) {
     auto fail = [&](const std::string &key, const std::string &what) {
       if (failures++ < max_report) report += "\n  " + key + ": " + what;
     };
-    for (const auto &key : prototype_pack().keys()) {
+    for (const auto &key : prototype_pack(impl->spec).keys()) {
       try {
         if (key.compare(0, 2, "T:") == 0) {
           types++;
@@ -851,7 +890,7 @@ rust::String Session::validate_prototype_pack(uint32_t max_report) {
         } else {
           functions++;
           if (impl->symbols + 1 > 99999) throw LowlevelError("validation symbol limit");
-          const uint64_t target = 0xffff000000000000ULL + impl->symbols * 16;
+          const uint64_t target = impl->spec.external_base + impl->symbols * 16;
           auto *fd = impl->function(target, "validate_" + std::to_string(functions), false);
           if (!impl->apply_pack_prototype(fd, key.substr(2))) fail(key, "not found");
         }
@@ -899,14 +938,14 @@ void Session::set_signature(uint64_t address, ValueType result, rust::Slice<cons
       case ValueType::U32: return arch.types->getBase(4, TYPE_UINT);
       case ValueType::I64: return arch.types->getBase(8, TYPE_INT);
       case ValueType::U64: return arch.types->getBase(8, TYPE_UINT);
-      case ValueType::Pointer: return arch.types->getTypePointer(8, arch.types->getTypeVoid(), 1);
-      case ValueType::CharPointer: return arch.types->getTypePointer(8, arch.types->getTypeChar(1), 1);
-      case ValueType::WideCharPointer: return arch.types->getTypePointer(8, arch.types->getTypeChar(2), 1);
-      case ValueType::U32Pointer: return arch.types->getTypePointer(8, arch.types->getBase(4, TYPE_UINT), 1);
-      case ValueType::PointerPointer: return arch.types->getTypePointer(8,
-          arch.types->getTypePointer(8, arch.types->getTypeVoid(), 1), 1);
-      case ValueType::LuidPointer: return arch.types->getTypePointer(8, impl->luid, 1);
-      case ValueType::TokenPrivilegesPointer: return arch.types->getTypePointer(8, impl->token_privileges, 1);
+      case ValueType::Pointer: return arch.types->getTypePointer(arch.getDefaultCodeSpace()->getAddrSize(), arch.types->getTypeVoid(), 1);
+      case ValueType::CharPointer: return arch.types->getTypePointer(arch.getDefaultCodeSpace()->getAddrSize(), arch.types->getTypeChar(1), 1);
+      case ValueType::WideCharPointer: return arch.types->getTypePointer(arch.getDefaultCodeSpace()->getAddrSize(), arch.types->getTypeChar(2), 1);
+      case ValueType::U32Pointer: return arch.types->getTypePointer(arch.getDefaultCodeSpace()->getAddrSize(), arch.types->getBase(4, TYPE_UINT), 1);
+      case ValueType::PointerPointer: return arch.types->getTypePointer(arch.getDefaultCodeSpace()->getAddrSize(),
+          arch.types->getTypePointer(arch.getDefaultCodeSpace()->getAddrSize(), arch.types->getTypeVoid(), 1), 1);
+      case ValueType::LuidPointer: return arch.types->getTypePointer(arch.getDefaultCodeSpace()->getAddrSize(), impl->luid, 1);
+      case ValueType::TokenPrivilegesPointer: return arch.types->getTypePointer(arch.getDefaultCodeSpace()->getAddrSize(), impl->token_privileges, 1);
       default: throw std::runtime_error("unknown signature type");
       }
     };
