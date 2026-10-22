@@ -170,6 +170,48 @@ with a probed frame keeps a correct stack pointer instead of printing every loca
 calls the cookie check. The older `set_preserves_rax` stays in the native API for a
 helper that has a RAX effect but no fixup.
 
+## Data and string symbols
+
+Ghidra labels the data a function touches from its program database. The embedded engine
+has none, so it printed globals as the engine's own placeholders (`uRam0000000140004098`)
+and string pointers as bare constants. `Session::decompile` now derives labels from the
+image bytes, per request, and uses Ghidra's conventions:
+
+| Data | Name | Rule |
+|---|---|---|
+| Global read or written at a constant address | `DAT_<addr>` | size is the largest access seen |
+| Address taken, not a string | `&DAT_<addr>` | |
+| NUL-terminated printable ASCII, at least 4 characters | `s_<text>_<addr>` | typed `char[n]`, so the printer can show the literal |
+| NUL-terminated UTF-16LE, ASCII range, at least 4 characters | `u_<text>_<addr>` | typed as a wide `char[n]` |
+| 8-byte aligned cell holding an image address | `PTR_FUN_`, `PTR_DAT_`, `PTR_s_`/`PTR_u_<text>_<addr>` | by the pointee: code, data or a string |
+
+The text is the first 32 characters after dropping trailing line breaks; every character
+other than a letter, digit, `_`, `<` or `>` becomes `_` (so `usage: T1181-EWMI <payload>\n`
+is `usage__T1181_EWMI_<payload>`); the address is lowercase hex padded to 8 digits. The
+constants (32 characters, the kept set, the padding) were read from Ghidra 12.1.4's output
+on the baseline and held-out selections (about 15 string labels, all consistent with the rule). The
+minimum of 4 characters is this adapter's choice, not Ghidra's.
+
+How it runs: the first analysis finds which data addresses the function uses (persistent
+varnodes in mapped, non-executable memory, plus constant operands that land there). The
+symbols are added to the global scope, the function is analyzed again, and they are
+removed when the request ends. The symbols are not part of the supplied facts, carry
+no locked type except the string arrays, and only skip an address that already has a real
+symbol (an import, a function). The cost is a second analysis of each function that
+touches data: median request time rose about 26% to 33% (8.1 to 10.3 ms and 4.7 to 6.3 ms
+on the two measurement sets).
+
+This also fixes a leak. The engine stores its `uRam...` placeholders in the global scope, so
+the name of a global depended on which earlier request had typed it first (the same
+address printed `uRam...` in one request and `xRam...` in another). The request's end now
+removes every placeholder global, and a test requests the same functions in different
+orders and sessions.
+
+Limits: only addresses inside mapped sections are named, so memory the image does not
+carry (the unpacked sections of a packed file, zero-filled tails beyond the raw data) keeps
+placeholders; and a global that the analysis only discovers during callee-prototype inference
+is named by the engine, not by this pass.
+
 ## Prototype pack
 
 `capa-x-ghidra/data/winapi64.pack` (1.3 MB) holds 28,312 function prototypes and

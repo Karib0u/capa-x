@@ -8,6 +8,8 @@
 #include "printc.hh"
 #include <algorithm>
 #include <chrono>
+#include <cctype>
+#include <cstdio>
 #include <cstring>
 #include <mutex>
 #include <stdexcept>
@@ -88,6 +90,14 @@ public:
       if (address >= s.address && address - s.address < s.bytes.size()) return s.executable;
     return false;
   }
+  /// The mapped bytes from \p address to the end of its section, or empty.
+  std::pair<const uint8_t *, size_t> bytesAt(uint64_t address) const {
+    for (const auto &s : sections)
+      if (address >= s.address && address - s.address < s.bytes.size())
+        return {s.bytes.data() + (address - s.address), s.bytes.size() - size_t(address - s.address)};
+    return {nullptr, 0};
+  }
+  bool mapped(uint64_t address) const { return bytesAt(address).first != nullptr; }
   void loadFill(uint1 *ptr, int4 size, const Address &address) override {
     capax_check();
     auto current = address.getOffset();
@@ -110,6 +120,76 @@ public:
     }
   }
 };
+// Data symbols. Ghidra's Java analysis labels the data a function touches:
+// `DAT_<addr>` for plain data, `PTR_<target>_<addr>` for a pointer cell and
+// `s_<text>_<addr>` / `u_<text>_<addr>` for narrow and wide string literals.
+// The embedded engine has no program database, so the adapter derives the same
+// names from the image bytes, per request (see docs/decompiler.md). Constants
+// copied from Ghidra 12.1.4's observed labels: at most 32 characters of text,
+// every character other than a letter, digit, `_`, `<` or `>` becomes `_`, trailing
+// line breaks are dropped, and the address is lowercase hex padded to 8 digits.
+struct StringLiteral {
+  bool wide = false;
+  size_t chars = 0;
+  std::string label;
+};
+constexpr size_t kMinStringChars = 4;
+constexpr size_t kMaxStringChars = 4096;
+constexpr size_t kMaxLabelChars = 32;
+std::string hexAddress(uint64_t address) {
+  char text[24];
+  std::snprintf(text, sizeof(text), "%08llx", static_cast<unsigned long long>(address));
+  return text;
+}
+/// The engine's own default name for a global it had no symbol for, e.g. `uRam0000000140004098`.
+/// mapGlobals stores these in the global scope, where they would otherwise outlive the request.
+bool placeholderName(const std::string &name) {
+  size_t i = 0;
+  while (i < 8 && i < name.size() && std::isalpha(static_cast<unsigned char>(name[i])) && name.compare(i, 3, "Ram") != 0) ++i;
+  if (name.compare(i, 3, "Ram") != 0 || name.size() != i + 3 + 16) return false;
+  for (size_t k = i + 3; k < name.size(); ++k)
+    if (!((name[k] >= '0' && name[k] <= '9') || (name[k] >= 'a' && name[k] <= 'f'))) return false;
+  return true;
+}
+std::string labelFromText(const std::string &text) {
+  size_t end = text.size();
+  while (end && (text[end - 1] == '\n' || text[end - 1] == '\r' || text[end - 1] == '\t')) --end;
+  std::string label;
+  for (size_t i = 0; i < end && i < kMaxLabelChars; ++i) {
+    const unsigned char ch = static_cast<unsigned char>(text[i]);
+    const bool keep = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') ||
+                      ch == '_' || ch == '<' || ch == '>';
+    label += keep ? char(ch) : '_';
+  }
+  return label;
+}
+bool printable(unsigned ch) { return (ch >= 0x20 && ch < 0x7f) || ch == '\t' || ch == '\n' || ch == '\r'; }
+/// A NUL-terminated printable ASCII or UTF-16LE (ASCII range) string at \p address.
+bool detectString(const Image &image, uint64_t address, StringLiteral &out) {
+  const auto [data, available] = image.bytesAt(address);
+  if (!data) return false;
+  size_t n = 0;
+  while (n < available && n < kMaxStringChars && printable(data[n])) ++n;
+  if (n >= kMinStringChars && n < available && data[n] == 0) {
+    out.wide = false;
+    out.chars = n;
+    out.label = labelFromText(std::string(reinterpret_cast<const char *>(data), n));
+    return true;
+  }
+  std::string text;
+  size_t w = 0;
+  while ((w + 1) * 2 + 1 < available && w < kMaxStringChars && data[2 * w + 1] == 0 && printable(data[2 * w])) {
+    text += char(data[2 * w]);
+    ++w;
+  }
+  if (w >= kMinStringChars && (w * 2 + 1) < available && data[2 * w] == 0 && data[2 * w + 1] == 0) {
+    out.wide = true;
+    out.chars = w;
+    out.label = labelFromText(text);
+    return true;
+  }
+  return false;
+}
 class ImageSleigh : public Sleigh {
   Image *image;
 public:
@@ -401,6 +481,117 @@ public:
   std::set<Funcdata *> touched;
   std::vector<Funcdata *> applied;
   void invalidateInferred() { inferred_cache.clear(); }
+  // Data symbols added for the current request; dropped when it ends, so output is
+  // a function of the image and the request, never of request order.
+  std::vector<Symbol *> data_symbols;
+  struct DataReference {
+    int4 size = 0;
+    bool address_taken = false;
+  };
+  /// Name the data \p fd's finished analysis touched. Returns true if any symbol was added.
+  bool addDataSymbols(Funcdata *fd) {
+    auto &image = arch.image();
+    auto *scope = arch.symboltab->getGlobalScope();
+    auto *space = arch.getDefaultCodeSpace();
+    std::map<uint64_t, DataReference> refs;
+    const auto data = [&](uint64_t address) { return image.mapped(address) && !image.executable(address); };
+    for (auto it = fd->beginLoc(); it != fd->endLoc() && refs.size() < 4096; ++it) {
+      const Varnode *vn = *it;
+      if (vn->getSpace() != space || vn->isFree() || vn->isAnnotation()) continue;
+      if (!data(vn->getOffset())) continue;
+      auto &ref = refs[vn->getOffset()];
+      ref.size = std::max(ref.size, vn->getSize());
+    }
+    for (auto it = fd->beginOpAll(); it != fd->endOpAll() && refs.size() < 4096; ++it) {
+      const PcodeOp *op = it->second;
+      if (op->isDead()) continue;
+      for (int4 slot = 0; slot < op->numInput(); ++slot) {
+        const Varnode *vn = op->getIn(slot);
+        if (!vn->isConstant() || (slot == 0 && (op->code() == CPUI_LOAD || op->code() == CPUI_STORE))) continue;
+        if (!data(vn->getOffset())) continue;
+        const bool access = slot == 1 && (op->code() == CPUI_LOAD || op->code() == CPUI_STORE);
+        auto &ref = refs[vn->getOffset()];
+        if (access) {
+          const int4 size = op->code() == CPUI_LOAD ? op->getOut()->getSize() : op->getIn(2)->getSize();
+          ref.size = std::max(ref.size, size);
+        } else {
+          ref.address_taken = true;
+        }
+      }
+    }
+    uint64_t covered_until = 0;
+    bool added = false;
+    for (const auto &[address, ref] : refs) {
+      if (address < covered_until) continue;
+      // The first pass names untouched globals with engine default names such as `uRam...`;
+      // those are placeholders to replace. Anything else (an import, a function) is kept.
+      const auto occupied = [&](uint64_t at, bool replace) {
+        for (int guard = 0; guard < 8; ++guard) {
+          auto *found = scope->queryContainer(Address(space, at), 1, Address());
+          if (!found) return false;
+          if (!replace || !(found->getSymbol()->isNameUndefined() || placeholderName(found->getSymbol()->getName()))) return true;
+          scope->removeSymbol(found->getSymbol());
+        }
+        return true;
+      };
+      if (occupied(address, true)) continue;
+      StringLiteral literal;
+      const bool is_string = ref.address_taken && detectString(image, address, literal);
+      int4 size = std::max<int4>(ref.size, 1);
+      std::string name;
+      Datatype *type = nullptr;
+      if (is_string) {
+        name = std::string(literal.wide ? "u_" : "s_") + literal.label + "_" + hexAddress(address);
+        size = int4((literal.chars + 1) * (literal.wide ? 2 : 1));
+        type = arch.types->getTypeArray(int4(literal.chars + 1), arch.types->getTypeChar(literal.wide ? 2 : 1));
+      } else {
+        std::string target = "DAT";
+        std::string label;
+        const auto [bytes, available] = image.bytesAt(address);
+        if ((ref.size == 8 || ref.size == 0) && address % 8 == 0 && available >= 8) {
+          uint64_t value = 0;
+          for (int i = 7; i >= 0; --i) value = (value << 8) | bytes[i];
+          if (image.executable(value)) {
+            target = "PTR_FUN";
+            size = 8;
+          } else if (image.mapped(value)) {
+            size = 8;
+            StringLiteral pointee;
+            target = detectString(image, value, pointee)
+                         ? std::string("PTR_") + (pointee.wide ? "u_" : "s_") + pointee.label
+                         : "PTR_DAT";
+          }
+        }
+        name = target + "_" + hexAddress(address);
+        type = arch.types->getBase(size, TYPE_UNKNOWN);
+      }
+      if (address > UINT64_MAX - uint64_t(size) || occupied(address + size - 1, true))
+        continue;
+      if (++symbols > 100000) throw std::runtime_error("symbol limit exceeded");
+      auto *entry = scope->addSymbol(name, type, Address(space, address), Address());
+      if (!entry) continue;
+      scope->setAttribute(entry->getSymbol(), Varnode::namelock);
+      data_symbols.push_back(entry->getSymbol());
+      covered_until = address + size;
+      added = true;
+    }
+    return added;
+  }
+  void dropDataSymbols() {
+    auto *scope = arch.symboltab->getGlobalScope();
+    for (auto *symbol : data_symbols) scope->removeSymbol(symbol);
+    symbols -= std::min(symbols, data_symbols.size());
+    data_symbols.clear();
+    // Placeholder globals made while analyzing this request would otherwise leak into the
+    // next one (named by whichever type was seen first), so output would depend on order.
+    std::vector<Symbol *> placeholders;
+    for (auto it = scope->begin(); it != scope->end(); ++it) {
+      Symbol *symbol = (*it)->getSymbol();
+      if (placeholderName(symbol->getName()) && placeholders.end() == std::find(placeholders.begin(), placeholders.end(), symbol))
+        placeholders.push_back(symbol);
+    }
+    for (auto *symbol : placeholders) scope->removeSymbol(symbol);
+  }
   static std::set<uint64_t> directTargets(Funcdata *caller) {
     std::set<uint64_t> targets;
     for (int4 i = 0; i < caller->numCalls(); ++i) {
@@ -809,6 +1000,21 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
         result = impl->analyze(fd);
         baseline_errors = impl->errors.str();
       }
+      // Name the data the first pass found, then analyze again so the names print.
+      // The symbols are not part of the supplied facts: they live for this request only.
+      if (result >= 0 && impl->addDataSymbols(fd)) {
+        try {
+          auto guard = fresh();
+          result = impl->analyze(fd);
+          baseline_errors = impl->errors.str();
+        } catch (const BudgetExceeded &) {
+          impl->dropDataSymbols();
+          impl->release(fd);
+          auto guard = fresh();
+          result = impl->analyze(fd);
+          baseline_errors = impl->errors.str();
+        }
+      }
       size_t inferred = 0;
       std::string skipped;
       try {
@@ -861,10 +1067,12 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
       response.incomplete = result < 0 || !only_informational;
       if (inferred) response.warnings.push_back("Direct callee prototypes inferred from bounded native analysis; validate against machine code.");
       impl->release(fd);
+      impl->dropDataSymbols();
       return response;
     } catch (const BudgetExceeded &) {
       arch.print->setOutputStream(&impl->errors);
       impl->release(fd);
+      impl->dropDataSymbols();
       throw;
     } catch (...) {
       arch.print->setOutputStream(&impl->errors);

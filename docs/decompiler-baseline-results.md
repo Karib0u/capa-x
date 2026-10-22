@@ -432,6 +432,43 @@ literal gap, with `referenced` as a guard against regressions. Matching Ghidra's
 exactly is not required; a consistent `DAT_<addr>` and `s_`/`u_` convention on the same
 addresses is.
 
+## Data and string symbol naming
+
+Implemented 2026-10-22 (see [Data and string symbols](decompiler.md#data-and-string-symbols)).
+Same 184 and 192 addresses and the same Ghidra outputs as the metric above; the "before"
+column is the metric's table, rerun with the same scripts and `--any-module` matching.
+
+| | Baseline before | Baseline after | Held-out before | Held-out after |
+|---|---:|---:|---:|---:|
+| Ghidra's data symbol addresses referenced | 94.1% | 95.0% (400/421) | 92.0% | 98.1% (659/672) |
+| Ghidra's data symbol addresses named | 0% | **89.8%** (378/421) | 0% | **97.9%** (658/672) |
+| string / pointer / global named | 0 / 0 / 0 | 76.5 / 97.4 / 89.6% | 0 / 0 / 0 | 100 / 98.8 / 97.8% |
+| Inline string literals, Ghidra / native | 276 / 136 | 276 / 244 | 216 / 77 | 216 / 190 |
+| Engine `...Ram<hex>` names left in native text | not counted | 51 | not counted | 2 |
+| Request errors | 3 | 3 | 1 | 1 |
+| Flagged incomplete | 70.7% | 70.7% | 62.8% | 62.8% |
+| Ghidra's named callees also named by native | 77.5% | 77.6% | 65.5% | 65.9% |
+| Parameter count agrees | 87.8% | 87.8% | 83.2% | 83.2% |
+| Output lines, Ghidra / native | 18,864 / 19,102 | 18,864 / 19,115 | 20,701 / 19,973 | 20,701 / 19,981 |
+| Median request time, native | 8.1 ms | 10.3 ms | 4.7 ms | 6.3 ms |
+
+The metric moved from 0% to 90 to 98%, and no other scorecard line regressed. Both sets also
+gain inline literals because the string arrays are typed `char[n]`: native prints about
+88% as many as Ghidra on both sets, up from 49% (baseline) and 36% (held-out).
+
+Remaining baseline gaps are concentrated in the UPX-packed sample `c2d46d25` (49 of the
+51 placeholder names): its data lives in sections the packed file does not map. The
+remaining string miss is a short string below the 4-character minimum or one that Ghidra
+treats as another type. String labels were fitted to Ghidra's names on these same two sets, so they are not an
+independent check; names of globals match by construction. There is no precision measure
+yet: the metric does not count names native invents where Ghidra has no symbol.
+
+A request-order test (96 functions, three orders each) found no differing output, and
+`cargo test -p capa-x --features decompiler --test decompiler` passes with a new test for
+this feature. The capability path does not use this code. In this checkout the rules and
+corpus tests that read `rules/` fail identically with and without the decompiler feature,
+because the main checkout's `rules/` is not at the pinned commit; they were not changed.
+
 ## Not yet done
 
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).

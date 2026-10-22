@@ -463,3 +463,26 @@ fn stack_probe_and_cookie_helpers_use_their_modeled_effects() -> anyhow::Result<
     assert!(!output.incomplete, "{:?}", output.warnings);
     Ok(())
 }
+
+#[test]
+fn data_and_string_symbols_are_named_like_ghidra_and_do_not_leak_between_requests() -> anyhow::Result<()> {
+    let sample = include_bytes!("../../tests/testfiles/592cfd22bba96ef3aab566fe7bf82aff5e1b4130856d1f7f847d03d4689af7e7.exe_");
+    let (main, gs_failure) = (0x1400012d0, 0x14000178c);
+    let mut session = DecompilerSession::from_pe(sample)?;
+    let main_text = session.decompile_function(main)?.text;
+    // Wide string literals: `u_<text>_<address>`, text capped, other characters as `_`.
+    assert!(main_text.contains("u_unable_to_read_from__s_140004060"), "{main_text}");
+    assert!(main_text.contains("u_usage__T1181_EWMI_<payload>_140004020"), "{main_text}");
+    let gs_text = session.decompile_function(gs_failure)?.text;
+    // Globals: `DAT_<address>`, never the engine's `uRam...` placeholders.
+    assert!(gs_text.contains("DAT_140004098"), "{gs_text}");
+    assert!(gs_text.contains("&DAT_140004170"), "{gs_text}");
+    assert!(!gs_text.contains("Ram0000"), "{gs_text}");
+    // The names are per request: another request order, or a fresh session, prints the same.
+    assert_eq!(session.decompile_function(gs_failure)?.text, gs_text);
+    assert_eq!(session.decompile_function(main)?.text, main_text);
+    let mut fresh = DecompilerSession::from_pe(sample)?;
+    assert_eq!(fresh.decompile_function(gs_failure)?.text, gs_text);
+    assert_eq!(fresh.decompile_function(main)?.text, main_text);
+    Ok(())
+}
