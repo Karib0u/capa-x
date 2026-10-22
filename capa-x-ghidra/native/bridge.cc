@@ -223,7 +223,12 @@ class ImageSleigh : public Sleigh {
 public:
   ImageSleigh(Image *loader, ContextDatabase *context) : Sleigh(loader, context), image(loader) {}
   int4 oneInstruction(PcodeEmit &emit, const Address &address) const override {
-    if (!image->executable(address.getOffset())) throw LowlevelError("code flow left executable mapped memory");
+    if (!image->executable(address.getOffset())) {
+      char text[80];
+      std::snprintf(text, sizeof(text), "code flow left executable mapped memory at 0x%llx",
+                    static_cast<unsigned long long>(address.getOffset()));
+      throw LowlevelError(text);
+    }
     const auto length = Sleigh::oneInstruction(emit, address);
     if (length <= 0 || address.getOffset() > UINT64_MAX - uint64_t(length - 1) ||
         !image->executable(address.getOffset() + length - 1))
@@ -684,6 +689,26 @@ public:
         !fd->getFuncProto().isOutputLocked()) {
       touched.insert(fd);
       in_progress.insert(target);
+      // A callee whose flow cannot be translated (it runs into data or unmapped memory) only
+      // costs its own inferred prototype; the selected function must not fail for it.
+      const auto mark = applied.size();
+      try {
+        inferBody(fd, target, level, out);
+      } catch (const LowlevelError &) {
+        for (auto i = applied.size(); i-- > mark;) unlockOne(applied[i]);
+        applied.resize(mark);
+        out.usable = false;
+        errors.str("");
+        in_progress.erase(target);
+        arch.clearAnalysis(fd);
+      }
+    }
+    if (out.size > 16) out.usable = false;
+    out.cost = budget.active ? before - budget.remaining : 0;
+    return inferred_cache.emplace(key, std::move(out)).first->second;
+  }
+  void inferBody(Funcdata *fd, uint64_t target, unsigned level, Inferred &out) {
+    {
       int4 status = analyze(fd);
       const auto own_errors = errors.str();
       std::vector<std::pair<uint64_t, const Inferred *>> usable_children;
@@ -712,9 +737,6 @@ public:
       arch.clearAnalysis(fd);
       errors.str("");
     }
-    if (out.size > 16) out.usable = false;
-    out.cost = budget.active ? before - budget.remaining : 0;
-    return inferred_cache.emplace(key, std::move(out)).first->second;
   }
   static void unlockOne(Funcdata *fd) {
     fd->getFuncProto().setInputLock(false);

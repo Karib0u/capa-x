@@ -92,21 +92,35 @@ pub fn scored_candidates(pack: &Pack<'_>, family: &Family<'_>) -> Vec<(f32, Reco
     scored
 }
 
-/// The name Ghidra's FID analysis would apply, when it is unambiguous.
-pub fn match_name(pack: &Pack<'_>, family: &Family<'_>) -> Option<String> {
+/// Every name of the best-scoring candidates, sorted: what Ghidra labels `FID_conflict:`
+/// when there is more than one.
+pub fn match_candidates(pack: &Pack<'_>, family: &Family<'_>) -> Vec<String> {
     let scored = scored_candidates(pack, family);
-    let best = scored.first()?.0;
+    let Some(best) = scored.first().map(|first| first.0) else {
+        return Vec::new();
+    };
     let mut names: Vec<String> = Vec::new();
     for (value, record) in &scored {
         if *value < best {
             break;
         }
-        let name = pack.name(record.name).ok()?;
+        let Ok(name) = pack.name(record.name) else {
+            return Vec::new();
+        };
         if !names.contains(&name) {
             names.push(name);
         }
     }
     names.sort();
+    names
+}
+
+/// The name Ghidra's FID analysis would apply, when it is unambiguous.
+pub fn match_name(pack: &Pack<'_>, family: &Family<'_>) -> Option<String> {
+    let names = match_candidates(pack, family);
+    if names.is_empty() {
+        return None;
+    }
     let stripped: std::collections::BTreeSet<&str> =
         names.iter().map(|n| n.trim_start_matches('_')).collect();
     let chosen = if names.len() == 1 || stripped.len() == 1 {

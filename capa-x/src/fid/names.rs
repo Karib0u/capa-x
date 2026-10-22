@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::hash::{hash_function, Instruction, Quad};
-use super::matcher::{match_name, Family};
+use super::matcher::{match_candidates, match_name, Family};
 use super::pack::Pack;
 use super::x86::describe_in;
 use crate::extract::decoder::Flow;
@@ -47,6 +47,16 @@ pub fn name_functions(
     pack: &Pack<'_>,
     named: &dyn Fn(u64) -> bool,
 ) -> BTreeMap<u64, String> {
+    name_functions_with_conflicts(analysis, pack, named).0
+}
+
+/// Like [`name_functions`], and also the functions with several equally good names
+/// that Ghidra would label `FID_conflict:`, with all of those names.
+pub fn name_functions_with_conflicts(
+    analysis: &Analysis,
+    pack: &Pack<'_>,
+    named: &dyn Fn(u64) -> bool,
+) -> (BTreeMap<u64, String>, BTreeMap<u64, Vec<String>>) {
     let bits = analysis.image.architecture.bitness();
     let sections = &analysis.image.sections;
     // Ghidra types a 32-bit immediate as an address when it points into the program.
@@ -149,6 +159,7 @@ pub fn name_functions(
             .collect()
     };
     let mut names = BTreeMap::new();
+    let mut conflicts = BTreeMap::new();
     for (address, hashed) in &hashes {
         if thunks.contains_key(address) || named(*address) || hashed.instructions < 4 {
             continue;
@@ -162,7 +173,12 @@ pub fn name_functions(
         };
         if let Some(name) = match_name(pack, &family) {
             names.insert(*address, name);
+        } else {
+            let candidates = match_candidates(pack, &family);
+            if candidates.len() > 1 {
+                conflicts.insert(*address, candidates);
+            }
         }
     }
-    names
+    (names, conflicts)
 }

@@ -158,14 +158,32 @@ impl DecompilerSession {
                 }
             }
         }
+        // A function that is only `jmp [import slot]` is the import under another address;
+        // Ghidra names such a thunk after the import and types it the same way.
+        let thunks = import_thunks(&analysis);
+        for (address, name) in &thunks {
+            names.entry(*address).or_insert_with(|| name.clone());
+        }
+        let export_addresses: Vec<(u64, String)> = names
+            .iter()
+            .filter(|(address, _)| {
+                pe.exports.iter().any(|export| {
+                    export.reexport.is_none()
+                        && image_base.checked_add(export.rva as u64) == Some(**address)
+                })
+            })
+            .map(|(address, name)| (*address, name.clone()))
+            .collect();
         let dll_entry = pe.is_lib.then_some(analysis.image.entry_point).flatten();
         if let Some(entry) = dll_entry {
             names.entry(entry).or_insert_with(|| "DllEntryPoint".into());
         }
         let pack = fid::pack::Pack::parse(if wide { FID_PACK_X64 } else { FID_PACK_X86 })
             .map_err(|e| DecompileError::Input(e.to_string()))?;
-        let recognized =
-            fid::names::name_functions(&analysis, &pack, &|address| names.contains_key(&address));
+        let (recognized, conflicts) =
+            fid::names::name_functions_with_conflicts(&analysis, &pack, &|address| {
+                names.contains_key(&address)
+            });
         for (address, name) in &recognized {
             names.insert(*address, name.clone());
         }
@@ -180,6 +198,28 @@ impl DecompilerSession {
                         "prototype for {name} at {address:#x}: {error}"
                     ))
                 })?;
+        }
+        for (address, import) in &thunks {
+            if let Some(function) = system_import_function(import) {
+                session.native.apply_prototype(*address, function).map_err(|error| {
+                    DecompileError::Initialization(format!(
+                        "prototype for thunk {import} at {address:#x}: {error}"
+                    ))
+                })?;
+            }
+        }
+        // Ghidra also types a function by its exported name when the archives know it
+        // (a proxy DLL's `GetFileVersionInfoA`). An unknown name keeps the generic prototype.
+        for (address, name) in &export_addresses {
+            // Decorated C++ names never match an archive function, and the lookup key is bounded.
+            let plain = name.len() <= 256 && !name.contains(['?', '@']);
+            if plain && !thunks.contains_key(address) && !recognized.contains_key(address) {
+                session.native.apply_prototype(*address, name).map_err(|error| {
+                    DecompileError::Initialization(format!(
+                        "prototype for export {name} at {address:#x}: {error}"
+                    ))
+                })?;
+            }
         }
         for (address, name) in &libraries {
             // Apply runtime prototypes only to validated FLIRT matches.
@@ -208,6 +248,24 @@ impl DecompilerSession {
                             "{fixup} fixup for {name} at {address:#x}: {error}"
                         ))
                     })?;
+            }
+        }
+        // Ghidra labels an ambiguous match `FID_conflict:<name>` for every candidate, and its
+        // fixups list those labels. Here a function is left unnamed, but when every candidate
+        // selects the same fixup (`__SEH_prolog4` and `__SEH_prolog4_GS`), the effect is known.
+        for (address, candidates) in &conflicts {
+            let mut fixups = candidates.iter().map(|name| effects::call_fixup(name, wide));
+            if let Some(Some(fixup)) = fixups.next() {
+                if fixups.all(|other| other == Some(fixup)) {
+                    session
+                        .native
+                        .set_call_fixup(*address, fixup)
+                        .map_err(|error| {
+                            DecompileError::Initialization(format!(
+                                "{fixup} fixup for {candidates:?} at {address:#x}: {error}"
+                            ))
+                        })?;
+                }
             }
         }
         if let Some(entry) = dll_entry {
@@ -409,6 +467,28 @@ impl DecompilerSession {
         })
     }
 }
+/// Recovered functions whose only instruction is an indirect jump through an import slot,
+/// with the import's name.
+fn import_thunks(analysis: &Analysis) -> BTreeMap<u64, String> {
+    let mut thunks = BTreeMap::new();
+    for (address, function) in &analysis.functions {
+        let mut instructions = function.blocks.iter().flat_map(|block| block.insns.iter());
+        let (Some(only), None) = (instructions.next(), instructions.next()) else {
+            continue;
+        };
+        if only.flow != Flow::IndirectBranch {
+            continue;
+        }
+        if let Some(name) = only
+            .memory_target
+            .and_then(|slot| analysis.image.import_locations.get(&slot))
+        {
+            thunks.insert(*address, name.clone());
+        }
+    }
+    thunks
+}
+
 fn validate_image(image: &LoadedImage) -> Result<(), DecompileError> {
     if image.format != ImageFormat::Pe
         || !matches!(image.architecture, Architecture::X64 | Architecture::X86)
