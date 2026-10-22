@@ -226,22 +226,51 @@ functions after `int3` padding that Ghidra left undefined (404 native-only
 functions lie outside any Ghidra function, 250 of them in the packed sample).
 The bytes look like real functions, but Ghidra is the only reference here.
 
+Scorecard on the same 184 addresses and the same full-Ghidra reference outputs,
+both columns rerun on one machine (engine 12.1.4; "before" is the Function ID
+commit `277d5d5`):
+
+| Metric | Before | After |
+|---|---:|---:|
+| Native returned text | 181 | 181 |
+| Flagged incomplete | 145 (80.1%) | 145 (80.1%) |
+| Return void/non-void agrees | 93.9% | 93.9% |
+| Parameter count agrees | 87.8% | 87.3% |
+| Ghidra's named callees also named by native | 75.6% (483/639) | 75.7% (484/639) |
+| Argument count agrees on matched callees | 97.3% | 97.1% |
+| Gotos, Ghidra / native | 421 / 448 | 421 / 439 |
+| Output lines, Ghidra / native | 18,864 / 19,316 | 18,864 / 19,229 |
+
+Only 7 of the 184 texts changed. That is expected: the baseline functions were
+chosen from Ghidra's list and mostly were already found, so this phase moves the
+function set (above) more than these 184 functions. The one large change is
+`0x180002f4c` in `4f08636d...`: its tail `jmp _seh_filter_exe` was folded into the
+function (2,156 characters, a 12-line body) and is now a real tail call, which
+matches Ghidra's `_seh_filter_dll` wrapper. One function lost a parameter in the
+other direction (87.8% to 87.3%, one function). Unnamed calls and the three
+work-limit errors are unchanged. A scorecard over functions the old recovery
+missed is not possible with this selection; it would need the selection redrawn
+from the new function set.
+
 The capability path was checked, not assumed: `features_parity`, the smoke corpus
 (23 of 23 identical) and the outer corpus (200 of 200, 6,300 reference-matched rules,
 0 divergences) against the pinned capa 10 reference, `cargo test --workspace` and
 the `decompiler` feature tests. 60 newly found funclets in `ad4229...` all
-decompile. The textual decompiler scorecard above was not rerun, because it needs the
-full-Ghidra decompile pass; do that before relying on the callee-name
-numbers.
+decompile.
+
+Ghidra's outputs for this selection are stored in
+`scripts/decompiler_baseline/reference/ghidra-12.1.4/` (about 3 MB: `decompile/`
+for the 184 functions, `functions/` for every function of the 23 samples with body
+ranges and incoming reference types). They depend only on the sample and the Ghidra
+version, so rerun Ghidra only when either changes.
 
 ## Not yet done
 
-- A semantic scorecard rerun after phase 3 (see above).
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).
 - Latency, serial and warmed, on both sides.
 
 ## Reproducing
 
 See [`scripts/decompiler_baseline/README.md`](../scripts/decompiler_baseline/README.md).
-Raw Ghidra exports, native event logs and the per-function comparison are in
-`scripts/decompiler_baseline/out/` (not committed; regenerate with the scripts).
+Ghidra's exports are committed (see Phase 3); native event logs and the per-function
+comparison go to `scripts/decompiler_baseline/out/` (not committed).

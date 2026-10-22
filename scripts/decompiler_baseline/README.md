@@ -1,7 +1,10 @@
 # Decompiler baseline harness (development only)
 
 Python and Java here are development tooling; none of it runs in the product.
-Run from the repository root. Needs initialized submodules (`tests/testfiles`)
+Run from the repository root. Ghidra's outputs for the committed sample list are stored in
+`reference/ghidra-12.1.4/`; skip the Ghidra steps and pass that directory instead of
+`$O/ghidra` (`decompile/`) or `$O/g` (`functions/`). Rerun Ghidra only when its version or
+the sample list changes. Needs initialized submodules (`tests/testfiles`)
 and a Ghidra install with a built `decompile` executable for your platform
 (Ghidra 12.1.4 ships none for macOS arm64: build it with `make ghidra_opt` in
 `Ghidra/Features/Decompiler/src/decompile/cpp` and copy it to
