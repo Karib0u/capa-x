@@ -58,9 +58,16 @@ struct Cli {
     #[arg(short = 'f', long = "format", value_enum, default_value_t = Format::Auto)]
     format: Format,
 
-    /// Decompile one x86-64 PE function by virtual address (requires decompiler feature)
+    /// Decompile a PE function by virtual address (requires decompiler feature).
+    /// Repeat the option for several functions; more than one needs --unit
     #[arg(long, value_parser = parse_function_address, conflicts_with_all = ["dump_code_layout", "dump_features", "dump_matches", "file_only", "rules", "signatures", "tag"])]
-    decompile_function: Option<u64>,
+    decompile_function: Vec<u64>,
+
+    /// With --decompile-function: emit a self-contained C translation unit (prelude, types,
+    /// callee prototypes from the type archive, marked guesses for the rest, the function
+    /// bodies) that a C compiler accepts. With --json the guesses are listed
+    #[arg(long, requires = "decompile_function")]
+    unit: bool,
 
     /// emit JSON instead of text
     #[arg(short = 'j', long = "json")]
@@ -334,7 +341,7 @@ fn run(cli: &Cli) -> Result<(), CliError> {
     let mut timings = Timings::default();
     let result = run_analysis(cli, &mut timings);
     timings.total = started.elapsed();
-    if cli.timing && cli.decompile_function.is_none() {
+    if cli.timing && cli.decompile_function.is_empty() {
         timings.report();
     }
     result
@@ -429,8 +436,8 @@ fn run_analysis(cli: &Cli, timings: &mut Timings) -> Result<(), CliError> {
         )
     })?;
 
-    if let Some(address) = cli.decompile_function {
-        return run_decompilation(cli, &bytes, address);
+    if !cli.decompile_function.is_empty() {
+        return run_decompilation(cli, &bytes, &cli.decompile_function);
     }
 
     if cli.dump_code_layout {
@@ -696,7 +703,7 @@ fn parse_function_address(value: &str) -> Result<u64, String> {
 }
 
 #[cfg(not(feature = "decompiler"))]
-fn run_decompilation(_: &Cli, _: &[u8], _: u64) -> Result<(), CliError> {
+fn run_decompilation(_: &Cli, _: &[u8], _: &[u64]) -> Result<(), CliError> {
     Err(CliError::new(
         E_CORRUPT_FILE,
         "native decompilation is disabled; rebuild with --features decompiler",
@@ -704,7 +711,7 @@ fn run_decompilation(_: &Cli, _: &[u8], _: u64) -> Result<(), CliError> {
 }
 
 #[cfg(feature = "decompiler")]
-fn run_decompilation(cli: &Cli, bytes: &[u8], address: u64) -> Result<(), CliError> {
+fn run_decompilation(cli: &Cli, bytes: &[u8], addresses: &[u64]) -> Result<(), CliError> {
     use capa_x::decompiler::DecompilerSession;
     if !matches!(cli.format, Format::Auto | Format::Pe)
         || !matches!(cli.arch.as_str(), "auto" | "amd64")
@@ -717,7 +724,36 @@ fn run_decompilation(cli: &Cli, bytes: &[u8], address: u64) -> Result<(), CliErr
     }
     let error = |e| CliError::new(E_CORRUPT_FILE, format!("{e}"));
     let mut session = DecompilerSession::from_pe(bytes).map_err(error)?;
-    let result = session.decompile_function(address).map_err(error)?;
+    if cli.unit {
+        let unit = session.decompile_unit(addresses).map_err(error)?;
+        if cli.quiet {
+            return Ok(());
+        }
+        if cli.json {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&unit)
+                    .map_err(|e| CliError::new(E_CORRUPT_FILE, e.to_string()))?
+            );
+        } else {
+            print!("{}", unit.text);
+            if !unit.guesses.is_empty() || unit.unrewritten > 0 {
+                eprintln!(
+                    "note: {} declarations are guesses and {} sub-piece accesses were not rewritten; use --json for the list",
+                    unit.guesses.len(),
+                    unit.unrewritten
+                );
+            }
+        }
+        return Ok(());
+    }
+    let [address] = addresses else {
+        return Err(CliError::new(
+            E_CORRUPT_FILE,
+            "several functions need --unit",
+        ));
+    };
+    let result = session.decompile_function(*address).map_err(error)?;
     if cli.quiet {
         return Ok(());
     }

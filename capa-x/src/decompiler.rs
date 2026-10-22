@@ -17,7 +17,11 @@ use crate::extract::recovery::flirt::{self, Signatures};
 use crate::extract::recovery::{self, Analysis};
 use crate::fid;
 
+mod ctypes;
 mod effects;
+mod unit;
+
+pub use unit::{Guess, Unit, UnitFunction};
 
 /// Ghidra 12.1.4 Function ID data for x64 and x86 Visual Studio runtimes; see `sigs/FID.md`.
 static FID_PACK_X64: &[u8] = include_bytes!("../sigs/fid-x64.pack");
@@ -110,6 +114,8 @@ pub struct DecompilerSession {
     initialization_ms: f64,
     limits: ResourceLimits,
     convention: CallingConvention,
+    /// The type archive as C declarations, read on the first unit request.
+    unit_pack: std::cell::OnceCell<ctypes::Pack>,
 }
 impl DecompilerSession {
     /// Parse and recover once. Native SLEIGH, not iced-x86, translates the
@@ -482,6 +488,7 @@ impl DecompilerSession {
             initialization_ms: started.elapsed().as_secs_f64() * 1000.0,
             limits: ResourceLimits::default(),
             convention,
+            unit_pack: std::cell::OnceCell::new(),
         })
     }
 
@@ -521,6 +528,45 @@ impl DecompilerSession {
         }
         self.limits = limits;
         Ok(())
+    }
+
+    /// Decompile one function or a set and wrap the text in a unit a C compiler accepts
+    /// (see [`Unit`]). Duplicate addresses are decompiled once. Any function that fails to
+    /// decompile fails the unit: a partial unit would hide the gap.
+    pub fn decompile_unit(&mut self, addresses: &[u64]) -> Result<Unit, DecompileError> {
+        const MAX_FUNCTIONS: usize = 256;
+        let mut unique = Vec::new();
+        for address in addresses {
+            if !unique.contains(address) {
+                unique.push(*address);
+            }
+        }
+        if unique.is_empty() || unique.len() > MAX_FUNCTIONS {
+            return Err(DecompileError::Request(format!(
+                "a unit needs between 1 and {MAX_FUNCTIONS} functions"
+            )));
+        }
+        let mut bodies = Vec::new();
+        for address in unique {
+            let result = self.decompile_function(address)?;
+            bodies.push(unit::Body {
+                address,
+                text: result.text,
+                incomplete: result.incomplete,
+                unknown_callees: result.unknown_callees,
+            });
+        }
+        let wide = self.convention.wide();
+        if self.unit_pack.get().is_none() {
+            let pack = ctypes::Pack::parse(capa_x_ghidra::prototype_pack(wide))
+                .map_err(DecompileError::Initialization)?;
+            let _ = self.unit_pack.set(pack);
+        }
+        let pack = self
+            .unit_pack
+            .get()
+            .ok_or_else(|| DecompileError::Initialization("type archive unavailable".into()))?;
+        unit::build(pack, wide, &bodies).map_err(DecompileError::Initialization)
     }
 
     pub fn decompile_function(&mut self, address: u64) -> Result<Decompilation, DecompileError> {

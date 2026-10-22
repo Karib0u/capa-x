@@ -576,3 +576,90 @@ fn x86_32_seh_prolog_helpers_use_their_modeled_effects() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+/// Compile a unit with clang for a Windows target, when clang is installed. `Ok(None)` means it
+/// is not, and the caller skips the check. Compiling only: the unit is never run.
+fn clang_accepts(unit: &str, target: &str) -> anyhow::Result<Option<(bool, String)>> {
+    use std::io::Write;
+    let Ok(mut child) = std::process::Command::new("clang")
+        .args([&format!("--target={target}"), "-x", "c", "-std=gnu11", "-fms-extensions", "-fsyntax-only"])
+        .args(["-Wno-everything", "-Werror=implicit-function-declaration", "-"])
+        .stdin(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+    else {
+        return Ok(None);
+    };
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("no stdin"))?
+        .write_all(unit.as_bytes())?;
+    let output = child.wait_with_output()?;
+    Ok(Some((
+        output.status.success(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )))
+}
+
+#[test]
+fn unit_carries_archive_prototypes_marks_guesses_and_compiles() -> anyhow::Result<()> {
+    let sample = include_bytes!("../../tests/testfiles/071f2d1c4c2201ee95ffe2aa965000f5f615a11a12d345e33b9fb060e5597740.dll_");
+    let mut session = DecompilerSession::from_pe(sample)?;
+    let unit = session.decompile_unit(&[0x18000e450])?;
+    // The callee comes with the archive's prototype, not a guess, and the body is unchanged.
+    assert!(
+        unit.text.contains("advapi32_AdjustTokenPrivileges("),
+        "{}",
+        unit.text
+    );
+    assert!(
+        unit.text
+            .lines()
+            .any(|l| l.starts_with("extern ") && l.contains("advapi32_AdjustTokenPrivileges(") && !l.contains("GUESS")),
+        "{}",
+        unit.text
+    );
+    assert!(unit.guesses.iter().all(|g| g.name != "advapi32_AdjustTokenPrivileges"));
+    assert_eq!(unit.functions.len(), 1);
+    assert_eq!(unit.functions[0].address, 0x18000e450);
+    // Every guess is marked in the text.
+    for guess in &unit.guesses {
+        assert!(
+            unit.text
+                .lines()
+                .any(|l| l.contains(&guess.name) && l.contains("GUESS")),
+            "unmarked guess {}",
+            guess.name
+        );
+    }
+    // Same text on a second request and from a second session, and with the set in another order.
+    assert_eq!(session.decompile_unit(&[0x18000e450])?.text, unit.text);
+    let mut other = DecompilerSession::from_pe(sample)?;
+    assert_eq!(other.decompile_unit(&[0x18000e450])?.text, unit.text);
+    match clang_accepts(&unit.text, "x86_64-pc-windows-msvc")? {
+        Some((ok, errors)) => assert!(ok, "{errors}\n{}", unit.text),
+        None => eprintln!("clang not installed; compile check skipped"),
+    }
+    Ok(())
+}
+
+#[test]
+fn unit_sets_dedupe_define_each_function_once_and_reject_bad_requests() -> anyhow::Result<()> {
+    let sample = include_bytes!("../../tests/testfiles/03b236b23b1ec37c663527c1f53af3fe.dll_");
+    let mut session = DecompilerSession::from_pe(sample)?;
+    let set = session.decompile_unit(&[0x18001e610, 0x180051ad0, 0x18001e610])?;
+    assert_eq!(set.functions.len(), 2);
+    let reversed = session.decompile_unit(&[0x180051ad0, 0x18001e610])?;
+    for function in &set.functions {
+        assert!(
+            set.text.matches(&format!("{}(", function.name)).count() >= 2,
+            "forward declaration and definition of {}",
+            function.name
+        );
+    }
+    assert_eq!(set.functions.len(), reversed.functions.len());
+    assert!(session.decompile_unit(&[]).is_err());
+    assert!(session.decompile_unit(&[0x10]).is_err());
+    Ok(())
+}

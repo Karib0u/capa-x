@@ -23,13 +23,13 @@ two parity levels and both goals matter; the last two parity levels are tracked,
 | P2 semantic | same callees, arguments, return shape, parameters, strings, flow | Yes | callee names 73% to 89% (held-out 73% and 78%), arguments 97%; 60% to 70% of outputs flagged incomplete |
 | P3 structure | same statement skeleton, readable control flow | A little | gotos within 4% to 8% of Ghidra; identical skeleton on 13% to 32% of functions |
 | P4 text | byte-identical text | No | 0% to 4% (comments and whitespace ignored) |
-| C compilable | output compiles as C, and can be recompiled with a generated header and declarations | Yes (new) | 42% to 50% pass a crude syntax check (see Steps 12 and 13) |
+| C compilable | output compiles as C, and can be recompiled with a generated header and declarations | Yes (new) | held-out native: 81% and 89% compile over stubs, 72% and 59% also free of constructs that need a decision (Step 12; x64, x86-32) |
 | T trustworthy | when native is unsure it says so; "complete" means right | Yes (new) | flags exist; not audited |
 
 100% parity (P4) is not a target. Ghidra's output depends on its program database and on analyzers
 that run to a fixed point and depend on each other. Here each part of that context is rebuilt by a
 heuristic. A recompilable result is also a different goal from Ghidra text: Ghidra's own output does not
-compile (about a third of it passes the same crude check). Both goals are served by the steps below.
+compile on its own (60% to 75% held-out over stubs, with the same header). Both goals are served by the steps below.
 
 ## Reference and scope
 
@@ -86,7 +86,7 @@ held-out sets and, where one exists, the tuned set.
 | function set | recall and precision of discovered functions against G |
 | latency | N request time versus G decompile time, excluding setup |
 | P3, P4 | identical token skeleton and identical text, as a share of compared functions (tracked only) |
-| compile rate | share of N outputs that pass the compile check (Step 12) |
+| compile rate | share of N outputs that compile against the real header, and the share that also have none of the constructs that need a decision (Step 12) |
 
 Each differing function is classed by first cause as **context** (missing prototype, type, name or
 boundary), **recovery** (function discovery, thunk or tail call) or **engine** (reproduced identically in
@@ -120,7 +120,7 @@ One row per cause of a remaining difference, with the size measured so far and t
 | Short runtime helpers on x86-32 | recognizes `__security_check_cookie` and applies its fixup | not recognized (below Function ID's four-instruction minimum) | 9 of 68 missed callees | Step 11a |
 | Large functions | no work limit (30 s timeout) | 2M work units, 5 s per phase; data-symbol pass falls back when over budget | 5 of 7 x86-32 held-out errors | Step 11d |
 | Speed | decompiles once | decompiles twice when data symbols apply; inference | median 26 ms against 10 ms (x86-32 held-out) | Step 11d |
-| Compilable output | prints pseudocode; does not compile | same, with our type names | 42% to 50% pass a crude check | Steps 12, 13 |
+| Compilable output | prints pseudocode; does not compile | same, with our type names | step 12: 81% and 89% compile over stubs, 72% and 59% clean (held-out x64, x86-32) | Step 13 |
 | Naming layer | `undefined4`, `local_24`, `FindWindowW` | `xunknown4`, `iStack_24`, `kernel32_FindWindowW` | cosmetic, deterministic | Step 17 |
 | Compilers other than MSVC | per-compiler spec (Delphi register convention, Borland) | Windows spec for all PE32 | not measured | Step 16 |
 | Types and RTTI | structs from archives, RTTI analyzers | archive types for imports only | not measured | phase 7 |
@@ -151,8 +151,8 @@ declarations of its callees.
 
 | Step | Work | Metric (proposed) |
 |---|---|---|
-| 12 Measure | A real header replaces the crude prelude of `scripts/decompiler_baseline/compile_check.py`: pseudo-types (`undefinedN`, `xunknownN`, `intN`, `uintN`, `byte`, `code`), the Win32 and C library types the pack describes (from the pack, not by hand), and the Ghidra pseudo-operations as inline functions or macros (`CONCAT`, `SUB`, `ZEXT`, `SEXT`, `CARRY`, `SCARRY`, `SBORROW`, `POPCOUNT`, `LZCOUNT`). Report compile rate per set, split by "has unknown callees". List the constructs that still fail (`(*pcRam...)(...)` calls through globals, `UNRECOVERED_JUMPTABLE`, `halt_baddata`, `swi`, register reads like `unaff_EBP`, `stack0x` addresses) with counts | compile rate on the three held-out sets; crude baseline 77 of 185 (42%) x64 and 74 of 149 (50%) x86-32 |
-| 13 Self-contained unit | An option on the API and CLI that emits a translation unit for one function or a set: the header, a prototype for every callee (archive, inferred, or the generic form for `FUN_`, each guess marked), `extern` declarations for each data symbol with size and type, strings as arrays with their bytes, calling-convention keywords mapped to the compiler, and a rule per non-compilable construct from step 12. Optionally also compile as C++17 (secondary) | a function whose callees are all known compiles against stubs |
+| 12 Measure (done) | `compile_header.py` builds the header: pseudo-types and pseudo-operations (a fixed prelude), the Win32 and C library types and the callee prototypes from the pack (not by hand), and stubs for what is left. `compile_check.py` reports compiles, clean (no construct needing a decision) and strict (no integer/pointer conversions), split by unknown callees, with counts of the constructs that still fail: register reads, sub-piece members (`x._0_4_`), `stack0x` addresses, `swi`, `halt_baddata`, `UNRECOVERED_JUMPTABLE`, calls through `pcRam` globals. Results: [results](decompiler-baseline-results.md#step-12-compile-check-with-a-real-header) | held-out native: x64 81% compile, 72% clean; x86-32 89% and 59%; was 40% and 48% under the crude check |
+| 13 Self-contained unit (first version done) | `--unit` on the CLI and `decompile_unit` on the API, built in Rust from the embedded pack: pseudo-types and operations, the archive's types and callee prototypes, marked guesses for the rest, a rewrite for sub-piece accesses, traps for `halt_baddata` and `swi`. Not yet: data symbol sizes and string bytes (the session does not keep the image), a body for structs reached only through pointers, C++17 as a second compile. Results: [results](decompiler-baseline-results.md#step-13-self-contained-unit) | a function whose callees are all known compiles: 92% (x64 held-out) and 93% (x86-32); 82% and 90% of all units compile |
 
 An optional later experiment: for pure, self-contained functions, compare the compiled C with the
 original code run in the vendored p-code emulator (`emulate.cc`). It would test meaning, covers a
@@ -411,8 +411,8 @@ Order by payoff per effort and dependency, not by phase number:
 | 9 | Phase 7, string and data symbols | Done ([results](decompiler-baseline-results.md#data-and-string-symbol-naming)): data symbols named 0% to 90% (baseline) and 98% (held-out), 94% to 96% of native's names agree with Ghidra's; string literals 36% to 88% of Ghidra's on the held-out set; about 30% more request time. |
 | 10 | x86-32 held-out benchmark | Done ([results](decompiler-baseline-results.md#x86-32-held-out-benchmark)): callee naming 78.4% against 89.2% on the tuned set; 12.8% of native's functions are not functions in Ghidra; 7 errors in 179 |
 | 11 | Gaps left by 6a | Done, two items open ([results](decompiler-baseline-results.md#step-11-gaps-left-by-6a)): x86-32 function recall 88.4% to 96.7%, precision 85.0% to 90.8%; callee names 89.2% to 92.4% (baseline) and 78.4% to 84.4% (held-out); held-out errors 7 to 1; cookie check, `operator new/delete`, `FID_conflict` and `name@N` names. Open: incomplete from unknown callee prototypes (relaxing inference measured and rejected), names outside Visual C (MinGW, Nim, Qt) and the C runtime assembly routines (`memset`, `memcpy`) |
-| 12 | Compile check with a real header | After step 11, or alongside it (does not touch the same code). Says which non-compilable constructs matter |
-| 13 | Self-contained unit for recompiling extracted functions | After steps 11 and 12 |
+| 12 | Compile check with a real header | Done ([results](decompiler-baseline-results.md#step-12-compile-check-with-a-real-header)): held-out native 81% (x64) and 89% (x86-32) compile over stubs, 72% and 59% clean; the largest blockers are register reads, sub-piece members and `stack0x` addresses, which step 13 needs rules for |
+| 13 | Self-contained unit for recompiling extracted functions | First version done ([results](decompiler-baseline-results.md#step-13-self-contained-unit)): 82% (x64) and 90% (x86-32) of held-out units compile; callees all known 92% and 93%. Open: data sizes and string bytes from the image, bodies for pointer-only structs, C++ |
 | 15 | Corpora: 15a known-source corpus, 15b VX Underground triage and splits | Proposed. 15b: the dump is on the maintainer's machine; triage streams archive headers without extracting. 15a: MSVC builds on the Windows lab, MinGW and clang as a second set |
 | 16 | Platforms and compilers: Delphi/Borland or ELF | Decided by the step 15b triage |
 | 17 | Phase 6b `Platform` extraction, parity tracking | After step 11 and the triage in step 15b |
@@ -505,7 +505,7 @@ the debugger, and the container and file-system importers.
 
 ## Reproducing the baseline
 
-The compile check (crude, see Step 12) is `scripts/decompiler_baseline/compile_check.py LABEL COMPARISON.json`.
+The unit check (Step 13) is `scripts/decompiler_baseline/unit_check.py SAMPLES SELECTION.json CAPA_X_CLI [--x86] [--set N]`. The compile check (Step 12) is `scripts/decompiler_baseline/compile_check.py LABEL COMPARISON.json PACK [--x86] [--ghidra]`.
 
 See `scripts/decompiler_baseline/README.md` for the exact commands, and
 `docs/decompiler-baseline-results.md` for the recorded results.

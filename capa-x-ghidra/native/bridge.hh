@@ -22,4 +22,6 @@ public:
   NativeOutput decompile(uint64_t address, uint32_t timeout_ms, uint32_t max_instructions, uint32_t max_work);
 };
 std::unique_ptr<Session> new_session(bool wide);
+// The embedded prototype pack for one language, read by the Rust side to describe types and callees.
+rust::Slice<const uint8_t> prototype_pack_bytes(bool wide);
 }

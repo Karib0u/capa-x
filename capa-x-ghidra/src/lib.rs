@@ -47,6 +47,7 @@ mod ffi {
             parameters: &[ValueType],
         ) -> Result<()>;
         fn new_session(wide: bool) -> Result<UniquePtr<Session>>;
+        fn prototype_pack_bytes(wide: bool) -> &'static [u8];
         fn add_section(
             self: Pin<&mut Session>,
             address: u64,
@@ -78,6 +79,12 @@ mod ffi {
 
 pub use cxx::Exception as Error;
 pub use ffi::{NativeOutput, ValueType};
+
+/// The packed Ghidra type and prototype archive for one language (`wide` is x86-64).
+/// Format: `scripts/decompiler_types/pack_prototypes.py`.
+pub fn prototype_pack(wide: bool) -> &'static [u8] {
+    ffi::prototype_pack_bytes(wide)
+}
 
 pub struct Session {
     inner: cxx::UniquePtr<ffi::Session>,

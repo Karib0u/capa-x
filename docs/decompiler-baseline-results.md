@@ -749,6 +749,101 @@ Still open:
   names `memset` but adds 550 ms to initialization. `FID_conflict__memcpy` is 7 of the 95 callees still missed.
 - **Qualified C++ names** (`Class::method`, constructors) need a demangler.
 
+## Step 12: compile check with a real header
+
+`scripts/decompiler_baseline/compile_check.py` now compiles each function's text alone with `clang
+-fsyntax-only` for a Windows target (`x86_64-` or `i686-pc-windows-msvc`, clang 21), behind a header built by
+`compile_header.py`:
+
+- a prelude for Ghidra's pseudo-types (`undefinedN`, `xunknownN`, `intN`, `uintN`, `unkbyteN`, `code`, ...)
+  and pseudo-operations (`CONCATnm`, `SUBnm`, `ZEXTnm`, `SEXTnm`, `CARRYn`, `SCARRYn`, `SBORROWn`,
+  `POPCOUNT`, `LZCOUNT`), written by hand because they are decompiler built-ins and not in any archive;
+- the Win32 and C library types the function names and a prototype for each callee the pack knows
+  (a `<module>_` prefix is accepted), both read from `winapi64.pack` or `winapi32.pack`. Enumerations become
+  integer typedefs;
+- a stub for whatever is still undeclared: `FUN_` and other unknown callees, data symbols (typed from how the
+  text uses them: called through, indexed, dereferenced), and Ghidra's register pseudo-variables.
+
+Three results per function. **compiles**: clang accepts the text once everything undeclared is stubbed
+(the successor of the crude number). **clean**: compiles, and the text contains none of the constructs
+below, which need a decision before the function can be recompiled. **strict**: clean, and still compiles
+with integer/pointer conversions as errors. A pass means well-formed C, not that the function is right.
+
+| Set | Functions | Crude check (old) | compiles | clean | strict |
+|---|---:|---:|---:|---:|---:|
+| x64 held-out, native | 186 | 75 (40%) | 150 (81%) | 133 (72%) | 105 (56%) |
+| x86-32 held-out, native | 155 | 75 (48%) | 138 (89%) | 92 (59%) | 79 (51%) |
+| x64 tuned, native | 183 | | 147 (80%) | 119 (65%) | 101 (55%) |
+| x86-32 tuned, native | 188 | | 164 (87%) | 115 (61%) | 95 (51%) |
+| x64 held-out, Ghidra text | 186 | | 112 (60%) | 107 (58%) | 81 (44%) |
+| x86-32 held-out, Ghidra text | 155 | | 116 (75%) | 91 (59%) | 69 (45%) |
+
+Native compiles more often than Ghidra's text, but not because it is better C: the header names native's
+pseudo-types, and Ghidra's text uses more types and names the pack lacks (`__acrt_ptd`, `DName`, C++
+classes). Read the Ghidra rows as a sanity bound, not a comparison.
+
+**Constructs that need a decision** (functions that contain each; held-out native, x64 / x86-32): register
+reads `unaff_*`, `in_*`, `extraout_*` 24 / 32; sub-piece members such as `x._0_4_` 21 / 8; `stack0x`
+addresses 1 / 27; `swi` 4 / 5; `halt_baddata` 0 / 2. The sub-piece member and the `stack0x` address are the
+two largest groups that no header can fix; each needs a rule in step 13.
+
+**What still fails after the blocker constructs** (first error, held-out native): 14 / 7 member access on a
+local that native typed as an integer (the sub-piece case); a few calls whose argument count disagrees with the
+pack's prototype (`SetWindowTheme()` with no arguments against three; three of the x64 ones are
+`__acrt_iob_func`, whose pack prototype has no parameters, so those are the pack's, not the text's); locals of
+a type that the pack has only as a forward declaration. These count real disagreements and are worth reading,
+not only fixing in the header.
+
+Unknown callees matter less than expected for this check: held-out x64 functions with unknown callees
+compile 81 of 113, those without 69 of 73, because an unknown callee is stubbed with a generic declaration. The
+stub is what step 13 has to replace with a marked guess.
+
+Reproduce (needs the stored Ghidra references and the test files; see the baseline README):
+
+```sh
+python3 -I scripts/decompiler_baseline/compile_check.py LABEL comparison.json capa-x-ghidra/data/winapi64.pack
+python3 -I scripts/decompiler_baseline/compile_check.py LABEL comparison.json capa-x-ghidra/data/winapi32.pack --x86 [--ghidra] [--out details.json]
+```
+
+## Step 13: self-contained unit
+
+`capa-x FILE --decompile-function ADDR [--decompile-function ADDR ...] --unit [--json]` and
+`DecompilerSession::decompile_unit` emit a translation unit (see [decompiler.md](decompiler.md#self-contained-unit)).
+It is built in Rust from the embedded pack and the decompiled text; nothing runs Python or a compiler.
+`scripts/decompiler_baseline/unit_check.py` runs the CLI over a selection and compiles each unit with
+`clang -fsyntax-only` for a Windows target, adding nothing to the unit: the unit alone must be accepted.
+
+| Selection | Units | Compile | Rest on the archive alone | Compile, when every callee is known |
+|---|---:|---:|---:|---:|
+| x64 held-out, one function each | 192 | 157 (82%) | 16 | 70 of 76 |
+| x86-32 held-out, one function each | 179 | 161 (90%) | 21 | 67 of 72 |
+| x64 held-out, sets of 5 | 48 | 18 (38%) | 0 | |
+| x86-32 held-out, sets of 5 | 46 | 26 (57%) | 0 | |
+
+(One x86-32 request hits the known 10 s deadline and is a request error, not a unit.) The goal of the
+step, a function whose callees are all known compiles, holds for 92% (x64) and 93% (x86-32) of those functions; the rest
+fail on the construct classes below, which are not about callees. Sets of five fail more often only because one
+failing function fails the whole unit; the error classes are the same as for single functions.
+"Rest on the archive alone" is low because almost every function reads a data symbol (`DAT_`, `PTR_`) or an
+unknown callee, which are guesses: x64 held-out units carry 572 data-symbol, 418 callee and 23 register-read
+guesses, and the x86-32 ones 798, 764 and 97 (plus 37 `stack0x` addresses). Those numbers are the work left for a data
+pass over the image.
+
+The `x._0_4_` sub-piece construct, the largest blocker in step 12 (21 of 186 x64 functions), is now rewritten
+(185 rewritten on x64 held-out, 3 left of a width not handled, 231 and none on x86-32). What still fails
+(first error, x64 held-out): member access on a local that is an integer (6); assignment to an array (4);
+arithmetic on a value the text treats as an aggregate (4); calls whose argument count disagrees with the archive
+(`__acrt_iob_func` is declared with no parameters in the archive, 3); a struct reached only through a pointer and then
+dereferenced, which has a forward declaration and no body (3).
+
+Reproduce (needs the sample files, clang, and a CLI built with the decompiler feature):
+
+```sh
+cargo build --release -p capa-x-cli --features decompiler
+python3 -I scripts/decompiler_baseline/unit_check.py tests/testfiles scripts/decompiler_baseline/heldout.json target/release/capa-x
+python3 -I scripts/decompiler_baseline/unit_check.py tests/testfiles scripts/decompiler_baseline/heldout-x86.json target/release/capa-x --x86 [--set 5]
+```
+
 ## Not yet done
 
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).

@@ -13,7 +13,7 @@ The scope is native x86-64 and x86-32 PE files (managed images and other formats
 The x86-64 path uses the Windows x64 calling convention; the x86-32 path is described under
 [x86-32](#x86-32).
 Addresses are hexadecimal virtual addresses, including the image base, not
-file offsets or RVAs. One function is requested per call. The CLI emits C-like
+file offsets or RVAs. One function is requested per call, or several with `--unit` (below). The CLI emits C-like
 text, or a dedicated JSON result with address, optional name, convention,
 text, warnings and incomplete status. `--timing` adds measured initialization
 and function timing to JSON. Without it, JSON is deterministic across job counts.
@@ -93,6 +93,40 @@ For a requested entry absent from recovery, a bounded SLEIGH scan of at most
 executable function entry. It stops on any other control flow. This is the
 fallback for an analysis that lacks the wrapper; native recovery now finds them
 (see Function discovery).
+
+## Self-contained unit
+
+`--unit` (with one or more `--decompile-function`) wraps the text in a C translation unit that a C
+compiler accepts, so an extracted function can be recompiled:
+
+```sh
+./target/release/capa-x sample.exe --decompile-function 0x140001000 --unit > f.c
+./target/release/capa-x sample.exe --decompile-function 0x140001000 --decompile-function 0x140001200 --unit --json
+clang --target=x86_64-pc-windows-msvc -std=gnu11 -fms-extensions -fsyntax-only f.c
+```
+
+API: `DecompilerSession::decompile_unit(&[u64])` returns a `Unit` (text, the functions in it, the
+guesses, the sub-piece rewrites). Duplicate addresses are decompiled once; between 1 and 256
+functions; one function that fails to decompile fails the unit. The unit is, in order: Ghidra's
+pseudo-types and pseudo-operations (`CONCAT44`, `SUB84`, `ZEXT48`, `SEXT48`, `CARRY4`, `SCARRY4`,
+`SBORROW4`, `POPCOUNT`, `LZCOUNT`); the types the text names and the archive's prototype for every
+callee it knows, read from the prototype pack at request time (no Python, no compiler); a
+declaration for everything else; a forward declaration of each function in the unit; the bodies.
+
+**Every declaration that is a guess carries a `GUESS` comment and is listed in `guesses`.** A unit whose
+list is empty compiles on the strength of the archive alone. The kinds: `callee_without_prototype`
+(`extern long long f();`, parameters unspecified), `data_symbol` and `undeclared_global` (an `extern`
+typed from how the text uses the name: called through, indexed, dereferenced), `register_read`
+(`unaff_*`, `in_*`, `extraout_*`), `stack_address` (`stack0x...`), `unrecovered_jump`
+(`UNRECOVERED_JUMPTABLE`). The rule for each construct that cannot compile as printed is in the
+header of `capa-x/src/decompiler/unit.rs`. Sub-piece accesses such as `x._0_4_` are not a guess: they are
+rewritten to a read or write of that byte range, and the count is in `rewrites`.
+
+What it does not do yet: data symbols get no size from the image and strings no bytes (the session does
+not keep the image; `s_` and `u_` names are `extern char[]` and `extern unsigned short[]`), enumerators are
+not declared (enumerations are integer typedefs), an indirect call through a computed table stays as
+printed, and a compile is well-formed C only: a dropped argument still compiles. The unit is never run.
+Measured results: [results](decompiler-baseline-results.md#step-13-self-contained-unit).
 
 ## Function discovery
 

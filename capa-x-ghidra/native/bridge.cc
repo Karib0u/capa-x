@@ -849,6 +849,10 @@ std::unique_ptr<Session> new_session(bool wide) {
     return std::unique_ptr<Session>(new Session(wide));
   });
 }
+rust::Slice<const uint8_t> prototype_pack_bytes(bool wide) {
+  const Spec &spec = spec_for(wide);
+  return rust::Slice<const uint8_t>(spec.pack, spec.pack_size);
+}
 void Session::add_section(uint64_t address, rust::Slice<const uint8_t> bytes, bool executable, bool readonly) {
   std::lock_guard<std::mutex> lock(engine_mutex);
   checked([&] {
