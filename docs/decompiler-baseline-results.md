@@ -616,7 +616,7 @@ numbers compare against Ghidra only.
 ## x86-32 held-out benchmark
 
 Measured 2026-10-22, final build of phase 6a. Same method as the x64 held-out set: 24 x86-32 PE
-files that are not in the 24 of the x86-32 baseline (213 eligible; seed 20261024), 179 functions
+files that are not among the 24 of the x86-32 baseline (213 eligible; seed 20261024), 179 functions
 chosen from *native's* function set at size percentiles 5 to 100 before any output was read
 (`heldout-x86.json`); Ghidra decompiled the same addresses and an address where it has no function is
 counted (`reference/ghidra-12.1.4-x86-heldout/decompile/`). Packers were not filtered out.
@@ -647,15 +647,15 @@ Reading it:
   symbols generalize.
 - **12.8% of native's functions are not functions in Ghidra.** This is the function-set precision gap
   (85.0%) seen directly, at every size percentile from p5 to p99, which is not noise.
-- **Missed names:** of 68 missed callees, 9 are `__security_check_cookie`, 12 are
-  `FID_conflict` names (`memcpy`, `free`, which Ghidra labels `FID_conflict:` and native leaves unnamed),
-  6 are other Visual C runtime names, and one sample (`268d6183`) accounts for 24. The
+- **Missed names:** of 68 missed callees, 9 are `__security_check_cookie`, 14 are
+  `FID_conflict` names (`memcpy`, `free` and two others, which Ghidra labels `FID_conflict:` and
+  native leaves unnamed), the rest are other runtime and Win32 names, and one sample (`268d6183`) accounts for 24. The
   cookie check is a three-instruction helper below the Function ID minimum of four instructions, and
   the runtime signature subset has no x86 pattern for it, so it is neither named nor given its
   call fixup, unlike on x64.
 - **Errors:** 7 in 179 (3.9%), against 1 in 192 on x64 held-out and 2 in 188 on the tuned x86 set. Five are
-  work limits on large functions (22.6 kB, 19.0 kB, 7.4 kB, 4.5 kB and one of 381 bytes at Ghidra, which
-  native folds into a larger function). The two instruction-limit cases are the entry stubs of
+  work limits (functions of 22.6 kB, 19.0 kB, 7.4 kB and 4.5 kB at Ghidra, and one that is 381 bytes
+  at Ghidra but not examined further). The two instruction-limit cases are the entry stubs of
   UPX-style packed files; Ghidra decompiles them with a "bad instruction data" warning.
 - **Speed:** native's median is 26 ms, 2.5 times Ghidra's, against 1.5 times on the tuned set. It
   includes the second analysis for data symbols and larger inferred callee sets; not profiled further.
