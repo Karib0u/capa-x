@@ -135,16 +135,121 @@ Driven strictly by the baseline clusters.
   removed the one clear cluster (`stack0x` addresses); the remaining differences are
   naming conventions of Ghidra's Java layer and callee-prototype knowledge.
 
+## Corpus composition and consequence
+
+Counted with `file` over `tests/testfiles` (410 entries, capa's test set; recount on any
+other corpus before committing to this order):
+
+| Format | Count | Decompiler |
+|---|---:|---|
+| PE x86-32, native | about 235 (plus 18 .NET, out of scope) | Rejected: "only native x86-64 PE images" |
+| PE x86-64 | about 105 | Supported |
+| ELF x86-64 | about 18 | No |
+| ELF x86-32 | 5 | No |
+| ELF AArch64 | 1 | No |
+| Mach-O | 0 | No |
+
+A held-out sweep of 37 unseen PE samples found 23 (62%) were x86-32 and rejected. The
+x86-64 remainder (14 samples, 350 functions) had no errors and 61% incomplete. x86-32 PE
+therefore covers about twice what the decompiler handles today, and it was missing from
+the earlier plan. Repo state that matters: `third_party/ghidra/specs/x86.slaspec` is
+already vendored; only `x86-64-win.cspec`, `x86-64.pspec` and `winapi64.pack` exist;
+loaders and recovery for ELF, Mach-O, AArch64 and x86-32 already exist for the capability
+path (`extract/loader/*`, `extract/aarch64`).
+
 ## Phase 6: platforms
 
-After the Windows pipeline is solid, extract a `Platform` trait (compiler spec,
-prototype table, thunk rules, loader). ELF x86-64 first, then AArch64, then
-Mach-O.
+Rule: extract the `Platform` abstraction while adding the second platform, not before.
+An abstraction drawn from one example is redrawn when the second arrives.
+
+### 6a. x86-32 PE (next after the held-out benchmark)
+
+Not a copy of the 64-bit path:
+
+| Area | Change | Source / work |
+|---|---|---|
+| Language | `x86:LE:32:default`; second `.sla`, loaded lazily | `x86.slaspec` vendored; add `x86.pspec` |
+| Compiler spec | `x86win.cspec`: cdecl, stdcall, fastcall, thiscall, unknown stack purge (`extrapop`) | Vendor from Ghidra 12.1.4 |
+| Calling convention | Win32 APIs are `__stdcall` (callee pops). Wrong purge breaks arguments and stack shape | Port X86FunctionPurgeAnalyzer behavior; imports take the convention from the pack |
+| Prototype pack | The 32-bit Win32 archive (`windows_vs12_32.gdt`) has different type sizes and packing | New `winapi32.pack` from the existing export script |
+| Library names | Function ID databases for x86 VS2012 to VS2019, same compact-index design as x64 | Check the size budget; `common_symbols_win32.txt` |
+| Effect models | Different call fixups: `_alloca_probe`, `__chkstk`, `__SEH_prolog4`, `__EH_prolog3`, cookie check (fastcall, `ecx`) | Extend the phase 5 table |
+| Function discovery | No `.pdata`. Phase 3's recall gain came mostly from `.pdata`, which x86-32 lacks | Prologue patterns (FunctionStart), call targets, SEH4 scope tables, jump-table targets, FLIRT |
+| Image loading | Base relocations and absolute addresses; imports through `jmp [abs]` | Check rebasing against Ghidra on the corpus |
+| Compiler variants | MSVC, MinGW (`x86gcc`), Borland and Delphi (`x86delphi`, register convention) | Detect and record per sample; MSVC and MinGW first, Delphi as an explicit follow-up |
+| Conventions | `thiscall` (`ecx`), `fs:[0]` SEH frames | Rely on the spec; verify on samples |
+
+Main risk: function recall starts well below the x64 93%.
+
+Steps:
+
+1. Baseline first: select 24 x86-32 samples, export Ghidra references into
+   `reference/ghidra-12.1.4-x86/`, measure function-set agreement. No code before this.
+2. `from_pe` accepts PE32 and selects language and specs by machine type.
+3. `winapi32.pack` and the 32-bit effect table.
+4. x86-32 discovery sources and the Function ID pack.
+5. Full scorecard plus the capa difftest loops; the capability path stays byte-identical.
+
+Exit: 0 initialization errors on non-packed native PE32; function recall at or above 90%;
+callee-name coverage, argument-count and void/non-void agreement within 10 points of the
+x64 numbers. Effort: large; steps 1 and 2 are small, the pack, Function ID and discovery
+are most of it.
+
+### 6b. Extract `Platform`
+
+From the two implementations that now exist. It owns the SLEIGH language, processor and
+compiler specs, the loader (sections, imports, relocations), the prototype pack, the
+library-name source, thunk rules, non-returning lists and the effect table.
+
+- Data-only dispatch, no runtime plugins; lazy loading; the default build is unchanged.
+- Measure binary size and build time with a second and third `.sla`; put each language
+  behind its own feature if the cost matters.
+- x64 outputs stay byte-identical (the 184-function reference checks it). Effort: medium.
+
+### 6c. ELF x86-64 and x86-32
+
+| Area | Work |
+|---|---|
+| Specs | `x86-64-gcc.cspec` (System V: `rdi, rsi, rdx, rcx, r8, r9`, red zone); `x86gcc.cspec` for 32-bit |
+| Imports | PLT and GOT stubs including `.plt.sec` and IRELATIVE, mapped to libc names |
+| Types | Generic C library and POSIX archives; a pack keyed by `(library, name)` |
+| Names | `.dynsym` and `.symtab`; Ghidra ships no glibc Function ID data, so stripped static binaries need FLIRT or another signature source |
+| Non-returning | Ghidra's ELF lists (`exit`, `abort`, `__stack_chk_fail`) |
+| Quirks | TLS through `fs:`, `syscall` as a named operation (Linux syscall table), stack canary |
+| Reuse | `golang.rs`, `libc_start_main.rs` recovery |
+
+Effort: medium to large. About 23 ELF samples is a thin corpus; add ELF test files first.
+
+### 6d. AArch64
+
+`AARCH64.slaspec` with its `.cspec` (AAPCS64, `x0` to `x7`). Check `.sla` size and compile
+time first. Fixed-width instructions ease discovery; check PAC and BTI and whether to
+reuse `extract/aarch64`. ELF AArch64 first (Android, IoT), then PE ARM64. One sample in the
+corpus, so low priority unless the real corpus has more.
+
+### 6e. Mach-O (x86-64 and arm64)
+
+Fat-binary slice selection, `__stubs` and `__la_symbol_ptr`, chained fixups (arm64e
+pointer authentication), Ghidra's Mac type archive. No samples in the corpus: start only
+when there are some. Objective-C message sends belong to phase 7.
+
+### 6f. 32-bit ARM and MIPS
+
+Only if the corpus contains IoT samples, and only after 6d.
 
 ## Phase 7: long tail, only if the scorecard justifies it
 
-C++ RTTI and vtables, SEH structure, Go and Rust runtime awareness, PDB and DWARF
-types, wider jump-table coverage.
+| Item | Gives | Cost | Note |
+|---|---|---|---|
+| String and data symbols (`DAT_`, `u_...` literals, global names) | The largest visible readability gap in side-by-side examples (strings print as raw addresses, globals as `uRam...`) | Medium: data-reference and string detection, optionally the n-gram model | Not measured by the scorecard today; add it as a metric. Ahead of 6c to 6e |
+| Demangling (MSVC `?..@@`, Itanium `_Z`) | Readable C++ names; the largest group of the 156 unrecovered callee names | A demangler crate if the dependency policy allows | Justify the dependency per `AGENTS.md` |
+| C++ RTTI and vtables | Class names, virtual calls, constructors | Large | MSVC first, then Itanium |
+| Structured exception handling | `__try`/`__except`, `__CxxFrameHandler`, scope tables | Medium to large | Common in MSVC code |
+| Go and Rust runtime awareness | Names from `pclntab`, panic and defer patterns | Medium each | `golang.rs` recovery exists |
+| Wider jump-table coverage | Fewer switch gaps and gotos | Small to medium per measured miss | Extend `switch.rs` |
+| PDB and DWARF types | Real types when debug info exists | Medium | Rare in malware |
+| Packers (UPX and similar) | Recall: 711 Ghidra-only functions in the one packed sample | Large; needs emulation or static unpacking, and samples are never executed | Probably out of scope; document as a limit |
+| Objective-C and Swift | Message sends, metadata | Large | After 6e and real samples |
 
 ## Order and status
 
@@ -155,10 +260,14 @@ Order by payoff per effort and dependency, not by phase number:
 | 1 | Phase 0, baseline | Done ([results](decompiler-baseline-results.md)) |
 | 2 | Phase 2, type and prototype pack | Done, with known leftovers (see results) |
 | 3 | Phase 1, failure isolation | Done (`00143de`): request errors 7 to 3 on the baseline, session no longer poisoned by limits; 3 work-limit errors remain |
-| 4 | Phase 4, library names (Function ID) | In progress; largest remaining gap (56% callee names) |
+| 4 | Phase 4, library names (Function ID) | Done ([results](decompiler-baseline-results.md#phase-4-function-id-names)): callee names 56.2% to 75.7%; demangling and noreturn or calling-convention facts remain |
 | 5 | Phase 3, boundaries, thunks, tail calls | Done ([results](decompiler-baseline-results.md#phase-3-function-boundaries)): function recall against Ghidra 79.6% to 93.4% (97.8% without the packed sample); difftest loops unchanged. Gated on the native backend, so the capability path is untouched |
 | 6 | Phase 5, cosmetics and data-flow | Done ([results](decompiler-baseline-results.md#phase-5-effect-models-and-data-flow)): call fixups for the cookie check and stack probes; incomplete flag 80.1% to 70.7%; parameter-ID variants measured and not adopted. Gated on the native backend |
-| 7 | Phases 6 and 7 | Only after the Windows pipeline is solid, and if the scorecard asks |
+| 7 | Held-out benchmark | Next: draw the selection from native's own function set on unused samples; add a data and string symbol metric |
+| 8 | Phase 6a, x86-32 PE | After the x86-32 Ghidra baseline (about 62% of sampled PE files are x86-32) |
+| 9 | Phase 7, string and data symbols | Before the other platforms; helps all of them |
+| 10 | Phase 6b, `Platform` extraction | After 6a, from the two implementations |
+| 11 | Phases 6c to 6f and the rest of 7 | Only if the scorecard or the corpus asks |
 
 Rerun the baseline after every step. A step that does not move its target metric
 is investigated before the next one starts.
