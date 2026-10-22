@@ -263,7 +263,7 @@ Order by payoff per effort and dependency, not by phase number:
 | 4 | Phase 4, library names (Function ID) | Done ([results](decompiler-baseline-results.md#phase-4-function-id-names)): callee names 56.2% to 75.7%; demangling and noreturn or calling-convention facts remain |
 | 5 | Phase 3, boundaries, thunks, tail calls | Done ([results](decompiler-baseline-results.md#phase-3-function-boundaries)): function recall against Ghidra 79.6% to 93.4% (97.8% without the packed sample); difftest loops unchanged. Gated on the native backend, so the capability path is untouched |
 | 6 | Phase 5, cosmetics and data-flow | Done ([results](decompiler-baseline-results.md#phase-5-effect-models-and-data-flow)): call fixups for the cookie check and stack probes; incomplete flag 80.1% to 70.7%; parameter-ID variants measured and not adopted. Gated on the native backend |
-| 7 | Held-out benchmark | Next: draw the selection from native's own function set on unused samples; add a data and string symbol metric |
+| 7 | Held-out benchmark | Done ([results](decompiler-baseline-results.md#held-out-benchmark)): callee naming 65.5% against 77.5% on the tuned set, robustness and structure generalize. A data and string symbol metric is still to add |
 | 8 | Phase 6a, x86-32 PE | After the x86-32 Ghidra baseline (about 62% of sampled PE files are x86-32) |
 | 9 | Phase 7, string and data symbols | Before the other platforms; helps all of them |
 | 10 | Phase 6b, `Platform` extraction | After 6a, from the two implementations |

@@ -343,6 +343,64 @@ The capability path was checked: `cargo test --workspace` and the `decompiler` f
 tests (which include `features_parity`), and the smoke corpus (23 of 23 identical, 0
 divergences over 731 reference-matched rules). The outer corpus was not rerun.
 
+## Held-out benchmark
+
+The 184-function baseline was drawn from Ghidra's function list on 23 samples, and
+phases 2 to 5 were tuned against it. This set tests for overfitting. Measured 2026-10-22,
+engine 12.1.4 on both sides, commit `8805445` plus the harness scripts.
+
+- Samples: 24 native AMD64 PE files from `tests/testfiles` that are not in `samples.json`
+  (79 eligible; EXE/DLL x size tercile; seed 20261022), listed with hashes in
+  `scripts/decompiler_baseline/heldout.json`.
+- Functions: 8 per sample, chosen from *capa-x's* function set (size percentiles 5 to 100,
+  at least 8 bytes), 192 in total, before any output was read. Ghidra decompiled the same
+  addresses; an address where Ghidra has no function is counted, not dropped.
+- Ghidra's outputs are stored in `reference/ghidra-12.1.4-heldout/decompile/`.
+
+The comparator matches a native call to Ghidra's name when it is `<module>_<name>` for any
+imported DLL (`--any-module`). The old list of module prefixes missed names such as
+`python38_PyModule_GetDict`. Both selections are rerun with the new matching below.
+
+| Metric | Baseline (184, tuned) | Held-out (192) |
+|---|---:|---:|
+| Native returned text | 181 | 191 |
+| Request errors (work limit) | 3 | 1 |
+| Ghidra has no function at native's address | 0 | 6 (3.1%) |
+| Flagged incomplete | 70.7% | 62.8% |
+| Incomplete from unknown callee prototypes | 69.1% | 60.7% |
+| Return void/non-void agrees | 94.5% | 97.3% |
+| Parameter count agrees | 87.8% | 83.2% |
+| Ghidra's named callees also named by native | 77.5% (495/639) | **65.5% (386/589)** |
+| Argument count agrees on matched callees | 97.2% | 97.7% |
+| Unnamed `FUN_` calls, Ghidra / native | UNNAMED_BASE | 811 / 1,125 |
+| Gotos, Ghidra / native | 421 / 426 | 558 / 546 |
+| Output lines, Ghidra / native | 18,864 / 19,102 | 20,701 / 19,973 |
+
+Reading it:
+
+- **Robustness and structure generalize.** One work-limit error in 192, no crashes or
+  initialization failures, gotos and line counts within 4% of Ghidra, arity 97.7%.
+- **Callee naming does not.** 65.5% against 77.5%, a 12-point gap. The missed callees
+  concentrate in a few samples: of 203 missed names, four samples account for 143
+  (`82bf6347`, `932dab87`, `f53dfa29`, `0f33c2fe`) and `96abcbcb`, `c3ef997d` add more. Causes
+  by sample: a statically linked MSVC C++ demangler (`DName::*`, which Ghidra names through
+  Function ID and demangling), a Nim program (`nimFrame`, `popFrame`), a MinGW build,
+  a Qt program (`QObject::connectImpl`), and CRT and libc names in non-Visual-C builds. By name: 80 CRT and libc, 49 other, 29
+  C++, 10 Nim. This suggests the pack is strong on Visual C code and thin outside it (a reading of the
+  clusters, not a per-name verification); demangling (phase 7) and a non-MSVC name source are the
+  levers.
+- **Parameter agreement is lower** (83.2% against 87.8%), consistent with callee knowledge.
+- **Incomplete is lower** (62.8%), partly because more of the sample is small functions
+  (146 of 191 are under 500 bytes; the 45 large ones are 91% incomplete).
+- **Function-set agreement on native's picks:** Ghidra has a function at 186 of 192 addresses
+  (96.9%). The six it lacks are small to median functions (p5 to p50). Why Ghidra has no function
+  there was not classified.
+
+What this changes in the plan: the tuned-set numbers overstate callee naming by about 12
+points for the whole corpus, so the held-out set becomes a required column in the scorecard
+next to the 184 functions. Data and string symbols and an x86-32 reference are the next
+additions.
+
 ## Not yet done
 
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).

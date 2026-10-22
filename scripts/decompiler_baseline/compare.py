@@ -42,7 +42,23 @@ def calls(c):
         found.setdefault(n, args + 1 if seen or args else 0)
     return found
 
-def base(n):  # native prefixes imports with the module, e.g. kernel32_ExitProcess
+# With --any-module, a native call also matches a Ghidra name when it is `<module>_<name>` for any
+# imported DLL (lowercase module), not only for the DLL list in base() below.
+ANY_MODULE = "--any-module" in sys.argv
+if ANY_MODULE:
+    sys.argv.remove("--any-module")
+
+def lookup(nbase, k):
+    if k in nbase:
+        return nbase[k]
+    if ANY_MODULE:
+        for n, v in nbase.items():
+            if n.endswith("_" + k) and re.fullmatch(r"[a-z0-9][a-z0-9\-\.]*", n[: -len(k) - 1]):
+                return v
+    return None
+
+def base(n):
+    # native prefixes imports with the module, e.g. kernel32_ExitProcess
     return n.split("_", 1)[1] if re.match(r"^(kernel32|kernelbase|advapi32|user32|ntdll|msvcrt|ws2_32|shell32|ole32|gdi32|shlwapi|wininet|oleaut32)_", n, re.I) else n
 
 def shape(c):
@@ -90,13 +106,13 @@ for name in sorted(n for n in os.listdir(gdir_) if n.endswith(".json")):
                 gcalls, ncalls = calls(gc), calls(nc)
                 nbase = {base(k): v for k, v in ncalls.items()}
                 gnamed = {k: v for k, v in gcalls.items() if not PSEUDO.match(k)}
-                match = [k for k in gnamed if k in nbase]
+                match = [k for k in gnamed if lookup(nbase, k) is not None]
                 row.update({"g_metrics": gm, "n_metrics": nm,
                             "ret_void_g": gs["void"], "ret_void_n": ns["void"],
                             "params_g": gs["params"], "params_n": ns["params"],
                             "g_named_callees": len(gnamed), "n_matched_callees": len(match),
-                            "arity_match": sum(1 for k in match if gnamed[k] == nbase[k]),
-                            "missing_callees": sorted(k for k in gnamed if k not in nbase)[:10],
+                            "arity_match": sum(1 for k in match if gnamed[k] == lookup(nbase, k)),
+                            "missing_callees": sorted(k for k in gnamed if lookup(nbase, k) is None)[:10],
                             "g_c": gc, "n_c": nc})
         rows.append(row)
 json.dump(rows, open(sys.argv[3], "w"), indent=1)

@@ -31,3 +31,21 @@ for n in $(cat $O/names.txt); do target/release/examples/function_set $T/$n > $O
 python3 -I scripts/decompiler_baseline/compare_functions.py $O/g $O/n $O/functions.json
 python3 -I scripts/decompiler_baseline/classify_functions.py $T $O/names.txt $O/g target/release/examples/function_set $O/classes
 ```
+
+Held-out set (functions drawn from native's own function set on samples outside
+`samples.json`; Ghidra decompiles the same addresses, and an address Ghidra has no function
+for is counted):
+
+```sh
+cargo build --release -p capa-x --features decompiler --examples
+python3 -I scripts/decompiler_baseline/select_heldout.py $T 24 20261022 target/release/examples/function_set scripts/decompiler_baseline/samples.json scripts/decompiler_baseline/heldout.json
+# per sample: write its "addresses" list to $O/lists/<name>.json, then
+scripts/decompiler_baseline/run_ghidra_addresses.sh $T/<name> $O/ghidra/<name>.json $O/lists/<name>.json
+python3 -I scripts/decompiler_baseline/run_native.py $T $O/ghidra $O/native target/release/examples/decompiler_corpus
+python3 -I scripts/decompiler_baseline/compare.py $O/ghidra $O/native $O/comparison.json --any-module
+```
+
+Ghidra's stored outputs are in `reference/ghidra-12.1.4-heldout/decompile/`; pass that
+directory instead of `$O/ghidra` to skip Ghidra. `--any-module` makes a native call match a
+Ghidra name when it is `<module>_<name>` for any imported DLL (the default list covers only
+common system DLLs); use it for both selections when comparing them.

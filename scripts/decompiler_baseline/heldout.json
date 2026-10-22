@@ -1,0 +1,994 @@
+{
+ "eligible": 79,
+ "seed": 20261022,
+ "tiers": [
+  83456,
+  292864
+ ],
+ "samples": [
+  {
+   "name": "03b236b23b1ec37c663527c1f53af3fe.dll_",
+   "size": 579584,
+   "dll": true,
+   "sha256": "6e730ea7b38ea80f2e852781f0a96e0bb16ebed8793a5ea4902e94c594bb6ae0",
+   "native_functions": 1722,
+   "addresses": [
+    {
+     "address": 6442654244,
+     "role": "p10"
+    },
+    {
+     "address": 6442565568,
+     "role": "p50"
+    },
+    {
+     "address": 6442708036,
+     "role": "p90"
+    },
+    {
+     "address": 6442475008,
+     "role": "p100"
+    },
+    {
+     "address": 6442785536,
+     "role": "p25"
+    },
+    {
+     "address": 6442578512,
+     "role": "p75"
+    },
+    {
+     "address": 6442624320,
+     "role": "p99"
+    },
+    {
+     "address": 6442785648,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "071f2d1c4c2201ee95ffe2aa965000f5f615a11a12d345e33b9fb060e5597740.dll_",
+   "size": 657408,
+   "dll": true,
+   "sha256": "071f2d1c4c2201ee95ffe2aa965000f5f615a11a12d345e33b9fb060e5597740",
+   "native_functions": 840,
+   "addresses": [
+    {
+     "address": 6442581500,
+     "role": "p10"
+    },
+    {
+     "address": 6442625312,
+     "role": "p50"
+    },
+    {
+     "address": 6442614860,
+     "role": "p90"
+    },
+    {
+     "address": 6442609164,
+     "role": "p100"
+    },
+    {
+     "address": 6442629961,
+     "role": "p25"
+    },
+    {
+     "address": 6442571608,
+     "role": "p75"
+    },
+    {
+     "address": 6442615728,
+     "role": "p99"
+    },
+    {
+     "address": 6442619456,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "0f33c2fec223823f84a732ceb1ad94ed2645e896095144850cf1443aeda67da6.dll_",
+   "size": 53760,
+   "dll": true,
+   "sha256": "0f33c2fec223823f84a732ceb1ad94ed2645e896095144850cf1443aeda67da6",
+   "native_functions": 152,
+   "addresses": [
+    {
+     "address": 6442473856,
+     "role": "p10"
+    },
+    {
+     "address": 6442467360,
+     "role": "p50"
+    },
+    {
+     "address": 6442468224,
+     "role": "p90"
+    },
+    {
+     "address": 6442460936,
+     "role": "p100"
+    },
+    {
+     "address": 6442474384,
+     "role": "p25"
+    },
+    {
+     "address": 6442466480,
+     "role": "p75"
+    },
+    {
+     "address": 6442462608,
+     "role": "p99"
+    },
+    {
+     "address": 6442475312,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "232b0a8546035d9017fadf68398826edb0a1e055566bc1d356d6c9fdf1d7e485.dll_",
+   "size": 701952,
+   "dll": true,
+   "sha256": "232b0a8546035d9017fadf68398826edb0a1e055566bc1d356d6c9fdf1d7e485",
+   "native_functions": 213,
+   "addresses": [
+    {
+     "address": 6442497487,
+     "role": "p10"
+    },
+    {
+     "address": 6442462304,
+     "role": "p50"
+    },
+    {
+     "address": 6442456384,
+     "role": "p90"
+    },
+    {
+     "address": 6442493524,
+     "role": "p100"
+    },
+    {
+     "address": 6442482484,
+     "role": "p25"
+    },
+    {
+     "address": 6442460560,
+     "role": "p75"
+    },
+    {
+     "address": 6442473252,
+     "role": "p99"
+    },
+    {
+     "address": 6442469764,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "2f43138aa75fb12ac482b486cbc98569.dll_",
+   "size": 16384,
+   "dll": true,
+   "sha256": "8a0090a2498cc8449d086e29acf368819cdf9d2854d5fbdbe48de2c039e095cc",
+   "native_functions": 34,
+   "addresses": [
+    {
+     "address": 6442455092,
+     "role": "p10"
+    },
+    {
+     "address": 6442459060,
+     "role": "p50"
+    },
+    {
+     "address": 6442459908,
+     "role": "p90"
+    },
+    {
+     "address": 6442456168,
+     "role": "p100"
+    },
+    {
+     "address": 6442460916,
+     "role": "p25"
+    },
+    {
+     "address": 6442459384,
+     "role": "p75"
+    },
+    {
+     "address": 6442456148,
+     "role": "p5"
+    },
+    {
+     "address": 6442459184,
+     "role": "p60"
+    }
+   ]
+  },
+  {
+   "name": "3583f7f97ab207be7ab2ec0a507e2481.dll_",
+   "size": 33792,
+   "dll": true,
+   "sha256": "6b46f154b60721302b2978dfe08f6394ed17504186471f3bd479d52b671bee91",
+   "native_functions": 53,
+   "addresses": [
+    {
+     "address": 6442475964,
+     "role": "p10"
+    },
+    {
+     "address": 6442465840,
+     "role": "p50"
+    },
+    {
+     "address": 6442467728,
+     "role": "p90"
+    },
+    {
+     "address": 6442470856,
+     "role": "p100"
+    },
+    {
+     "address": 6442460412,
+     "role": "p25"
+    },
+    {
+     "address": 6442465300,
+     "role": "p75"
+    },
+    {
+     "address": 6442468400,
+     "role": "p99"
+    },
+    {
+     "address": 6442457240,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "39ce034911a6ebd482af5893f9bdbd95.exe_",
+   "size": 237056,
+   "dll": false,
+   "sha256": "e5d4557a9dc417d503fb456d314b9f7985bb3765a2cb712be630d10d0a3d8306",
+   "native_functions": 412,
+   "addresses": [
+    {
+     "address": 5368724064,
+     "role": "p10"
+    },
+    {
+     "address": 5368812656,
+     "role": "p50"
+    },
+    {
+     "address": 5368748432,
+     "role": "p90"
+    },
+    {
+     "address": 5368874970,
+     "role": "p100"
+    },
+    {
+     "address": 5368873744,
+     "role": "p25"
+    },
+    {
+     "address": 5368722672,
+     "role": "p75"
+    },
+    {
+     "address": 5368803936,
+     "role": "p99"
+    },
+    {
+     "address": 5368811664,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "3b2eba4789bd4a799fe18476a4d1ce9f37ecc4c202eb406e06425c7e792904ff.exe_",
+   "size": 308736,
+   "dll": false,
+   "sha256": "3b2eba4789bd4a799fe18476a4d1ce9f37ecc4c202eb406e06425c7e792904ff",
+   "native_functions": 1011,
+   "addresses": [
+    {
+     "address": 5368871832,
+     "role": "p10"
+    },
+    {
+     "address": 5368803848,
+     "role": "p50"
+    },
+    {
+     "address": 5368790716,
+     "role": "p90"
+    },
+    {
+     "address": 5368813264,
+     "role": "p100"
+    },
+    {
+     "address": 5368719504,
+     "role": "p25"
+    },
+    {
+     "address": 5368892380,
+     "role": "p75"
+    },
+    {
+     "address": 5368881768,
+     "role": "p99"
+    },
+    {
+     "address": 5368763068,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "4e9c546a54e40d0da89bb4616dd7f8c4.exe_",
+   "size": 580056,
+   "dll": false,
+   "sha256": "66af4bca3df1ee98ec1fdb65b4e5fed4146bd0743ef8318c87368434d3ac50de",
+   "native_functions": 924,
+   "addresses": [
+    {
+     "address": 5368815244,
+     "role": "p10"
+    },
+    {
+     "address": 5368864764,
+     "role": "p50"
+    },
+    {
+     "address": 5368739920,
+     "role": "p90"
+    },
+    {
+     "address": 5368802064,
+     "role": "p100"
+    },
+    {
+     "address": 5368713616,
+     "role": "p25"
+    },
+    {
+     "address": 5368845500,
+     "role": "p75"
+    },
+    {
+     "address": 5368732736,
+     "role": "p99"
+    },
+    {
+     "address": 5368879712,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "573174640974b288d9d161cf4d29387cd7dbf7d80a80f5547df887f9836df8fb.exe_",
+   "size": 32768,
+   "dll": false,
+   "sha256": "573174640974b288d9d161cf4d29387cd7dbf7d80a80f5547df887f9836df8fb",
+   "native_functions": 44,
+   "addresses": [
+    {
+     "address": 5368717712,
+     "role": "p10"
+    },
+    {
+     "address": 5368718312,
+     "role": "p50"
+    },
+    {
+     "address": 5368716440,
+     "role": "p90"
+    },
+    {
+     "address": 5368713936,
+     "role": "p100"
+    },
+    {
+     "address": 5368717408,
+     "role": "p25"
+    },
+    {
+     "address": 5368717432,
+     "role": "p75"
+    },
+    {
+     "address": 5368717696,
+     "role": "p5"
+    },
+    {
+     "address": 5368713232,
+     "role": "p60"
+    }
+   ]
+  },
+  {
+   "name": "59a6c5036241a2f604e755bf523eb084.exe_",
+   "size": 18944,
+   "dll": false,
+   "sha256": "0a3081aca136f780970c426d63f075455950444f34540d87d16b84cf4e5542ad",
+   "native_functions": 50,
+   "addresses": [
+    {
+     "address": 5368721068,
+     "role": "p10"
+    },
+    {
+     "address": 5368719916,
+     "role": "p50"
+    },
+    {
+     "address": 5368713424,
+     "role": "p90"
+    },
+    {
+     "address": 5368715104,
+     "role": "p100"
+    },
+    {
+     "address": 5368722324,
+     "role": "p25"
+    },
+    {
+     "address": 5368718816,
+     "role": "p75"
+    },
+    {
+     "address": 5368720712,
+     "role": "p5"
+    },
+    {
+     "address": 5368713328,
+     "role": "p60"
+    }
+   ]
+  },
+  {
+   "name": "5b99fa01c72cebc53a76cc72e9581189.dll_",
+   "size": 73728,
+   "dll": true,
+   "sha256": "c2f3295b8b8660166314fb610392325e3ca6e697c8f1010bb57dbd0f25ab3121",
+   "native_functions": 218,
+   "addresses": [
+    {
+     "address": 6442492862,
+     "role": "p10"
+    },
+    {
+     "address": 6442491940,
+     "role": "p50"
+    },
+    {
+     "address": 6442473172,
+     "role": "p90"
+    },
+    {
+     "address": 6442464252,
+     "role": "p100"
+    },
+    {
+     "address": 6442490408,
+     "role": "p25"
+    },
+    {
+     "address": 6442481192,
+     "role": "p75"
+    },
+    {
+     "address": 6442455392,
+     "role": "p99"
+    },
+    {
+     "address": 6442468160,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "71a4f9b800d81ff6632b9892a6a502c412c141341e46d697a8c004e2f460913b.exe_",
+   "size": 292864,
+   "dll": false,
+   "sha256": "71a4f9b800d81ff6632b9892a6a502c412c141341e46d697a8c004e2f460913b",
+   "native_functions": 54,
+   "addresses": [
+    {
+     "address": 4199680,
+     "role": "p10"
+    },
+    {
+     "address": 4205024,
+     "role": "p50"
+    },
+    {
+     "address": 4510816,
+     "role": "p90"
+    },
+    {
+     "address": 4198832,
+     "role": "p100"
+    },
+    {
+     "address": 4205584,
+     "role": "p25"
+    },
+    {
+     "address": 4200528,
+     "role": "p75"
+    },
+    {
+     "address": 4202048,
+     "role": "p99"
+    },
+    {
+     "address": 4200256,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "79252f58d486aee8c08a8a7ebd36ae11ab5798b289e7f88e71eacf8637c340cc.dll_",
+   "size": 194048,
+   "dll": true,
+   "sha256": "79252f58d486aee8c08a8a7ebd36ae11ab5798b289e7f88e71eacf8637c340cc",
+   "native_functions": 618,
+   "addresses": [
+    {
+     "address": 6442550100,
+     "role": "p10"
+    },
+    {
+     "address": 6442484688,
+     "role": "p50"
+    },
+    {
+     "address": 6442553368,
+     "role": "p90"
+    },
+    {
+     "address": 6442470280,
+     "role": "p100"
+    },
+    {
+     "address": 6442579992,
+     "role": "p25"
+    },
+    {
+     "address": 6442556516,
+     "role": "p75"
+    },
+    {
+     "address": 6442497676,
+     "role": "p99"
+    },
+    {
+     "address": 6442507744,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "82bf6347acf15e5d883715dc289d8a2b.exe_",
+   "size": 981504,
+   "dll": false,
+   "sha256": "919f5697babee376b0abd29a9fbebc98306e5d2fe55b40e14ce9c01a57828506",
+   "native_functions": 4838,
+   "addresses": [
+    {
+     "address": 5369354640,
+     "role": "p10"
+    },
+    {
+     "address": 5369570240,
+     "role": "p50"
+    },
+    {
+     "address": 5369242640,
+     "role": "p90"
+    },
+    {
+     "address": 5369072273,
+     "role": "p100"
+    },
+    {
+     "address": 5369078233,
+     "role": "p25"
+    },
+    {
+     "address": 5369532992,
+     "role": "p75"
+    },
+    {
+     "address": 5369156544,
+     "role": "p99"
+    },
+    {
+     "address": 5369111328,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "932dab8756ad4ae9a62bde0772d952e4.exe_",
+   "size": 266585,
+   "dll": false,
+   "sha256": "fadc8719cc7147d5737b20fc6a8a40928421911030349b5052ee118ca9d252db",
+   "native_functions": 509,
+   "addresses": [
+    {
+     "address": 5368738102,
+     "role": "p10"
+    },
+    {
+     "address": 5368732242,
+     "role": "p50"
+    },
+    {
+     "address": 5368813106,
+     "role": "p90"
+    },
+    {
+     "address": 5368845066,
+     "role": "p100"
+    },
+    {
+     "address": 5368843840,
+     "role": "p25"
+    },
+    {
+     "address": 5368714368,
+     "role": "p75"
+    },
+    {
+     "address": 5368813619,
+     "role": "p99"
+    },
+    {
+     "address": 5368719551,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "96abcbcb4aec439ac1619b02a44b6f482241dbb7486a15138e3aada5fa01d382.dll_",
+   "size": 136192,
+   "dll": true,
+   "sha256": "96abcbcb4aec439ac1619b02a44b6f482241dbb7486a15138e3aada5fa01d382",
+   "native_functions": 531,
+   "addresses": [
+    {
+     "address": 6442503376,
+     "role": "p10"
+    },
+    {
+     "address": 6442483280,
+     "role": "p50"
+    },
+    {
+     "address": 6442487152,
+     "role": "p90"
+    },
+    {
+     "address": 6442505888,
+     "role": "p100"
+    },
+    {
+     "address": 6442456672,
+     "role": "p25"
+    },
+    {
+     "address": 6442481776,
+     "role": "p75"
+    },
+    {
+     "address": 6442470272,
+     "role": "p99"
+    },
+    {
+     "address": 6442505856,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "9a00ebe67d833edb70ed6dd0f4652592.dll_",
+   "size": 141312,
+   "dll": true,
+   "sha256": "f77a9875dbf1a1807082117d69bdbdd14eaa112996962f613de4204db34faba7",
+   "native_functions": 372,
+   "addresses": [
+    {
+     "address": 6442537176,
+     "role": "p10"
+    },
+    {
+     "address": 6442532196,
+     "role": "p50"
+    },
+    {
+     "address": 6442519984,
+     "role": "p90"
+    },
+    {
+     "address": 6442467408,
+     "role": "p100"
+    },
+    {
+     "address": 6442524388,
+     "role": "p25"
+    },
+    {
+     "address": 6442463488,
+     "role": "p75"
+    },
+    {
+     "address": 6442526252,
+     "role": "p99"
+    },
+    {
+     "address": 6442511644,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "9ed5660c6a442dbba9e2ba795ccc913c1f1517ce89854fe4287c1c8b36b21d52.exe_",
+   "size": 141824,
+   "dll": true,
+   "sha256": "9ed5660c6a442dbba9e2ba795ccc913c1f1517ce89854fe4287c1c8b36b21d52",
+   "native_functions": 484,
+   "addresses": [
+    {
+     "address": 6442540095,
+     "role": "p10"
+    },
+    {
+     "address": 6442535840,
+     "role": "p50"
+    },
+    {
+     "address": 6442503740,
+     "role": "p90"
+    },
+    {
+     "address": 6442514412,
+     "role": "p100"
+    },
+    {
+     "address": 6442539935,
+     "role": "p25"
+    },
+    {
+     "address": 6442511824,
+     "role": "p75"
+    },
+    {
+     "address": 6442472080,
+     "role": "p99"
+    },
+    {
+     "address": 6442477508,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "c3ef997d330e65be1e22ba4d2622ece23391c6cfc78b2ee515f3d0c7a3083a79.exe_",
+   "size": 16896,
+   "dll": false,
+   "sha256": "c3ef997d330e65be1e22ba4d2622ece23391c6cfc78b2ee515f3d0c7a3083a79",
+   "native_functions": 47,
+   "addresses": [
+    {
+     "address": 5368719152,
+     "role": "p10"
+    },
+    {
+     "address": 5368719632,
+     "role": "p50"
+    },
+    {
+     "address": 5368713232,
+     "role": "p90"
+    },
+    {
+     "address": 5368716080,
+     "role": "p100"
+    },
+    {
+     "address": 5368718672,
+     "role": "p25"
+    },
+    {
+     "address": 5368718736,
+     "role": "p75"
+    },
+    {
+     "address": 5368719600,
+     "role": "p5"
+    },
+    {
+     "address": 5368715600,
+     "role": "p60"
+    }
+   ]
+  },
+  {
+   "name": "de07bd6e3ade9e4d8a36032a23de11a372bd93d39a6ef95d849e3f6f7ebac6e5.exe_",
+   "size": 119296,
+   "dll": false,
+   "sha256": "de07bd6e3ade9e4d8a36032a23de11a372bd93d39a6ef95d849e3f6f7ebac6e5",
+   "native_functions": 413,
+   "addresses": [
+    {
+     "address": 5368717168,
+     "role": "p10"
+    },
+    {
+     "address": 5368734744,
+     "role": "p50"
+    },
+    {
+     "address": 5368753532,
+     "role": "p90"
+    },
+    {
+     "address": 5368763372,
+     "role": "p100"
+    },
+    {
+     "address": 5368756732,
+     "role": "p25"
+    },
+    {
+     "address": 5368714216,
+     "role": "p75"
+    },
+    {
+     "address": 5368722648,
+     "role": "p99"
+    },
+    {
+     "address": 5368714964,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "f03bdb9fa52f7b61ef03141fefff1498ad2612740b1fdbf6941f1c5af5eee70a.exe_",
+   "size": 14848,
+   "dll": false,
+   "sha256": "f03bdb9fa52f7b61ef03141fefff1498ad2612740b1fdbf6941f1c5af5eee70a",
+   "native_functions": 41,
+   "addresses": [
+    {
+     "address": 4204096,
+     "role": "p10"
+    },
+    {
+     "address": 4202816,
+     "role": "p50"
+    },
+    {
+     "address": 4198416,
+     "role": "p90"
+    },
+    {
+     "address": 4198800,
+     "role": "p100"
+    },
+    {
+     "address": 4199712,
+     "role": "p25"
+    },
+    {
+     "address": 4199808,
+     "role": "p75"
+    },
+    {
+     "address": 4204064,
+     "role": "p5"
+    },
+    {
+     "address": 4202144,
+     "role": "p60"
+    }
+   ]
+  },
+  {
+   "name": "f53dfa294d6979145fbb34303cf73bb6.exe_",
+   "size": 125952,
+   "dll": false,
+   "sha256": "4764eec6f4ed43996e6dc7cadde8ea4cc09e08f4708d95c39f36bf1badecffd1",
+   "native_functions": 135,
+   "addresses": [
+    {
+     "address": 5368800368,
+     "role": "p10"
+    },
+    {
+     "address": 5368772736,
+     "role": "p50"
+    },
+    {
+     "address": 5368741168,
+     "role": "p90"
+    },
+    {
+     "address": 5368790432,
+     "role": "p100"
+    },
+    {
+     "address": 5368796720,
+     "role": "p25"
+    },
+    {
+     "address": 5368780272,
+     "role": "p75"
+    },
+    {
+     "address": 5368802240,
+     "role": "p99"
+    },
+    {
+     "address": 5368729264,
+     "role": "p5"
+    }
+   ]
+  },
+  {
+   "name": "f5449806ad50242a4df9186455434b5957f3fc2044d85a9f1d9135a542b678cc.dll_",
+   "size": 327168,
+   "dll": true,
+   "sha256": "f5449806ad50242a4df9186455434b5957f3fc2044d85a9f1d9135a542b678cc",
+   "native_functions": 992,
+   "addresses": [
+    {
+     "address": 6442626384,
+     "role": "p10"
+    },
+    {
+     "address": 6442583208,
+     "role": "p50"
+    },
+    {
+     "address": 6442548640,
+     "role": "p90"
+    },
+    {
+     "address": 6442639820,
+     "role": "p100"
+    },
+    {
+     "address": 6442595268,
+     "role": "p25"
+    },
+    {
+     "address": 6442631116,
+     "role": "p75"
+    },
+    {
+     "address": 6442489360,
+     "role": "p99"
+    },
+    {
+     "address": 6442522200,
+     "role": "p5"
+    }
+   ]
+  }
+ ]
+}
