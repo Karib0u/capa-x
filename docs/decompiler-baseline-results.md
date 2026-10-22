@@ -372,7 +372,7 @@ imported DLL (`--any-module`). The old list of module prefixes missed names such
 | Parameter count agrees | 87.8% | 83.2% |
 | Ghidra's named callees also named by native | 77.5% (495/639) | **65.5% (386/589)** |
 | Argument count agrees on matched callees | 97.2% | 97.7% |
-| Unnamed `FUN_` calls, Ghidra / native | UNNAMED_BASE | 811 / 1,125 |
+| Unnamed `FUN_` calls, Ghidra / native | 770 / 1,049 | 811 / 1,125 |
 | Gotos, Ghidra / native | 421 / 426 | 558 / 546 |
 | Output lines, Ghidra / native | 18,864 / 19,102 | 20,701 / 19,973 |
 
