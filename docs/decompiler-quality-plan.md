@@ -162,7 +162,7 @@ path (`extract/loader/*`, `extract/aarch64`).
 Rule: extract the `Platform` abstraction while adding the second platform, not before.
 An abstraction drawn from one example is redrawn when the second arrives.
 
-### 6a. x86-32 PE (next after the held-out benchmark)
+### 6a. x86-32 PE (done; see the status table)
 
 Not a copy of the 64-bit path:
 
@@ -267,11 +267,14 @@ Order by payoff per effort and dependency, not by phase number:
 | 4 | Phase 4, library names (Function ID) | Done ([results](decompiler-baseline-results.md#phase-4-function-id-names)): callee names 56.2% to 75.7%; demangling and noreturn or calling-convention facts remain |
 | 5 | Phase 3, boundaries, thunks, tail calls | Done ([results](decompiler-baseline-results.md#phase-3-function-boundaries)): function recall against Ghidra 79.6% to 93.4% (97.8% without the packed sample); difftest loops unchanged. Gated on the native backend, so the capability path is untouched |
 | 6 | Phase 5, cosmetics and data-flow | Done ([results](decompiler-baseline-results.md#phase-5-effect-models-and-data-flow)): call fixups for the cookie check and stack probes; incomplete flag 80.1% to 70.7%; parameter-ID variants measured and not adopted. Gated on the native backend |
-| 7 | Held-out benchmark | Done ([results](decompiler-baseline-results.md#held-out-benchmark)): callee naming 65.5% against 77.5% on the tuned set, robustness and structure generalize. A data and string symbol metric is still to add |
+| 7 | Held-out benchmark | Done ([results](decompiler-baseline-results.md#held-out-benchmark)): callee naming 65.5% against 77.5% on the tuned set, robustness and structure generalize |
 | 8 | Phase 6a, x86-32 PE | Done, one exit criterion missed ([results](decompiler-baseline-results.md#x86-32-decompiler-phase-6a)): decompiles PE32; callee names 89.2%, void 91.4%, params 91.9%, arity 97.2%; 99.7% of 2,229 random functions decompile; function recall 88.4% (target 90%) |
 | 9 | Phase 7, string and data symbols | Done ([results](decompiler-baseline-results.md#data-and-string-symbol-naming)): data symbols named 0% to 90% (baseline) and 98% (held-out), 94% to 96% of native's names agree with Ghidra's; string literals 36% to 88% of Ghidra's on the held-out set; about 30% more request time. |
-| 10 | Phase 6b, `Platform` extraction | After 6a, from the two implementations |
-| 11 | Phases 6c to 6f and the rest of 7 | Only if the scorecard or the corpus asks |
+| 10 | x86-32 held-out benchmark | Done ([results](decompiler-baseline-results.md#x86-32-held-out-benchmark)): callee naming 78.4% against 89.2% on the tuned set; 12.8% of native's functions are not functions in Ghidra; 7 errors in 179 |
+| 11 | Gaps left by 6a | Next. Measured on the two x86-32 sets: function recall 88.4% and precision 85.0%; 62% to 70% of outputs incomplete from unknown callee prototypes; names outside Visual C (MinGW, Nim, Qt) and `FID_conflict` names; `__security_check_cookie` and other short helpers on x86-32; large-function work limits (5 of 7 errors) |
+| 12 | Your own files | Count formats, architectures and compilers in the files the tool is meant for, before choosing between Delphi/Borland (x86-32), ELF (6c) and the rest. Needs a directory from the maintainer |
+| 13 | Phase 6b, `Platform` extraction | After step 11, from the two implementations |
+| 14 | Phases 6c to 6f and the rest of 7 | Only if the scorecard or the corpus asks, which step 12 decides |
 
 Rerun the baseline after every step. A step that does not move its target metric
 is investigated before the next one starts.

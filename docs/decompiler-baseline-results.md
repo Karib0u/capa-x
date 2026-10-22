@@ -613,6 +613,57 @@ precision 85.0% to 84.5%. That is a wash, so it was not adopted. Where native ha
 lacks, the ones looked at were real code (stdcall methods after `ret N`, and SEH funclets). Both
 numbers compare against Ghidra only.
 
+## x86-32 held-out benchmark
+
+Measured 2026-10-22, final build of phase 6a. Same method as the x64 held-out set: 24 x86-32 PE
+files that are not in the 24 of the x86-32 baseline (213 eligible; seed 20261024), 179 functions
+chosen from *native's* function set at size percentiles 5 to 100 before any output was read
+(`heldout-x86.json`); Ghidra decompiled the same addresses and an address where it has no function is
+counted (`reference/ghidra-12.1.4-x86-heldout/decompile/`). Packers were not filtered out.
+
+| Metric | x86-32 tuned (188) | x86-32 held-out (179) |
+|---|---:|---:|
+| Ghidra has a function at native's address | 188 of 188 (its own list) | **156 of 179** (23 have none, 12.8%) |
+| Native returned text | 186 | 172 (7 errors) |
+| Errors | 2 work limit | 5 work limit, 2 instruction limit |
+| Flagged incomplete | 69.9% | 62.8% |
+| Incomplete from unknown callee prototypes | 67.7% | 61.6% |
+| Return void/non-void agrees | 91.4% | 92.6% |
+| Parameter count agrees | 91.9% | 88.6% |
+| Ghidra's named callees also named by native | 89.2% (536/601) | **78.4%** (247/315) |
+| Argument count agrees on matched callees | 97.2% | 97.6% |
+| Gotos, Ghidra / native | 576 / 553 | 346 / 351 |
+| Output lines, Ghidra / native | 21,014 / 18,962 | 20,363 / 20,495 |
+| Unnamed calls, Ghidra / native | 1,154 / 1,330 | 1,021 / 1,510 |
+| Median request time, Ghidra / native | 9.1 / 13.4 ms | 10.4 / 26.0 ms |
+| Data symbols named (native names Ghidra's) | 91.3% (without one function) | 86.6% (367/424) |
+| Names native prints that Ghidra agrees with | globals 87.3%, strings 98.6% | globals 94.5%, strings 100%, pointers 94.9% |
+| Inline string literals, Ghidra / native | 143 / 133 | 111 / 97 |
+
+Reading it:
+
+- **Callee naming drops 11 points** (89.2% to 78.4%), the same size of drop as x64 (77.5% to 65.5%). The
+  tuned 89.2% overstated what a new file gets. Structure (gotos, lines, arity) and the data
+  symbols generalize.
+- **12.8% of native's functions are not functions in Ghidra.** This is the function-set precision gap
+  (85.0%) seen directly, at every size percentile from p5 to p99, which is not noise.
+- **Missed names:** of 68 missed callees, 9 are `__security_check_cookie`, 12 are
+  `FID_conflict` names (`memcpy`, `free`, which Ghidra labels `FID_conflict:` and native leaves unnamed),
+  6 are other Visual C runtime names, and one sample (`268d6183`) accounts for 24. The
+  cookie check is a three-instruction helper below the Function ID minimum of four instructions, and
+  the runtime signature subset has no x86 pattern for it, so it is neither named nor given its
+  call fixup, unlike on x64.
+- **Errors:** 7 in 179 (3.9%), against 1 in 192 on x64 held-out and 2 in 188 on the tuned x86 set. Five are
+  work limits on large functions (22.6 kB, 19.0 kB, 7.4 kB, 4.5 kB and one of 381 bytes at Ghidra, which
+  native folds into a larger function). The two instruction-limit cases are the entry stubs of
+  UPX-style packed files; Ghidra decompiles them with a "bad instruction data" warning.
+- **Speed:** native's median is 26 ms, 2.5 times Ghidra's, against 1.5 times on the tuned set. It
+  includes the second analysis for data symbols and larger inferred callee sets; not profiled further.
+
+The 6a exit criteria hold on this set too except recall: callee naming is within 11 points of the x64
+held-out figure, arity and void/non-void agreement are close, and there is no initialization failure. The
+number to quote for naming on files not tuned against is 78%, not 89%.
+
 ## Not yet done
 
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).

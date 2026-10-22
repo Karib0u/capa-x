@@ -66,6 +66,13 @@ python3 -I scripts/decompiler_baseline/compare_functions.py $O/g $O/n $O/functio
 
 Stored references: `reference/ghidra-12.1.4-x86/{functions,decompile}/`.
 
+x86-32 held-out set (functions from native's function set on samples outside the baseline):
+
+```sh
+python3 -I scripts/decompiler_baseline/select_heldout.py $T 24 20261024 target/release/examples/function_set scripts/decompiler_baseline/samples-x86.json scripts/decompiler_baseline/heldout-x86.json x86
+# then as for the x64 held-out set; stored outputs: reference/ghidra-12.1.4-x86-heldout/decompile/
+```
+
 Native against the stored x86-32 reference (no Ghidra needed):
 
 ```sh

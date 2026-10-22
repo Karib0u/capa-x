@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Development-only: draw the held-out decompiler selection from NATIVE's function set.
 
-usage: select_heldout.py TESTFILES COUNT SEED FUNCTION_SET_BINARY EXCLUDE_SAMPLES_JSON OUT_JSON
+usage: select_heldout.py TESTFILES COUNT SEED FUNCTION_SET_BINARY EXCLUDE_SAMPLES_JSON OUT_JSON [x86]
 
-Eligible: native AMD64 PE files (no CLR directory, 8 KiB..6 MiB) that are not in the
-baseline selection. Strata are (EXE|DLL) x size tercile, spread evenly. Functions come from
+Eligible: native AMD64 PE files (x86-32 with a seventh argument "x86"; no CLR directory,
+8 KiB..6 MiB) that are not in the baseline selection. Strata are (EXE|DLL) x size tercile, spread evenly. Functions come from
 capa-x's own recovery (the `function_set` example), not from Ghidra, so functions Ghidra
 does not recover are part of the sample: per sample the entry point plus functions of at
 least 8 bytes at size percentiles 5, 10, 25, 50, 60, 75, 90, 99 and 100. No decompiler
@@ -19,6 +19,7 @@ sel = {}
 exec(compile(src, "select_samples", "exec"), sel)
 
 root, count, seed, fsbin, excl, out = sys.argv[1:7]
+arch = sys.argv[7] if len(sys.argv) > 7 else "amd64"
 count, seed = int(count), int(seed)
 skip = {s["name"] for s in json.load(open(excl))["samples"]}
 cands = []
@@ -26,7 +27,7 @@ for name in sorted(os.listdir(root)):
     p = os.path.join(root, name)
     if name in skip or not os.path.isfile(p) or not 8192 <= os.path.getsize(p) <= 6 * 1024 * 1024:
         continue
-    info = sel["pe_info"](p)
+    info = sel["pe_info"](p, arch)
     if info and not info["clr"]:
         cands.append({"name": name, "size": os.path.getsize(p), "dll": info["dll"]})
 sizes = sorted(c["size"] for c in cands)
