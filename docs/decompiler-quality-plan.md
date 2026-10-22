@@ -162,12 +162,31 @@ minority of functions (not measured), and is not a gate. Host execution is not p
 The output language is C. Ghidra prints C; classes, virtual calls and templates stay C-level until RTTI is
 recovered (phase 7).
 
-## Step 14: flag audit (proposed)
+## Step 14: flag audit and review app (proposed)
 
-For about 50 outputs each from "complete" and "incomplete", read the output against the machine code (or,
-for the known-source corpus, against the source) and record errors (wrong arguments, dropped returns, wrong control flow). It is the only way to know whether
-"complete" can be trusted, and it needs no code, so it can run at any time. The result is stored with its
-method.
+The audit tests whether "complete" can be trusted: for about 50 outputs each from "complete" and
+"incomplete", read the output against the machine code (or, for the known-source corpus, against the
+source) and record errors (wrong arguments, dropped returns, wrong control flow). It needs a place to do
+that reading, so the step includes a small local review app, which is also the tool for comparing our
+output with Ghidra's by eye.
+
+- **What it shows:** for one function, our output and Ghidra's side by side with differences highlighted,
+  the disassembly (or the source, for the known-source corpus), our flags and warnings, the callees Ghidra
+  names that we do not, and the sample, report and year.
+- **What it records:** a verdict (correct, wrong arguments, dropped or invented return, wrong control flow,
+  missing or wrong name, other), tags and a free-text comment, per function, with the reviewer, the time,
+  the sample SHA-256, the address and the versions of the decompiler and of Ghidra. Stored as append-only
+  JSON lines next to the data; an export gives the audit numbers (the share of "complete" outputs that are
+  right, and the share of wrong outputs that were flagged).
+- **Blind mode:** the incomplete flag and warnings are hidden until a verdict is saved, and the order is
+  random and stratified, so the reviewer is not led by the flag being audited.
+- **How it is built:** development tooling under `scripts/decompiler_review/`, no dependencies beyond the
+  Python standard library: one script builds a review set from the comparison files and the disassembly,
+  one serves a single static page on `127.0.0.1` and appends reviews. It runs locally. Text that comes from
+  a sample (strings, names) is always escaped, because a malware string can contain markup, and no sample
+  text is sent to a hosted service.
+- **Not in scope:** editing the decompiler, publishing results, accounts. The first version is one
+  reviewer.
 
 ## Step 15: corpora (proposed)
 
@@ -182,13 +201,15 @@ Open-source C and C++ programs that we build ourselves, so the right answer is k
 - **Programs:** small, permissively licensed, varied in style: zlib, Lua, miniz, an SQLite amalgamation,
   mbedTLS, a few small command-line tools, and a few C++ programs with classes, virtual calls, templates
   and exceptions. Each entry records the source version, license and build recipe.
-- **Matrix:** a Windows lab with MSVC is available, so MSVC is the main compiler: x86-32 and x64, `/O2`
-  and `/Od`, `/MT` and `/MD`, `/GS` on and off, with PDBs, with SEH and C++ exceptions. The Visual Studio
-  versions on the lab are recorded in the manifest; Ghidra's Function ID data covers Visual Studio 2012
-  to 2019, so a newer toolset also shows how far that data reaches. MinGW (gcc) and clang come second, for
-  the non-Visual-C names that held-out runs miss (11e), built on the Mac or in the lab. Build scripts live
-  in the repo; binaries and PDBs are built reproducibly and kept out of it, except small ones if the
-  licenses allow.
+- **Matrix:** MSVC is the main compiler: x86-32 and x64, `/O2` and `/Od`, `/MT` and `/MD`, `/GS` on and
+  off, with PDBs, with SEH and C++ exceptions. The Windows lab (`lab-windows` in the maintainer's SSH config; a
+  Windows 11 VM with Git, Python 3.12 and 7-Zip) has **no Visual Studio or Build Tools installed** yet, so
+  the first action is to install them, which needs the maintainer's go-ahead: which toolsets (Ghidra's
+  Function ID data covers Visual Studio 2012 to 2019, so an older toolset such as 2019 matters, and a newer
+  one shows where that coverage ends) and under which license. MinGW (gcc) and clang come second, for the
+  non-Visual-C names that held-out runs miss (11e), and can be built on the Mac today. Build scripts live in
+  the repo; binaries and PDBs are built reproducibly and kept out of it, except small ones if the licenses
+  allow.
 - **Truth:** function boundaries and names from the PDB (or DWARF, or a map file); prototypes and calling
   conventions from the source headers; the source bodies themselves.
 - **What it measures that Ghidra cannot:** function recall and precision against the truth, argument and
@@ -273,7 +294,7 @@ differences easier to see, but changes the output of everyone who turns it on, s
 
 ## Decisions for the maintainer
 
-1. The VX Underground dump is known (see step 15b). Open: where may extracted samples be quarantined, and is there a VM or isolated machine for the extraction and the Ghidra runs? The triage in step 15b answers formats, compilers and the share of Delphi, packed and .NET. Also open: which Visual Studio versions the Windows lab has.
+1. The VX Underground dump is known (see step 15b). Open: where may extracted samples be quarantined, and is there a VM or isolated machine for the extraction and the Ghidra runs? The triage in step 15b answers formats, compilers and the share of Delphi, packed and .NET. Also open: the Windows lab (`lab-windows`) has no Visual Studio or Build Tools; which toolsets to install, and is installing them there acceptable?
 2. Is a 60% to 70% incomplete rate acceptable, or is it the headline problem?
 3. Is recompiling decompiled functions a compile-only goal, or must the result run? Proposed answer: compile
    malware-derived text only; run recompiled code only for functions of our own known-source builds
@@ -420,7 +441,7 @@ Order by payoff per effort and dependency, not by phase number:
 | 11 | Gaps left by 6a | Next, in progress. Measured on the two x86-32 sets: function recall 88.4% and precision 85.0%; 62% to 70% of outputs incomplete from unknown callee prototypes; names outside Visual C (MinGW, Nim, Qt) and `FID_conflict` names; `__security_check_cookie` and other short helpers on x86-32; large-function work limits (5 of 7 errors). Sub-steps 11a to 11e above |
 | 12 | Compile check with a real header | After step 11, or alongside it (does not touch the same code). Says which non-compilable constructs matter |
 | 13 | Self-contained unit for recompiling extracted functions | After steps 11 and 12 |
-| 14 | Flag audit by hand | Proposed. No code; can run at any time |
+| 14 | Flag audit and local review app | Proposed. A small local web page to compare our output with Ghidra's, with disassembly, verdicts and comments; blind mode for the audit. Can start at any time |
 | 15 | Corpora: 15a known-source corpus, 15b VX Underground triage and splits | Proposed. 15b: the dump is on the maintainer's machine; triage streams archive headers without extracting. 15a: MSVC builds on the Windows lab, MinGW and clang as a second set |
 | 16 | Platforms and compilers: Delphi/Borland or ELF | Decided by the step 15b triage |
 | 17 | Phase 6b `Platform` extraction, parity tracking | After step 11 and the triage in step 15b |
