@@ -401,6 +401,37 @@ points for the whole corpus, so the held-out set becomes a required column in th
 next to the 184 functions. Data and string symbols and an x86-32 reference are the next
 additions.
 
+## Data and string symbols (metric)
+
+Added 2026-10-22 as the first step of the data and string symbol work
+([plan](decompiler-quality-plan.md)). `scripts/decompiler_baseline/data_symbols.py` reads
+the comparison files and scores, per function, every data symbol address in Ghidra's text
+(`DAT_<addr>` globals, `PTR_...` pointer cells, `s_`/`u_` string symbols) against native's
+text for the same function: *referenced* (the address appears at all, as a `0x...` constant
+or a `...Ram<16 hex>` name) and *named* (native prints a symbolic name). It also counts
+inline `"..."` literals on both sides. Same texts and engine as the tables above.
+
+| | Baseline (181 functions) | Held-out (185 functions) |
+|---|---:|---:|
+| Functions with a Ghidra data or string symbol | 82 | 99 |
+| Symbols: string / pointer / global | 17 / 39 / 365 | 7 / 83 / 582 |
+| Referenced by native | 94.1% (396/421) | 92.0% (618/672) |
+| Named by native | **0.0%** (0/421) | **0.0%** (0/672) |
+| Inline string literals, Ghidra / native | 276 / 136 | 216 / 77 |
+
+The reference is already recovered (92 to 94%): native reads the same addresses, it prints
+them as `uRam0000000140004098`, `xRam...` or a bare `0x140004000`. Nothing is named, because
+the session has no data symbols. Strings split two ways: Ghidra either names the string
+symbol (`u_Shell_TrayWnd_140004000`) or prints an inline literal, and native prints about
+half (baseline) and about a third (held-out) as many literals as Ghidra. These are textual
+proxies; the symbol counts are small for strings (24 across both sets), so the string rows
+are weak evidence, while the literal counts are the better guide.
+
+So the work is naming, not discovery: the target for the next step is `named` and the
+literal gap, with `referenced` as a guard against regressions. Matching Ghidra's names
+exactly is not required; a consistent `DAT_<addr>` and `s_`/`u_` convention on the same
+addresses is.
+
 ## Not yet done
 
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).

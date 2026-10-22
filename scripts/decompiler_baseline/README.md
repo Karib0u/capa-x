@@ -49,3 +49,9 @@ Ghidra's stored outputs are in `reference/ghidra-12.1.4-heldout/decompile/`; pas
 directory instead of `$O/ghidra` to skip Ghidra. `--any-module` makes a native call match a
 Ghidra name when it is `<module>_<name>` for any imported DLL (the default list covers only
 common system DLLs); use it for both selections when comparing them.
+
+Data and string symbols (needs the `--any-module` comparison files of the sets above):
+
+```sh
+python3 -I scripts/decompiler_baseline/data_symbols.py $O/comparison.json
+```

@@ -241,7 +241,7 @@ Only if the corpus contains IoT samples, and only after 6d.
 
 | Item | Gives | Cost | Note |
 |---|---|---|---|
-| String and data symbols (`DAT_`, `u_...` literals, global names) | The largest visible readability gap in side-by-side examples (strings print as raw addresses, globals as `uRam...`) | Medium: data-reference and string detection, optionally the n-gram model | Not measured by the scorecard today; add it as a metric. Ahead of 6c to 6e |
+| String and data symbols (`DAT_`, `u_...` literals, global names) | The largest visible readability gap in side-by-side examples (strings print as raw addresses, globals as `uRam...`) | Medium: data-reference and string detection, optionally the n-gram model | Metric added ([results](decompiler-baseline-results.md#data-and-string-symbols-metric)): 92 to 94% of Ghidra's data addresses are referenced by native, 0% named, and native prints about a third to a half as many string literals. Ahead of 6c to 6e |
 | Demangling (MSVC `?..@@`, Itanium `_Z`) | Readable C++ names; the largest group of the 156 unrecovered callee names | A demangler crate if the dependency policy allows | Justify the dependency per `AGENTS.md` |
 | C++ RTTI and vtables | Class names, virtual calls, constructors | Large | MSVC first, then Itanium |
 | Structured exception handling | `__try`/`__except`, `__CxxFrameHandler`, scope tables | Medium to large | Common in MSVC code |
