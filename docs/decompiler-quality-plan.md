@@ -265,7 +265,7 @@ Order by payoff per effort and dependency, not by phase number:
 | 6 | Phase 5, cosmetics and data-flow | Done ([results](decompiler-baseline-results.md#phase-5-effect-models-and-data-flow)): call fixups for the cookie check and stack probes; incomplete flag 80.1% to 70.7%; parameter-ID variants measured and not adopted. Gated on the native backend |
 | 7 | Held-out benchmark | Done ([results](decompiler-baseline-results.md#held-out-benchmark)): callee naming 65.5% against 77.5% on the tuned set, robustness and structure generalize. A data and string symbol metric is still to add |
 | 8 | Phase 6a, x86-32 PE | After the x86-32 Ghidra baseline (about 62% of sampled PE files are x86-32) |
-| 9 | Phase 7, string and data symbols | Done ([results](decompiler-baseline-results.md#data-and-string-symbol-naming)): data symbols named 0% to 90% (baseline) and 98% (held-out); string literals 36% to 88% of Ghidra's on the held-out set; about 30% more request time. A precision measure is still missing |
+| 9 | Phase 7, string and data symbols | Done ([results](decompiler-baseline-results.md#data-and-string-symbol-naming)): data symbols named 0% to 90% (baseline) and 98% (held-out), 94% to 96% of native's names agree with Ghidra's; string literals 36% to 88% of Ghidra's on the held-out set; about 30% more request time. |
 | 10 | Phase 6b, `Platform` extraction | After 6a, from the two implementations |
 | 11 | Phases 6c to 6f and the rest of 7 | Only if the scorecard or the corpus asks |
 

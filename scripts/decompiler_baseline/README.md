@@ -53,5 +53,5 @@ common system DLLs); use it for both selections when comparing them.
 Data and string symbols (needs the `--any-module` comparison files of the sets above):
 
 ```sh
-python3 -I scripts/decompiler_baseline/data_symbols.py $O/comparison.json
+python3 -I scripts/decompiler_baseline/data_symbols.py $O/comparison.json   # add --examples to list misses
 ```

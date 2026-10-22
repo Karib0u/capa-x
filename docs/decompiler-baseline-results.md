@@ -413,10 +413,10 @@ inline `"..."` literals on both sides. Same texts and engine as the tables above
 
 | | Baseline (181 functions) | Held-out (185 functions) |
 |---|---:|---:|
-| Functions with a Ghidra data or string symbol | 82 | 99 |
-| Symbols: string / pointer / global | 17 / 39 / 365 | 7 / 83 / 582 |
-| Referenced by native | 94.1% (396/421) | 92.0% (618/672) |
-| Named by native | **0.0%** (0/421) | **0.0%** (0/672) |
+| Functions with a Ghidra data or string symbol | 87 | 104 |
+| Symbols: string / pointer / global | 14 / 65 / 365 | 2 / 115 / 582 |
+| Referenced by native | 94.1% (418/444) | 92.3% (645/699) |
+| Named by native | **0.0%** (0/444) | **0.0%** (0/699) |
 | Inline string literals, Ghidra / native | 276 / 136 | 216 / 77 |
 
 The reference is already recovered (92 to 94%): native reads the same addresses, it prints
@@ -440,9 +440,9 @@ column is the metric's table, rerun with the same scripts and `--any-module` mat
 
 | | Baseline before | Baseline after | Held-out before | Held-out after |
 |---|---:|---:|---:|---:|
-| Ghidra's data symbol addresses referenced | 94.1% | 95.0% (400/421) | 92.0% | 98.1% (659/672) |
-| Ghidra's data symbol addresses named | 0% | **89.8%** (378/421) | 0% | **97.9%** (658/672) |
-| string / pointer / global named | 0 / 0 / 0 | 76.5 / 97.4 / 89.6% | 0 / 0 / 0 | 100 / 98.8 / 97.8% |
+| Ghidra's data symbol addresses referenced | 94.1% | 95.5% (424/444) | 92.3% | 98.3% (687/699) |
+| Ghidra's data symbol addresses named | 0% | **90.3%** (401/444) | 0% | **98.1%** (686/699) |
+| string / pointer / global named | 0 / 0 / 0 | 71.4 / 98.5 / 89.6% | 0 / 0 / 0 | 100 / 100 / 97.8% |
 | Inline string literals, Ghidra / native | 276 / 136 | 276 / 244 | 216 / 77 | 216 / 190 |
 | Engine `...Ram<hex>` names left in native text | not counted | 51 | not counted | 2 |
 | Request errors | 3 | 3 | 1 | 1 |
@@ -468,6 +468,36 @@ A request-order test (96 functions, three orders each) found no differing output
 this feature. The capability path does not use this code. In this checkout the rules and
 corpus tests that read `rules/` fail identically with and without the decompiler feature,
 because the main checkout's `rules/` is not at the pinned commit; they were not changed.
+
+### Precision of the names
+
+`data_symbols.py` also checks the other direction: every `DAT_`/`PTR_`/`s_`/`u_` name native
+prints, against Ghidra's text for the same function. *Agreed*: Ghidra names that address.
+*Near*: Ghidra has a reference within 32 bytes below it (a field or element of a larger
+Ghidra symbol: native prints `DAT_x` where Ghidra prints `DAT_y._8_8_`). *Unnamed*: Ghidra
+shows the address but without a label. *Absent*: Ghidra's text mentions nothing close.
+The metric now also reads Ghidra's pointer names of any target (`PTR_PTR__fmode_00404380`), so
+the symbol counts in the two tables above are those of the corrected metric.
+
+| Names native prints | Baseline | Held-out |
+|---|---:|---:|
+| Total (global / pointer / string) | 465 (385 / 75 / 5) | 754 (624 / 127 / 3) |
+| Agreed | 401 (86.2%) | 686 (91.0%) |
+| Near | 37 | 38 |
+| Unnamed in Ghidra | 1 | 2 |
+| Absent | 26 (5.6%) | 28 (3.7%) |
+
+About 94% to 96% of the names agree with or sit inside a Ghidra symbol. The 54 absent names
+are concentrated in a few functions (for example `c3ef997d` `0x140001950`, where Ghidra
+decompiled 16 lines against native's 277, and several MinGW functions where Ghidra prints
+the file's own symbol, `_refptr_mingw_initltsdrot_force`, for a cell native calls
+`PTR_DAT_140029fe0`). In the cases read by hand the difference was the shape of the
+function or a name that comes from the file's symbol table, not an invented symbol; I did
+not review all 54. String names are too few (8 across both sets) to judge precision. All
+four Ghidra string symbols native misses are in the packed sample, so the 4-character
+minimum cost nothing on these sets and has no evidence behind it either way. A name source
+for the file's own symbols (COFF symbol tables, as in MinGW builds) is the visible next gain
+for globals.
 
 ## Not yet done
 
