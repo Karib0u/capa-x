@@ -187,6 +187,9 @@ output with Ghidra's by eye.
   text is sent to a hosted service.
 - **Not in scope:** editing the decompiler, publishing results, accounts. The first version is one
   reviewer.
+- **State:** a first version exists, `scripts/decompiler_review/` (one Python file, no dependencies):
+  side-by-side diff, verdicts, comments, blind mode and the audit summary. It has no disassembly or source
+  pane yet; that is the next addition when the audit starts.
 
 ## Step 15: corpora (proposed)
 
@@ -441,7 +444,7 @@ Order by payoff per effort and dependency, not by phase number:
 | 11 | Gaps left by 6a | Next, in progress. Measured on the two x86-32 sets: function recall 88.4% and precision 85.0%; 62% to 70% of outputs incomplete from unknown callee prototypes; names outside Visual C (MinGW, Nim, Qt) and `FID_conflict` names; `__security_check_cookie` and other short helpers on x86-32; large-function work limits (5 of 7 errors). Sub-steps 11a to 11e above |
 | 12 | Compile check with a real header | After step 11, or alongside it (does not touch the same code). Says which non-compilable constructs matter |
 | 13 | Self-contained unit for recompiling extracted functions | After steps 11 and 12 |
-| 14 | Flag audit and local review app | Proposed. A small local web page to compare our output with Ghidra's, with disassembly, verdicts and comments; blind mode for the audit. Can start at any time |
+| 14 | Flag audit and local review app | The review page exists (`scripts/decompiler_review/`, side by side with verdicts, comments and blind mode); the disassembly pane and the audit itself are still to do. Can start at any time |
 | 15 | Corpora: 15a known-source corpus, 15b VX Underground triage and splits | Proposed. 15b: the dump is on the maintainer's machine; triage streams archive headers without extracting. 15a: MSVC builds on the Windows lab, MinGW and clang as a second set |
 | 16 | Platforms and compilers: Delphi/Borland or ELF | Decided by the step 15b triage |
 | 17 | Phase 6b `Platform` extraction, parity tracking | After step 11 and the triage in step 15b |
