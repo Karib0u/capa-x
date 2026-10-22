@@ -470,6 +470,7 @@ fn recover_functions(
         }
     }
     let mut late_waves_done = false;
+    let mut data_pointer_wave = None;
     let mut early_candidates_done = !evaluate_candidates;
     let mut function_budget_reported = false;
     loop {
@@ -547,6 +548,13 @@ fn recover_functions(
                         pending.push_back(address);
                         continue;
                     }
+                } else if run_data_pointer_wave(
+                    analysis,
+                    &direct_flow,
+                    &mut data_pointer_wave,
+                    &mut pending,
+                ) {
+                    continue;
                 }
                 break;
             }
@@ -570,7 +578,12 @@ fn recover_functions(
             // `vivisect.analysis.ms.msvcfunc` is amodlist[9]/[10] -- after
             // the import-call pass, and reading the function set the earlier
             // ones produced.
-            run_msvc_cookie_wave(analysis, &direct_flow, &function_starts, &mut pending);
+            // Splitting the `/GS` cookie tail into a function is Vivisect's
+            // layout. Ghidra keeps the check inside its caller, so native
+            // recovery does too.
+            if evaluate_candidates {
+                run_msvc_cookie_wave(analysis, &direct_flow, &function_starts, &mut pending);
+            }
             // Not a pinned Vivisect pass (there is none to port -- Vivisect
             // never analysed AArch64): reads `analysis.instructions`, so it
             // waits for the same reason the passes above do.
@@ -889,6 +902,268 @@ fn run_msvc_cookie_wave(
     }
 }
 
+/// Native x64 PE only: promote code addresses stored in data to functions.
+///
+/// MSVC leaves entries that no call reaches: C++ unwind and catch funclets,
+/// vtable slots and callbacks. They have no `.pdata` entry when they are leaves
+/// and are named only by image-relative (`u32`) or absolute (`u64`) values in
+/// `.rdata`/`.xdata`. Against Ghidra's function list this single source is
+/// about two thirds of the functions recovery misses.
+///
+/// A raw value is a weak signal (jump-table arms are also image-relative), so a
+/// target must be undiscovered code that begins right after a block terminator
+/// and optional alignment padding: the place where one function ends and the
+/// next begins. Adjacent entries are admitted on later rounds, once the one
+/// before them has been decoded. Returns whether it queued a new start.
+fn run_data_pointer_wave(
+    analysis: &mut Analysis,
+    direct_flow: &DirectFlowGraph,
+    state: &mut Option<DataPointerWave>,
+    pending: &mut VecDeque<u64>,
+) -> bool {
+    if analysis.image.format != ImageFormat::Pe || analysis.image.architecture != Architecture::X64
+    {
+        return false;
+    }
+    let first_round = state.is_none();
+    let wave = state.get_or_insert_with(|| {
+        let unwound = unwind_extents(&analysis.image);
+        let mut remaining = collect_data_pointer_targets(&analysis.image);
+        remaining.retain(|&target| !inside_unwind_extent(&unwound, target));
+        DataPointerWave { unwound, remaining }
+    });
+    let mut accepted = if first_round {
+        import_stub_starts(analysis)
+    } else {
+        Vec::new()
+    };
+    accepted.extend(
+        wave.remaining
+            .iter()
+            .copied()
+            .filter(|&target| begins_after_function_end(analysis, direct_flow, target)),
+    );
+    accepted.extend(tail_jump_targets(analysis, direct_flow, &wave.unwound));
+    for target in &accepted {
+        wave.remaining.remove(target);
+        analysis
+            .seeds
+            .entry(*target)
+            .or_default()
+            .insert(SeedKind::PointerTarget);
+        pending.push_back(*target);
+    }
+    !accepted.is_empty()
+}
+
+struct DataPointerWave {
+    /// Sorted `.pdata` extents.
+    unwound: Vec<(u64, u64)>,
+    /// Data-named code addresses not yet admitted.
+    remaining: BTreeSet<u64>,
+}
+
+/// An unwind entry bounds a function exactly. An address strictly inside one,
+/// or on a chained fragment, is a catch continuation, a switch arm or a
+/// frame-sharing block of that function, not a new function.
+fn inside_unwind_extent(unwound: &[(u64, u64)], address: u64) -> bool {
+    let index = unwound.partition_point(|&(begin, _)| begin <= address);
+    index
+        .checked_sub(1)
+        .and_then(|index| unwound.get(index))
+        .is_some_and(|&(_, end)| address < end)
+}
+
+/// Direct `jmp` targets that start a function: decoded code right after a
+/// function end (and `int3` padding) that a jump reaches. Such a jump is a
+/// tail call, so the target is a function entry that flow had folded into the
+/// jumping function. Ghidra's shared-return analysis makes the same call.
+fn tail_jump_targets(
+    analysis: &Analysis,
+    direct_flow: &DirectFlowGraph,
+    unwound: &[(u64, u64)],
+) -> Vec<u64> {
+    let mut targets = BTreeSet::new();
+    for insn in analysis.instructions.values() {
+        let Some(target) = insn
+            .direct_target
+            .filter(|_| insn.flow == Flow::UnconditionalBranch)
+        else {
+            continue;
+        };
+        if !analysis.seeds.contains_key(&target)
+            && analysis.instructions.contains_key(&target)
+            && is_executable(&analysis.image, target)
+            && !inside_unwind_extent(unwound, target)
+        {
+            targets.insert(target);
+        }
+    }
+    targets
+        .into_iter()
+        .filter(|&target| ends_function_before(analysis, direct_flow, target, false))
+        .collect()
+}
+
+/// Executable addresses named by aligned image-relative or absolute values in
+/// initialized data. Unwind and relocation directories are skipped: their
+/// RVAs name function starts and blocks that other sources already handle.
+fn collect_data_pointer_targets(image: &LoadedImage) -> BTreeSet<u64> {
+    let mut targets = BTreeSet::new();
+    for section in &image.sections {
+        if section.permissions.execute
+            || !section.permissions.read
+            || image.is_uninitialized(section.address)
+            || matches!(section.name.as_str(), ".pdata" | ".reloc" | ".rsrc")
+        {
+            continue;
+        }
+        let Ok(length) = usize::try_from(section.virtual_size) else {
+            continue;
+        };
+        let Some(bytes) = image.bytes_at(section.address, length) else {
+            continue;
+        };
+        for (index, chunk) in bytes.chunks_exact(4).enumerate() {
+            let Ok(value) = <[u8; 4]>::try_from(chunk) else {
+                continue;
+            };
+            let relative = u32::from_le_bytes(value);
+            if let Some(target) = image.image_base.checked_add(u64::from(relative)) {
+                if is_executable(image, target) {
+                    targets.insert(target);
+                }
+            }
+            if index % 2 == 0 {
+                if let Some(pair) = bytes.get(index * 4..index * 4 + 8) {
+                    if let Ok(pair) = <[u8; 8]>::try_from(pair) {
+                        let absolute = u64::from_le_bytes(pair);
+                        if is_executable(image, absolute) {
+                            targets.insert(absolute);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    targets
+}
+
+/// Import stubs (`jmp [import]`) that other code branches to. Each is a thunk,
+/// a function of its own, but flow gave it no entry because only `jmp`s, not
+/// calls, reach it and the jump stayed inside the caller. A stub nothing
+/// references is not promoted: no call site could name it.
+fn import_stub_starts(analysis: &Analysis) -> Vec<u64> {
+    analysis
+        .instructions
+        .iter()
+        .filter(|(address, insn)| {
+            insn.flow == Flow::IndirectBranch
+                && insn
+                    .memory_target
+                    .is_some_and(|slot| analysis.image.import_locations.contains_key(&slot))
+                && analysis.code_xrefs.contains_key(address)
+        })
+        .map(|(address, _)| *address)
+        .collect()
+}
+
+/// Sorted `(begin, end)` extents of the x64 `.pdata` unwind entries. Malformed
+/// or truncated entries are skipped; they only make the filter more permissive.
+fn unwind_extents(image: &LoadedImage) -> Vec<(u64, u64)> {
+    let mut extents = Vec::new();
+    for section in image.sections.iter().filter(|s| s.name == ".pdata") {
+        let Some(bytes) = usize::try_from(section.virtual_size)
+            .ok()
+            .and_then(|length| image.bytes_at(section.address, length))
+        else {
+            continue;
+        };
+        for entry in bytes.chunks_exact(12) {
+            let word = |at: usize| {
+                entry
+                    .get(at..at + 4)
+                    .and_then(|value| <[u8; 4]>::try_from(value).ok())
+                    .map(u32::from_le_bytes)
+            };
+            if let (Some(begin), Some(end)) = (word(0), word(4)) {
+                if let (Some(begin), Some(end)) = (
+                    image.image_base.checked_add(u64::from(begin)),
+                    image.image_base.checked_add(u64::from(end)),
+                ) {
+                    if begin < end {
+                        extents.push((begin, end));
+                    }
+                }
+            }
+        }
+    }
+    extents.sort_unstable();
+    extents
+}
+
+/// True when `target` is undecoded code directly after a function-ending
+/// instruction, with only `int3`/`nop` padding between them.
+fn begins_after_function_end(
+    analysis: &Analysis,
+    direct_flow: &DirectFlowGraph,
+    target: u64,
+) -> bool {
+    // Padding is never an entry: a value naming the `int3` before a function
+    // is an end marker, not a start.
+    let starts_with_code = analysis.image.decode_at(target).is_ok_and(|first| {
+        !matches!(
+            first.x86_instruction().mnemonic(),
+            Mnemonic::Int3 | Mnemonic::Nop
+        )
+    });
+    !analysis.instructions.contains_key(&target)
+        && !super::pointers::covered(analysis, target)
+        && starts_with_code
+        && ends_function_before(analysis, direct_flow, target, true)
+}
+
+/// True when the decoded instruction before `target` ends a function and only
+/// padding separates them. `nop` padding is also accepted when `nops` is set:
+/// compilers align loop heads inside a function with `nop`, but only
+/// functions with `int3`.
+fn ends_function_before(
+    analysis: &Analysis,
+    direct_flow: &DirectFlowGraph,
+    target: u64,
+    nops: bool,
+) -> bool {
+    let Some((_, previous)) = analysis.instructions.range(..target).next_back() else {
+        return false;
+    };
+    let ends_function = match previous.flow {
+        Flow::Return | Flow::UnconditionalBranch | Flow::IndirectBranch | Flow::Terminal => true,
+        Flow::Call => previous
+            .direct_target
+            .is_some_and(|callee| direct_flow.known_noreturn.contains(&callee)),
+        Flow::IndirectCall => previous
+            .memory_target
+            .is_some_and(|slot| direct_flow.known_noreturn.contains(&slot)),
+        Flow::Next | Flow::ConditionalBranch => false,
+    };
+    if !ends_function {
+        return false;
+    }
+    let mut address = previous.next_address;
+    while address < target {
+        match analysis.image.decode_at(address) {
+            Ok(padding)
+                if padding.x86_instruction().mnemonic() == Mnemonic::Int3
+                    || (nops && padding.x86_instruction().mnemonic() == Mnemonic::Nop) =>
+            {
+                address = padding.next_address;
+            }
+            _ => return false,
+        }
+    }
+    address == target
+}
+
 /// Vivisect's `i386.importcalls` pass: flow through every `call [<import>]`
 /// encoding left in undefined space, and promote the direct call targets found
 /// along the way to function seeds.
@@ -1082,7 +1357,7 @@ fn collect_seeds(
         add_seed(image, &mut seeds, entry, SeedKind::EntryPoint);
     }
     match image.format {
-        ImageFormat::Pe => collect_pe_seeds(bytes, image, &mut seeds, &mut diagnostics)?,
+        ImageFormat::Pe => collect_pe_seeds(bytes, image, backend, &mut seeds, &mut diagnostics)?,
         ImageFormat::Elf => {
             collect_elf_seeds(bytes, image, backend, &mut seeds, &mut elf_function_symbols)?
         }
@@ -1253,6 +1528,7 @@ fn collect_macho_function_starts(
 fn collect_pe_seeds(
     bytes: &[u8],
     image: &LoadedImage,
+    backend: RecoveryBackend,
     seeds: &mut BTreeMap<u64, BTreeSet<SeedKind>>,
     diagnostics: &mut Vec<RecoveryDiagnostic>,
 ) -> Result<(), RecoveryError> {
@@ -1334,6 +1610,10 @@ fn collect_pe_seeds(
             // UNW_FLAG_CHAININFO = 0x4 (PE/__init__.py:162); the VerFlags version
             // (`& 0x7`) / flags (`>> 3`) split and break semantics are pe.py:529-548.
             const UNW_FLAG_CHAININFO: u8 = 0x4;
+            // Vivisect gives up on the whole directory at the first entry it
+            // cannot read. Native recovery keeps going: every non-chained
+            // `BeginAddress` is a function start whatever its neighbours hold.
+            let bail = backend == RecoveryBackend::VivisectCompat;
             for entry in raw.chunks_exact(12) {
                 let (Some(begin), Some(unwind_info_rva)) = (
                     entry
@@ -1347,18 +1627,22 @@ fn collect_pe_seeds(
                 ) else {
                     continue;
                 };
-                let Some(unwind_info_va) = image.image_base.checked_add(u64::from(unwind_info_rva))
-                else {
-                    break;
-                };
+                let ver_flags = image
+                    .image_base
+                    .checked_add(u64::from(unwind_info_rva))
+                    .and_then(|unwind_info_va| image.bytes_at(unwind_info_va, 1))
+                    .and_then(|bytes| bytes.first().copied());
                 // vivisect: `if not vw.isValidPointer(baseaddr + UnwindInfoAddress): break`
-                let Some(&ver_flags) = image
-                    .bytes_at(unwind_info_va, 1)
-                    .and_then(|bytes| bytes.first())
-                else {
-                    break;
+                let Some(ver_flags) = ver_flags else {
+                    if bail {
+                        break;
+                    }
+                    if let Some(address) = image.image_base.checked_add(u64::from(begin)) {
+                        add_seed(image, seeds, address, SeedKind::Unwind);
+                    }
+                    continue;
                 };
-                if ver_flags & 0x7 != 1 {
+                if bail && ver_flags & 0x7 != 1 {
                     // Unwind Info Version != 1 -> vivisect bails on the whole `.pdata`.
                     break;
                 }
@@ -4613,7 +4897,14 @@ mod tests {
         .unwrap();
         let image = LoadedImage::parse(&bytes).unwrap();
         let mut seeds = SeedMap::new();
-        collect_pe_seeds(&bytes, &image, &mut seeds, &mut Vec::new()).unwrap();
+        collect_pe_seeds(
+            &bytes,
+            &image,
+            RecoveryBackend::VivisectCompat,
+            &mut seeds,
+            &mut Vec::new(),
+        )
+        .unwrap();
         let pe = PE::parse(&bytes).unwrap();
         let forwarded: Vec<_> = pe.exports.iter().filter(|e| e.reexport.is_some()).collect();
         assert!(!forwarded.is_empty());
@@ -5528,6 +5819,134 @@ mod tests {
             Vec::new(),
         )
         .expect("synthetic no-return recovery succeeds")
+    }
+
+    /// Native recovery of a hand-built x64 PE: `.text` at 0x1000 (also the
+    /// image base and entry), `.rdata` at 0x2000 and `.pdata` at 0x3000.
+    fn native_x64(text: &[u8], rdata: &[u8], pdata: &[u8]) -> Analysis {
+        let section =
+            |name: &str, address: u64, offset: usize, data: &[u8], execute: bool| MappedSection {
+                name: name.to_string(),
+                address,
+                virtual_size: data.len() as u64,
+                file_offset: offset as u64,
+                file_size: data.len() as u64,
+                permissions: Permissions {
+                    read: true,
+                    write: false,
+                    execute,
+                },
+            };
+        let mut bytes = text.to_vec();
+        let rdata_offset = bytes.len();
+        bytes.extend_from_slice(rdata);
+        let pdata_offset = bytes.len();
+        bytes.extend_from_slice(pdata);
+        let image = LoadedImage::for_test(
+            ImageFormat::Pe,
+            Architecture::X64,
+            0x1000,
+            vec![
+                section(".text", 0x1000, 0, text, true),
+                section(".rdata", 0x2000, rdata_offset, rdata, false),
+                section(".pdata", 0x3000, pdata_offset, pdata, false),
+            ],
+            BTreeMap::new(),
+            bytes,
+        );
+        analyze_seeded_image(
+            image,
+            RecoveryBackend::Native,
+            SeedMap::from([(0x1000, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .expect("synthetic native recovery succeeds")
+    }
+
+    /// Entry `ret`, int3 padding, then `0x1010: xor eax, eax; ret`.
+    fn entry_then_leaf() -> Vec<u8> {
+        let mut text = vec![0xc3];
+        text.resize(0x10, 0xcc);
+        text.extend_from_slice(&[0x33, 0xc0, 0xc3]);
+        text
+    }
+
+    #[test]
+    fn native_admits_data_named_code_that_follows_a_function_end() {
+        // A leaf funclet has no unwind entry; only an image-relative value in
+        // `.rdata` names it.
+        let rva = (0x1010u32 - 0x1000).to_le_bytes();
+        let analysis = native_x64(&entry_then_leaf(), &rva, &[]);
+        assert!(analysis.functions.contains_key(&0x1010));
+        let unnamed = native_x64(&entry_then_leaf(), &[], &[]);
+        assert!(!unnamed.functions.contains_key(&0x1010));
+    }
+
+    #[test]
+    fn native_rejects_data_named_code_inside_a_block() {
+        // `0x1001` is the second instruction of straight-line code, not a
+        // function start, even though a table names it.
+        let text = [0xb8, 1, 0, 0, 0, 0xb9, 2, 0, 0, 0, 0xc3];
+        let rva = (0x1005u32 - 0x1000).to_le_bytes();
+        let analysis = native_x64(&text, &rva, &[]);
+        assert!(!analysis.functions.contains_key(&0x1005));
+    }
+
+    #[test]
+    fn native_rejects_data_named_code_inside_an_unwind_extent() {
+        // A catch continuation or switch arm lies inside its function's
+        // `.pdata` extent even when it follows a `ret`.
+        let rva = (0x1010u32 - 0x1000).to_le_bytes();
+        let mut entry = Vec::new();
+        for value in [0u32, 0x13, 0x4000] {
+            entry.extend_from_slice(&value.to_le_bytes());
+        }
+        let analysis = native_x64(&entry_then_leaf(), &rva, &entry);
+        assert!(!analysis.functions.contains_key(&0x1010));
+    }
+
+    #[test]
+    fn native_never_admits_padding_named_by_data() {
+        let rva = (0x1008u32 - 0x1000).to_le_bytes();
+        let analysis = native_x64(&entry_then_leaf(), &rva, &[]);
+        assert!(!analysis.functions.contains_key(&0x1008));
+    }
+
+    #[test]
+    fn native_tail_jump_to_code_after_padding_starts_a_function() {
+        // 0x1000: jmp 0x1010; int3 padding; 0x1010: xor eax, eax; ret.
+        let mut text = vec![0xe9, 0x0b, 0, 0, 0];
+        text.resize(0x10, 0xcc);
+        text.extend_from_slice(&[0x33, 0xc0, 0xc3]);
+        let analysis = native_x64(&text, &[], &[]);
+        assert!(analysis.functions.contains_key(&0x1010));
+        // The compatibility backend keeps Vivisect's layout and folds it in.
+        let image = native_x64(&text, &[], &[]).image;
+        let compat = analyze_seeded_image(
+            image,
+            RecoveryBackend::VivisectCompat,
+            SeedMap::from([(0x1000, BTreeSet::from([SeedKind::EntryPoint]))]),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+        .expect("compat recovery succeeds");
+        assert!(!compat.functions.contains_key(&0x1010));
+    }
+
+    #[test]
+    fn native_jump_to_the_middle_of_a_function_is_not_a_tail_call() {
+        // 0x1000: cmp eax, 0; jne 0x1008; mov eax, 1 ... a loop back-edge or
+        // forward branch target follows a non-terminating instruction.
+        let text = [
+            0x83, 0xf8, 0x00, // cmp eax, 0
+            0xeb, 0x03, // jmp 0x1008
+            0x90, 0x90, 0x90, // nop padding inside the function
+            0x33, 0xc0, // 0x1008: xor eax, eax
+            0xc3,
+        ];
+        let analysis = native_x64(&text, &[], &[]);
+        assert!(!analysis.functions.contains_key(&0x1008));
     }
 
     /// `0x1010: jmp [0x2000]` -- a one-instruction import thunk, preceded by

@@ -17,3 +17,14 @@ cargo build --release -p capa-x --features decompiler --examples
 python3 -I scripts/decompiler_baseline/run_native.py $T $O/ghidra $O/native target/release/examples/decompiler_corpus
 python3 -I scripts/decompiler_baseline/compare.py $O/ghidra $O/native $O/comparison.json
 ```
+
+Function-set agreement (discovery, phase 3) needs no decompiler:
+
+```sh
+mkdir -p $O/g $O/n
+xargs -P 3 -n 1 sh -c 'scripts/decompiler_baseline/run_ghidra_functions.sh "$T/$0" "$O/g/$0.json"' < $O/names.txt
+cargo build --release -p capa-x --example function_set
+for n in $(cat $O/names.txt); do target/release/examples/function_set $T/$n > $O/n/$n.json; done
+python3 -I scripts/decompiler_baseline/compare_functions.py $O/g $O/n $O/functions.json
+python3 -I scripts/decompiler_baseline/classify_functions.py $T $O/names.txt $O/g target/release/examples/function_set $O/classes
+```

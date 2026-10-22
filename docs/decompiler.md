@@ -85,8 +85,45 @@ callee warning. Recovery-provided direct tail calls and IAT jump thunks use
 Ghidra's CALL_RETURN flow override; native SLEIGH still supplies the p-code.
 For a requested entry absent from recovery, a bounded SLEIGH scan of at most
 64 straight-line instructions also recognizes a direct tail jump to a supplied
-executable function entry. It stops on any other control flow. This does not
-replace general function or exception-handler discovery.
+executable function entry. It stops on any other control flow. This is the
+fallback for an analysis that lacks the wrapper; native recovery now finds them
+(see Function discovery).
+
+## Function discovery
+
+`from_pe` uses the native recovery backend, which adds PE x64 sources the
+Vivisect-compatible capability path does not use. Capa results are unchanged:
+all of it is gated on `RecoveryBackend::Native`.
+
+- **`.pdata`.** Every non-chained `RUNTIME_FUNCTION` begin is a start. Vivisect
+  stops reading the table at the first entry it cannot read; native recovery
+  keeps going. Entries bound a function exactly, so an address strictly inside
+  one (a catch continuation, a switch arm or a chained fragment) is never a start.
+- **Code named by data.** Image-relative (`u32`) and absolute (`u64`) values in
+  initialized non-code sections (`.rdata`, `.xdata`, ...) that name undecoded
+  code. MSVC leaf funclets (unwind cleanups, catch thunks) have no unwind entry
+  and are reachable only this way. A value is accepted only if the target
+  decodes, is not `int3`/`nop`, lies outside every unwind extent and follows a
+  function-ending instruction (`ret`, unconditional or indirect `jmp`, `int3`,
+  or a call to a no-return function) with only padding between them. Entries
+  that sit back to back are admitted over successive rounds, once the one before
+  them is decoded.
+- **Tail jumps.** A direct unconditional `jmp` whose target is decoded code
+  starting right after a function end and `int3` padding, outside unwind
+  extents, makes the target a function. This generalizes the wrapper case to
+  any target, and the existing tail-call override then keeps the jump a call.
+  A `jmp [import]` stub that other code branches to is a function too. An
+  unreferenced stub is not.
+- Prologue patterns (three x64 byte patterns) and raw call sweeps already seed
+  candidates in native recovery.
+
+The Vivisect `/GS` cookie-tail split is skipped for native recovery: Ghidra keeps
+the check in its caller.
+
+Not done: a stack-balance check for the tail-jump rule (the padding and
+function-end test stands in for it), Ghidra's function-start byte patterns
+beyond the existing prologues, and `jmp [import]` stubs that nothing references
+(Ghidra creates some, for example 176 in `kernel32` and 32 in a MinGW DLL).
 
 Read-only image sections retain constant/string semantics except for individual
 eight-byte IAT slots. Typed string pointers allow Ghidra to render narrow and

@@ -179,11 +179,64 @@ discover, so the cap is now phase 3. One sample (`c2d46d25...`) discovers none o
 285 functions Ghidra names. Hash fidelity against Ghidra is documented in
 [`FID.md`](../capa-x/sigs/FID.md).
 
+## Phase 3: function boundaries
+
+Function-set agreement was measured for the first time, on all 23 samples and every
+function Ghidra recovers (15,777 entries, non-external). Ghidra side:
+`scripts/decompiler_baseline/FunctionList.java`; native side: the `function_set`
+example; comparison: `compare_functions.py`, with first-cause clusters from
+`classify_functions.py`. Same machine and Ghidra 12.1.4 as above.
+
+| | Before | After |
+|---|---:|---:|
+| Ghidra functions also found by native (recall) | 12,553 (79.6%) | 14,737 (93.4%) |
+| Native functions Ghidra also has (precision) | 96.3% | 97.1% |
+| Ghidra-only functions | 3,224 | 1,040 |
+| Native-only functions | 483 | 444 |
+| Recall without the UPX-packed sample | 83.3% | 97.8% |
+
+The UPX sample (`c2d46d...`, 711 Ghidra-only, 250 native-only) is packed, so both
+sides see stub code only and it dominates what remains.
+
+The Ghidra-only functions by what recovery knew, before and after:
+
+| First cause | Before | After |
+|---|---:|---:|
+| Never discovered, no reference (data-named leaf funclets, and 355 in the packed sample) | 2,437 | 376 |
+| Thunks (`jmp [import]` stubs) | 236 | 222 |
+| Folded into another native function (tail-jump targets) | 207 | 98 |
+| Seeded but not decodable (packed sample) | 340 | 340 |
+| Referenced but not decoded | 4 | 4 |
+
+Reading the first row: about 1,800 of the 2,437 were in one sample. MSVC leaf funclets
+(C++ unwind and catch actions) have no `.pdata` entry and no caller, and appear only as
+image-relative values in `.rdata`. Most of the 98 folded functions are in `kernel32`.
+Of the remaining thunks, 176 are `kernel32` stubs that only data references reach, and 32 are unreferenced `jmp [import]` stubs in a MinGW DLL.
+
+A second finding was a Vivisect limitation carried into native recovery: it stops reading `.pdata` at the
+first entry it cannot read, so several samples lost most of their table (for
+example `4f08636d...` went from 281 to 335 matching functions on that fix alone).
+On the native side, 137 of the 163 native-only functions inside Ghidra functions were
+the Vivisect `/GS` cookie-tail split, which does not belong in native recovery.
+
+Fixes are listed under Function discovery in [decompiler.md](decompiler.md#function-discovery).
+After them, native-only functions inside Ghidra functions are 40 (from 163). The
+new sources also add native-only functions Ghidra does not have, mostly leaf
+functions after `int3` padding that Ghidra left undefined (404 native-only
+functions lie outside any Ghidra function, 250 of them in the packed sample).
+The bytes look like real functions, but Ghidra is the only reference here.
+
+The capability path was checked, not assumed: `features_parity`, the smoke corpus
+(23 of 23 identical) and the outer corpus (200 of 200, 6,300 reference-matched rules,
+0 divergences) against the pinned capa 10 reference, `cargo test --workspace` and
+the `decompiler` feature tests. 60 newly found funclets in `ad4229...` all
+decompile. The textual decompiler scorecard above was not rerun, because it needs the
+full-Ghidra decompile pass; do that before relying on the callee-name
+numbers.
+
 ## Not yet done
 
-- Function-set agreement (discovery) between recovery and Ghidra was not
-  measured: only Ghidra's chosen functions were requested, so native-only and
-  Ghidra-only functions are unseen. Recovery gaps (phase 3) need that comparison.
+- A semantic scorecard rerun after phase 3 (see above).
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).
 - Latency, serial and warmed, on both sides.
 

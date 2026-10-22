@@ -151,7 +151,7 @@ Order by payoff per effort and dependency, not by phase number:
 | 2 | Phase 2, type and prototype pack | Done, with known leftovers (see results) |
 | 3 | Phase 1, failure isolation | Done (`00143de`): request errors 7 to 3 on the baseline, session no longer poisoned by limits; 3 work-limit errors remain |
 | 4 | Phase 4, library names (Function ID) | In progress; largest remaining gap (56% callee names) |
-| 5 | Phase 3, boundaries, thunks, tail calls | Touches shared recovery code: run the difftest loops |
+| 5 | Phase 3, boundaries, thunks, tail calls | Done ([results](decompiler-baseline-results.md#phase-3-function-boundaries)): function recall against Ghidra 79.6% to 93.4% (97.8% without the packed sample); difftest loops unchanged. Gated on the native backend, so the capability path is untouched |
 | 6 | Phase 5, cosmetics and data-flow | Cheap items early, the rest only from baseline clusters |
 | 7 | Phases 6 and 7 | Only after the Windows pipeline is solid, and if the scorecard asks |
 

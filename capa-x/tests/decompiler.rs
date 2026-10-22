@@ -36,11 +36,14 @@ fn corpus_privilege_function_preserves_return_and_stack_arguments() -> anyhow::R
 #[test]
 fn explicitly_selected_unrecovered_wrapper_keeps_its_boundary() -> anyhow::Result<()> {
     let sample = include_bytes!("../../tests/testfiles/03b236b23b1ec37c663527c1f53af3fe.dll_");
-    let analysis = capa_x::extract::recovery::analyze_with_backend(
+    let mut analysis = capa_x::extract::recovery::analyze_with_backend(
         sample,
         capa_x::extract::recovery::RecoveryBackend::Native,
     )?;
-    assert!(!analysis.functions.contains_key(&0x180051ad0));
+    // Native recovery now finds the wrapper (a tail-jump target after padding).
+    // The request path must still cope when a caller supplies an analysis that
+    // lacks it, so drop it to keep exercising the unrecovered case.
+    assert!(analysis.functions.remove(&0x180051ad0).is_some());
     assert!(analysis.functions.contains_key(&0x18001e610));
     let mut session =
         DecompilerSession::from_analysis(&analysis, &Default::default(), Default::default())?;
@@ -51,6 +54,23 @@ fn explicitly_selected_unrecovered_wrapper_keeps_its_boundary() -> anyhow::Resul
     assert!(output.text.len() < 400, "{}", output.text);
     session.decompile_function(0x18001e610)?;
     assert_eq!(session.decompile_function(0x180051ad0)?.text, output.text);
+    Ok(())
+}
+#[test]
+fn native_recovery_finds_a_tail_jump_wrapper() -> anyhow::Result<()> {
+    let sample = include_bytes!("../../tests/testfiles/03b236b23b1ec37c663527c1f53af3fe.dll_");
+    let analysis = capa_x::extract::recovery::analyze_with_backend(
+        sample,
+        capa_x::extract::recovery::RecoveryBackend::Native,
+    )?;
+    // Flow folds the wrapper into the function that jumps to it. Only native
+    // recovery treats a tail-jump target after padding as a function start.
+    assert!(analysis.functions.contains_key(&0x180051ad0));
+    let compat = capa_x::extract::recovery::analyze_with_backend(
+        sample,
+        capa_x::extract::recovery::RecoveryBackend::VivisectCompat,
+    )?;
+    assert!(!compat.functions.contains_key(&0x180051ad0));
     Ok(())
 }
 fn address(name: &str) -> anyhow::Result<u64> {
