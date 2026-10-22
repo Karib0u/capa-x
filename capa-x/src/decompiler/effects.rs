@@ -19,7 +19,8 @@ const FIXUPS_X64: &[(&str, &str)] = &[
     ("guard_dispatch_icall", "guard_dispatch_icall"),
 ];
 
-/// Keep in step with the vendored `x86win.cspec` (27 target names, 10 fixups).
+/// Keep in step with the vendored `x86win.cspec`. Its `*_align` fixups are commented out there,
+/// so the engine does not know them and they are not listed.
 const FIXUPS_X86: &[(&str, &str)] = &[
     ("EH_prolog", "EH_prolog"),
     ("EH_prolog3", "EH_prolog3"),
@@ -33,12 +34,6 @@ const FIXUPS_X86: &[(&str, &str)] = &[
     ("SEH_epilog", "EH_epilog3"),
     ("SEH_epilog4", "EH_epilog3"),
     ("SEH_epilog4_GS", "EH_epilog3"),
-    ("EH_prolog3_align", "EH_prolog3_align"),
-    ("EH_prolog3_GS_align", "EH_prolog3_align"),
-    ("EH_prolog3_catch_align", "EH_prolog3_align"),
-    ("EH_prolog3_catch_GS_align", "EH_prolog3_align"),
-    ("EH_epilog3_align", "EH_epilog3_align"),
-    ("EH_epilog3_GS_align", "EH_epilog3_align"),
     ("alloca_probe", "alloca_probe"),
     ("alloca_probe_8", "alloca_probe"),
     ("alloca_probe_16", "alloca_probe"),
@@ -92,6 +87,14 @@ mod tests {
             concat!(env!("CARGO_MANIFEST_DIR"), "/../third_party/ghidra/specs/").to_owned() + path,
         )
         .expect("vendored compiler spec");
+        // Commented-out fixups are not part of the specification the engine loads.
+        let mut text = text;
+        while let Some(start) = text.find("<!--") {
+            let end = text[start..]
+                .find("-->")
+                .map_or(text.len(), |at| start + at + 3);
+            text.replace_range(start..end, "");
+        }
         let mut pairs = BTreeSet::new();
         for block in text.split("<callfixup name=\"").skip(1) {
             let (fixup, rest) = block.split_once('"').expect("fixup name");

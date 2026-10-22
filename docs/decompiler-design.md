@@ -89,8 +89,9 @@ Raw machine code remains the authority when inferred logic is ambiguous.
 
 ## Limits and errors
 
-Local defaults are 5 seconds, 10,000 instructions, and 2,000,000 native work
-checkpoints. Work is charged for translation, p-code/varnode creation and
+Local defaults are 10 seconds, 10,000 instructions, and 20,000,000 native work
+checkpoints (bounds 60 s, 100,000 and 200,000,000). An exception out of the action
+tree discards and re-derives it, because the half-run groups otherwise crash the next request. Work is charged for translation, p-code/varnode creation and
 rule/action processing. User overrides have fixed upper bounds. Mapped bytes,
 section counts, symbols, symbol lengths and output length are bounded too.
 These constants are local policy, not copied upstream defaults.

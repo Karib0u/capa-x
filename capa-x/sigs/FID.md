@@ -23,6 +23,11 @@ vendored Ghidra material). Only the optional `decompiler` feature embeds it.
 - Regenerate with `scripts/decompiler_fid/README.md`. File layout:
   `scripts/decompiler_fid/pack_fid.py`.
 
+Ambiguous matches (several names for one hash) are named `FID_conflict:<name>` by the
+decompiler, picking the candidate with the fewest leading underscores, then the shortest.
+Ghidra labels every candidate; which one it prints depends on its database order. `??2@` and
+`??3@` become `operator_new` and `operator_delete`, as Ghidra prints them.
+
 ## What the matcher does
 
 `capa-x/src/fid/` ports, from the Ghidra sources, `MessageDigestFidHasher` with the

@@ -285,7 +285,11 @@ regenerate the pack, see `scripts/decompiler_types/README.md`. The archives are
 derived from Microsoft SDK and OpenSSL headers by the Ghidra project
 (Apache-2.0); the pack is a transformation of them.
 
-Default limits are 5 seconds, 10,000 instructions and 2,000,000 work units.
+Default limits are 10 seconds, 10,000 instructions and 20,000,000 work units (the
+bounds are 60 seconds, 100,000 instructions and 200,000,000 work units). Each phase of a
+request (the function, its data symbols, callee inference) gets the full deadline, so a
+request can take several times it. A function whose flow passes the instruction limit is
+retried with the flow truncated, as Ghidra does, and reported incomplete.
 The deadline is cooperative: a native operation between checkpoints can
 overshoot it. This is not a hard wall-clock or memory sandbox. See the
 [design decision](decompiler-design.md) for ownership,

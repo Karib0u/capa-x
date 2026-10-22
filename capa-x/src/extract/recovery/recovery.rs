@@ -174,6 +174,9 @@ struct DirectFlowGraph {
     /// Functions created while walking otherwise unclaimed import-call fragments.
     import_functions: BTreeSet<u64>,
     pending_table_locations: Vec<(u64, usize)>,
+    /// Native PE recovery: every function entry, known before the views are built. A direct
+    /// `jmp` to another entry is a tail call, so a view ends there as Ghidra's does.
+    function_entries: BTreeSet<u64>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -632,6 +635,16 @@ fn recover_functions(
             // rule: an overlapping speculative seed must not claim an
             // entire shared graph. Compatibility pointers have already been
             // evaluated against defined instruction locations.
+            //
+            // On x86-32 such a relocation is nearly always a switch arm or an
+            // exception-unwind block of a function already walked, because
+            // jump tables and unwind maps are relocated data. It is not a function.
+            if !evaluate_candidates
+                && analysis.image.format == ImageFormat::Pe
+                && analysis.image.architecture == Architecture::X86
+            {
+                continue;
+            }
             isolated_starts.insert(start);
         }
         function_starts.insert(start);
@@ -683,6 +696,9 @@ fn recover_functions(
         }
     }
     analysis.functions.clear();
+    if !direct_flow.compatibility && analysis.image.format == ImageFormat::Pe {
+        direct_flow.function_entries = function_starts.clone();
+    }
     for start in function_starts {
         if direct_flow.delayed_functions.contains(&start) {
             continue;
@@ -921,12 +937,25 @@ fn run_data_pointer_wave(
     state: &mut Option<DataPointerWave>,
     pending: &mut VecDeque<u64>,
 ) -> bool {
-    if analysis.image.format != ImageFormat::Pe || analysis.image.architecture != Architecture::X64
+    if analysis.image.format != ImageFormat::Pe
+        || !matches!(
+            analysis.image.architecture,
+            Architecture::X64 | Architecture::X86
+        )
     {
         return false;
     }
     let first_round = state.is_none();
+    let wide = analysis.image.architecture == Architecture::X64;
     let wave = state.get_or_insert_with(|| {
+        // x86-32 has no unwind data, and values in its data sections are mostly
+        // not code pointers, so only the jump-derived sources apply there.
+        if !wide {
+            return DataPointerWave {
+                unwound: Vec::new(),
+                remaining: collect_eh_handler_targets(&analysis.image),
+            };
+        }
         let unwound = unwind_extents(&analysis.image);
         let mut remaining = collect_data_pointer_targets(&analysis.image);
         remaining.retain(|&target| !inside_unwind_extent(&unwound, target));
@@ -937,13 +966,30 @@ fn run_data_pointer_wave(
     } else {
         Vec::new()
     };
-    accepted.extend(
-        wave.remaining
-            .iter()
-            .copied()
-            .filter(|&target| begins_after_function_end(analysis, direct_flow, target)),
-    );
+    if wide {
+        accepted.extend(
+            wave.remaining
+                .iter()
+                .copied()
+                .filter(|&target| begins_after_function_end(analysis, direct_flow, target)),
+        );
+    } else {
+        // The structure names the entry, so no function end has to precede it.
+        accepted.extend(wave.remaining.iter().copied().filter(|&target| {
+            !analysis.instructions.contains_key(&target)
+                && !super::pointers::covered(analysis, target)
+                && analysis.image.decode_at(target).is_ok_and(|first| {
+                    !matches!(
+                        first.x86_instruction().mnemonic(),
+                        Mnemonic::Int3 | Mnemonic::Nop
+                    )
+                })
+        }));
+    }
     accepted.extend(tail_jump_targets(analysis, direct_flow, &wave.unwound));
+    if !wide {
+        accepted.extend(folded_prologue_starts(analysis, direct_flow));
+    }
     for target in &accepted {
         wave.remaining.remove(target);
         analysis
@@ -983,6 +1029,18 @@ fn tail_jump_targets(
     direct_flow: &DirectFlowGraph,
     unwound: &[(u64, u64)],
 ) -> Vec<u64> {
+    // Without unwind data (x86-32) a jump target after a function end is also a loop
+    // head or a block placed after a `ret`, so a target must be vouched for: a jump
+    // stub reaches it, or a prologue pattern marked it before flow folded it away.
+    let wide = analysis.image.architecture == Architecture::X64;
+    let heuristic_only = |kinds: &BTreeSet<SeedKind>| {
+        kinds.iter().all(|kind| {
+            matches!(
+                kind,
+                SeedKind::FunctionSignature | SeedKind::Prologue | SeedKind::SweepCallTarget
+            )
+        })
+    };
     let mut targets = BTreeSet::new();
     for insn in analysis.instructions.values() {
         let Some(target) = insn
@@ -991,7 +1049,15 @@ fn tail_jump_targets(
         else {
             continue;
         };
-        if !analysis.seeds.contains_key(&target)
+        let admitted = if wide {
+            !analysis.seeds.contains_key(&target)
+        } else {
+            match analysis.seeds.get(&target) {
+                None => is_jump_stub(analysis, insn) || follows_int3_alignment(analysis, target),
+                Some(kinds) => heuristic_only(kinds),
+            }
+        };
+        if admitted
             && analysis.instructions.contains_key(&target)
             && is_executable(&analysis.image, target)
             && !inside_unwind_extent(unwound, target)
@@ -1003,6 +1069,111 @@ fn tail_jump_targets(
         .into_iter()
         .filter(|&target| ends_function_before(analysis, direct_flow, target, false))
         .collect()
+}
+
+/// Prologue-signature addresses that flow had already decoded as part of another function
+/// (reached by a branch from elsewhere) but that sit right after a function end: the
+/// signature scan skips decoded bytes, so nothing else would make them functions.
+fn folded_prologue_starts(analysis: &Analysis, direct_flow: &DirectFlowGraph) -> Vec<u64> {
+    analysis
+        .seeds
+        .iter()
+        .filter(|(address, kinds)| {
+            kinds
+                .iter()
+                .all(|kind| matches!(kind, SeedKind::FunctionSignature | SeedKind::Prologue))
+                && analysis.instructions.contains_key(address)
+        })
+        .map(|(address, _)| *address)
+        .filter(|&address| {
+            // Undecoded bytes before it are an unreached function body or padding: the
+            // signature stands at a boundary even though no instruction ends there.
+            let gap = analysis
+                .instructions
+                .range(..address)
+                .next_back()
+                .is_none_or(|(_, previous)| previous.next_address < address);
+            gap || ends_function_before(analysis, direct_flow, address, false)
+        })
+        .collect()
+}
+
+/// A 16-byte aligned address right after `int3` padding: the way MSVC lays out one function
+/// after another. Other jump targets after a function end are loop heads and cold blocks.
+fn follows_int3_alignment(analysis: &Analysis, target: u64) -> bool {
+    target & 15 == 0
+        && target
+            .checked_sub(1)
+            .and_then(|before| analysis.image.bytes_at(before, 1))
+            .is_some_and(|byte| byte == [0xcc])
+}
+
+/// A `jmp` that is a whole function: something calls or jumps to it, and the next
+/// instruction belongs to another function or to padding.
+fn is_jump_stub(analysis: &Analysis, jump: &DecodedInstruction) -> bool {
+    analysis.seeds.contains_key(&jump.address)
+        && analysis
+            .instructions
+            .get(&jump.next_address)
+            .is_none_or(|next| analysis.seeds.contains_key(&next.address))
+}
+
+/// x86-32 Visual C++ exception-handling data names code that no call or jump reaches:
+/// a catch block (`HandlerType::addressOfHandler`) and the frame-handler stub stored
+/// before a `FuncInfo` (magic `0x1993052x`). Ghidra makes both functions. The slot is
+/// accepted only inside one of these two shapes, because a bare code address in data
+/// is as often a switch arm or an unwind funclet it leaves inside its parent.
+fn collect_eh_handler_targets(image: &LoadedImage) -> BTreeSet<u64> {
+    const MAGIC: std::ops::RangeInclusive<u32> = 0x1993_0520..=0x1993_0522;
+    let mut targets = BTreeSet::new();
+    for section in &image.sections {
+        if section.permissions.execute
+            || !section.permissions.read
+            || image.is_uninitialized(section.address)
+            || matches!(section.name.as_str(), ".reloc" | ".rsrc")
+        {
+            continue;
+        }
+        let Some(bytes) = usize::try_from(section.virtual_size)
+            .ok()
+            .and_then(|length| image.bytes_at(section.address, length))
+        else {
+            continue;
+        };
+        let word = |index: usize| -> Option<u32> {
+            let chunk = bytes.get(index.checked_mul(4)?..index.checked_mul(4)?.checked_add(4)?)?;
+            Some(u32::from_le_bytes(<[u8; 4]>::try_from(chunk).ok()?))
+        };
+        for index in 3..bytes.len() / 4 {
+            let (Some(value), Some(next)) = (word(index), word(index + 1)) else {
+                continue;
+            };
+            let target = u64::from(value);
+            if !is_executable(image, target) {
+                continue;
+            }
+            let frame_handler = MAGIC.contains(&next);
+            let catch_handler = match (word(index - 3), word(index - 2)) {
+                (Some(adjectives), Some(type_info)) => {
+                    adjectives <= 0xfff && (type_info == 0 || is_type_descriptor(image, type_info))
+                }
+                _ => false,
+            };
+            if frame_handler || catch_handler {
+                targets.insert(target);
+            }
+        }
+    }
+    targets
+}
+
+/// A `std::type_info` descriptor: vtable pointer, spare pointer, then the decorated
+/// name, which starts with `.`.
+fn is_type_descriptor(image: &LoadedImage, address: u32) -> bool {
+    !is_executable(image, u64::from(address))
+        && image
+            .bytes_at(u64::from(address) + 8, 3)
+            .is_some_and(|name| name.len() == 3 && name[0] == b'.')
 }
 
 /// Executable addresses named by aligned image-relative or absolute values in
@@ -3222,7 +3393,18 @@ fn build_function_view(
             let Some(edges) = direct_flow.successors.get(&address) else {
                 continue;
             };
+            let tail_jump = direct_flow.function_entries.len() > 1
+                && analysis
+                    .instructions
+                    .get(&address)
+                    .is_some_and(|insn| insn.flow == Flow::UnconditionalBranch);
             for edge in edges {
+                if tail_jump
+                    && edge.target != start
+                    && direct_flow.function_entries.contains(&edge.target)
+                {
+                    continue;
+                }
                 // A non-chained PE unwind entry is a linker-provided function
                 // start. Falling into it must not merge two function scopes.
                 // Explicit branches may still share tails or chained code.

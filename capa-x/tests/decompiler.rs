@@ -227,6 +227,29 @@ fn work_limit_is_an_error_and_leaves_the_session_usable() -> anyhow::Result<()> 
     Ok(())
 }
 
+/// A limit that fires inside the engine's action loop used to leave the root action half-run and
+/// crash a later request. Whatever the limit hits, the next full request must succeed and match.
+#[test]
+fn repeated_limit_failures_do_not_corrupt_the_session() -> anyhow::Result<()> {
+    let target = address("switches")?;
+    let expected = DecompilerSession::from_pe(FIXTURE)?
+        .decompile_function(target)?
+        .text;
+    let mut session = DecompilerSession::from_pe(FIXTURE)?;
+    for round in 0..40u32 {
+        session.set_limits(ResourceLimits {
+            max_work: 50 + round * 137,
+            ..Default::default()
+        })?;
+        for name in ["loops", "switches", "arithmetic"] {
+            let _ = session.decompile_function(address(name)?);
+        }
+    }
+    session.set_limits(ResourceLimits::default())?;
+    assert_eq!(session.decompile_function(target)?.text, expected);
+    Ok(())
+}
+
 #[test]
 fn enrichment_budget_is_separate_and_its_failure_keeps_the_function() -> anyhow::Result<()> {
     let target = address("switches")?;

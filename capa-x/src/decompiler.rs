@@ -48,9 +48,9 @@ pub struct ResourceLimits {
 impl Default for ResourceLimits {
     fn default() -> Self {
         Self {
-            timeout_ms: 5_000,
+            timeout_ms: 10_000,
             max_instructions: 10_000,
-            max_work: 2_000_000,
+            max_work: 20_000_000,
         }
     }
 }
@@ -147,7 +147,25 @@ impl DecompilerSession {
             Signatures::decompiler_runtime().map_err(|e| DecompileError::Input(e.to_string()))?;
         let libraries = flirt::identify_library_functions(&analysis, &signatures)
             .map_err(|e| DecompileError::Input(e.to_string()))?;
+        // Three instructions, below the signature databases' minimum. Ghidra names the x86-32
+        // check but prints the call, unlike the x64 one, so it gets a name and a prototype and
+        // no call fixup.
+        let cookie_checks: Vec<u64> = if wide {
+            Vec::new()
+        } else {
+            analysis
+                .functions
+                .keys()
+                .copied()
+                .filter(|address| is_x86_cookie_check(&analysis.image, *address))
+                .collect()
+        };
         let mut names = libraries.clone();
+        for address in &cookie_checks {
+            names
+                .entry(*address)
+                .or_insert_with(|| "__security_check_cookie".into());
+        }
         for export in &pe.exports {
             if export.reexport.is_none() {
                 if let Some(name) = export.name {
@@ -187,7 +205,40 @@ impl DecompilerSession {
         for (address, name) in &recognized {
             names.insert(*address, name.clone());
         }
+        // An ambiguous match is named as Ghidra does, `FID_conflict:<name>`, so the reader sees
+        // that the name is a guess. It gets no prototype, and its fixup is decided below.
+        for (address, candidates) in &conflicts {
+            if let Some(name) = fid::matcher::conflict_name(candidates) {
+                names.entry(*address).or_insert(name);
+            }
+        }
         let mut session = Self::from_analysis(&analysis, &names, convention)?;
+        // Only entries inside file-backed executable memory are registered with the engine.
+        let registered = |session: &Self, address: u64| session.in_code(address);
+        let recognized: BTreeMap<u64, String> = recognized
+            .into_iter()
+            .filter(|(address, _)| registered(&session, *address))
+            .collect();
+        let libraries: BTreeMap<u64, String> = libraries
+            .into_iter()
+            .filter(|(address, _)| registered(&session, *address))
+            .collect();
+        let thunks: BTreeMap<u64, String> = thunks
+            .into_iter()
+            .filter(|(address, _)| registered(&session, *address))
+            .collect();
+        let conflicts: BTreeMap<u64, Vec<String>> = conflicts
+            .into_iter()
+            .filter(|(address, _)| registered(&session, *address))
+            .collect();
+        let cookie_checks: Vec<u64> = cookie_checks
+            .into_iter()
+            .filter(|address| registered(&session, *address))
+            .collect();
+        let export_addresses: Vec<(u64, String)> = export_addresses
+            .into_iter()
+            .filter(|(address, _)| registered(&session, *address))
+            .collect();
         for (address, name) in &recognized {
             // Naming a runtime function also types it when the archives know it.
             session
@@ -196,6 +247,16 @@ impl DecompilerSession {
                 .map_err(|error| {
                     DecompileError::Initialization(format!(
                         "prototype for {name} at {address:#x}: {error}"
+                    ))
+                })?;
+        }
+        for address in &cookie_checks {
+            session
+                .native
+                .apply_prototype(*address, "__security_check_cookie")
+                .map_err(|error| {
+                    DecompileError::Initialization(format!(
+                        "prototype for the cookie check at {address:#x}: {error}"
                     ))
                 })?;
         }
@@ -328,19 +389,28 @@ impl DecompilerSession {
                 .ok_or_else(|| DecompileError::Input("section address overflow".into()))?;
             // Native import registration clears read-only only on each IAT
             // slot, retaining constants and strings elsewhere in the section.
+            // Zero-filled space that the file does not carry (a packer's unpack target) holds no
+            // code to read. Ghidra reports bad instruction data there and ends the flow; mapping
+            // it as executable would decode the zeros as instructions until the limit.
+            let code = section.permissions.execute
+                && !(section.file_size == 0 && image.is_uninitialized(section.address));
             native
-                .add_section(
-                    section.address,
-                    bytes,
-                    section.permissions.execute,
-                    !section.permissions.write,
-                )
+                .add_section(section.address, bytes, code, !section.permissions.write)
                 .map_err(init)?;
-            if section.permissions.execute {
+            if code {
                 executable_ranges.push((section.address, end));
             }
         }
+        let mut skipped_entries = 0usize;
         for address in analysis.functions.keys().chain(names.keys()) {
+            // Recovery can decode zero-filled space as code; that is not mapped as code here.
+            if !executable_ranges
+                .iter()
+                .any(|(start, end)| *start <= *address && *address < *end)
+            {
+                skipped_entries += 1;
+                continue;
+            }
             let name = names.get(address).cloned().unwrap_or_else(|| {
                 // Ghidra pads default names to the address width of the image.
                 if wide {
@@ -362,7 +432,15 @@ impl DecompilerSession {
                 native.apply_prototype(*address, function).map_err(init)?;
             }
         }
+        let in_code = |address: u64| {
+            executable_ranges
+                .iter()
+                .any(|(start, end)| *start <= address && address < *end)
+        };
         for (caller, function) in &analysis.functions {
+            if !in_code(*caller) {
+                continue;
+            }
             for block in &function.blocks {
                 for insn in &block.insns {
                     // Preserve direct jumps to separate recovered entries and
@@ -376,7 +454,9 @@ impl DecompilerSession {
                             .filter(|target| image.import_locations.contains_key(target)),
                         _ => None,
                     };
-                    if let Some(target) = target {
+                    if let Some(target) =
+                        target.filter(|t| in_code(*t) || image.import_locations.contains_key(t))
+                    {
                         native
                             .add_tail_call(*caller, insn.address, target)
                             .map_err(init)?;
@@ -385,6 +465,11 @@ impl DecompilerSession {
             }
         }
         let mut warnings = image.load_diagnostics.clone();
+        if skipped_entries > 0 {
+            warnings.push(format!(
+                "{skipped_entries} recovered entries lie outside executable file-backed code and were not registered"
+            ));
+        }
         // Discovery diagnostics describe the independent iced-x86 graph.
         // Keep them on Analysis; Ghidra reports its own unresolved flow.
         warnings.sort();
@@ -398,6 +483,12 @@ impl DecompilerSession {
             limits: ResourceLimits::default(),
             convention,
         })
+    }
+
+    fn in_code(&self, address: u64) -> bool {
+        self.executable_ranges
+            .iter()
+            .any(|(start, end)| *start <= address && address < *end)
     }
 
     /// Supply a known fixed-argument Windows x64 signature for a registered
@@ -424,7 +515,7 @@ impl DecompilerSession {
             || limits.max_instructions == 0
             || limits.max_instructions > 100_000
             || limits.max_work == 0
-            || limits.max_work > 10_000_000
+            || limits.max_work > 200_000_000
         {
             return Err(DecompileError::Request("limits must be nonzero and at most 60000 ms, 100000 instructions, 10000000 work units".into()));
         }
@@ -499,6 +590,39 @@ fn import_thunks(analysis: &Analysis) -> BTreeMap<u64, String> {
         }
     }
     thunks
+}
+
+/// The Visual C++ `/GS` check on x86-32: `cmp ecx, [__security_cookie]`, a `jne` over a
+/// (possibly `rep`-prefixed) `ret`, then the jump or call to the failure reporter.
+/// Both the compiler's `ret` and its `rep ret` form exist, and the `jne` distance is 1 or 2.
+fn is_x86_cookie_check(image: &LoadedImage, address: u64) -> bool {
+    let Some(code) = image.bytes_at(address, 14) else {
+        return false;
+    };
+    let tail = match code {
+        [0x3b, 0x0d, a, b, c, d, rest @ ..] => {
+            let slot = u64::from(u32::from_le_bytes([*a, *b, *c, *d]));
+            if image.bytes_at(slot, 4).is_none() || image.is_executable_address(slot) {
+                return false;
+            }
+            rest
+        }
+        _ => return false,
+    };
+    let tail = match tail {
+        [0xf2, rest @ ..] => rest,
+        rest => rest,
+    };
+    let [0x75, skip, rest @ ..] = tail else {
+        return false;
+    };
+    let (ret, rest) = match rest {
+        [0xf3 | 0xf2, 0xc3, rest @ ..] => (2u8, rest),
+        [0xc3, rest @ ..] => (1u8, rest),
+        _ => return false,
+    };
+    // The branch lands on the instruction after the `ret`.
+    *skip == ret && matches!(rest, [0xe9 | 0xe8 | 0xff, ..] | [0xf2, 0xe9, ..])
 }
 
 fn validate_image(image: &LoadedImage) -> Result<(), DecompileError> {

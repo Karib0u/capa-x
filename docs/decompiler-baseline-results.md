@@ -664,6 +664,88 @@ The 6a exit criteria hold on this set too except recall: callee naming is within
 held-out figure, arity and void/non-void agreement are close, and there is no initialization failure. The
 number to quote for naming on files not tuned against is 78%, not 89%.
 
+## Step 11: gaps left by 6a
+
+Measured 2026-10-22 with the same references and scripts as above, before and after the step.
+Function sets come from `compare_functions.py` on the 24 x86-32 baseline samples; decompile
+numbers from the stored Ghidra outputs (`--any-module`).
+
+| Metric | Before | After |
+|---|---:|---:|
+| x86-32 function recall against Ghidra | 88.4% | **96.7%** |
+| x86-32 function precision against Ghidra | 85.0% | **90.8%** |
+| Ghidra-only / native-only functions | 1,639 / 2,208 | 467 / 1,383 |
+| x86-32 tuned: texts / errors | 186 / 2 | 188 / 0 |
+| x86-32 tuned: callee names | 89.2% (536/601) | 92.4% (573/620) |
+| x86-32 held-out: texts / errors | 172 / 7 | 178 / 1 |
+| x86-32 held-out: callee names | 78.4% (247/315) | 84.4% (286/339) |
+| x86-32 held-out: argument count on matched callees | 97.6% | 96.5% |
+| x64 baseline: errors / callee names | 3 / 82.0% | 1 / 83.0% |
+| x64 held-out: errors / callee names | 1 / 73.0% | 0 / 74.7% |
+| Flagged incomplete (x86 tuned / held-out) | 69.9% / 62.8% | 70.2% / 61.8% |
+
+Other x64 and x86 metrics (void and parameter agreement, gotos, lines) moved by at most a point.
+A robustness sweep over 100 random x86-32 and 60 random x64 PEs (12 random functions each) found no crash;
+2 of 1,007 x86-32 requests failed in the engine and none of 709 on x64, also with deadlines of 40 ms.
+
+What changed, in the order of effect:
+
+- **Function boundaries (x86-32, native recovery only).**
+  - A direct `jmp` target is a function when a jump stub reaches it (`jmp` alone, as in incremental-link
+    jump tables, which was most of the 965 folded functions in `3b13b6f1`) or it follows `int3` padding at
+    a 16-byte boundary. Other jump targets after a function end are loop heads (about 1,400 wrong against 77
+    right), so they are not promoted.
+  - A prologue-pattern address that flow had already decoded as part of another function is a function when
+    it follows a function end or undecoded bytes.
+  - Catch-block addresses (`HandlerType` whose type is a `std::type_info` or catch-all) and the frame-handler
+    stub stored before a `FuncInfo` (magic `0x1993052x`) are functions. Ghidra makes these and not the
+    unwind funclets, which stay inside their parent.
+  - A relocation target inside code that was already walked is a switch arm or unwind block, not a function:
+    1,031 one-instruction pseudo-functions removed (precision 85.8% to 90.8%).
+  - A function view ends at a `jmp` to another function's entry, as Ghidra's does, so Function ID hashes are
+    not computed over foreign code.
+- **Names.**
+  - The x86-32 `/GS` check (`cmp ecx, [cookie]; jne; ret; jmp`) is named `__security_check_cookie` with its
+    archive prototype. Ghidra keeps the call in the text on x86-32, so no call fixup is applied.
+  - `operator_new` and `operator_delete` come from `??2@` and `??3@`; `name@N` decorated names are accepted.
+  - An ambiguous Function ID match is named `FID_conflict:<name>` as Ghidra does, choosing the candidate
+    with the fewest leading underscores, then the shortest name. That agrees with Ghidra on 3 of the 4
+    conflicts that could be checked, so treat it as a guess; no prototype or call fixup is applied from it.
+- **Errors.**
+  - Defaults rose to 10 s and 20M work units. A budget that ran out inside nested engine analysis (jump
+    tables) used to surface as "No structure present"; it is now a work-limit error.
+  - Flow past the instruction limit is retried truncated, with a warning.
+  - A packer's zero-filled section is no longer mapped as code, which is what turned the two UPX entry
+    stubs into 10,000-instruction walks (Ghidra reports bad instruction data there).
+  - Latency: the slowest functions that used to fail now take up to 28 s (`0x4149c0` in `55d77ab1`,
+    a 381-byte function whose Ghidra output is also 6,500 lines and took Ghidra 7 s). The one remaining
+    error is a 22 kB function.
+- **Fixes found on the way.**
+  - An exception out of the action tree (a deadline during jump table recovery) left the root action
+    half-run and crashed the next request with a null action. It reproduced on the commit before this step
+    (deadline 1.5 s, 10M work); the tree is now re-derived after any such exception, with a test.
+  - The `*_align` call fixups were listed but are commented out in `x86win.cspec`, so a file with
+    `__EH_prolog3_*_align` failed to initialize; they are removed and the spec test ignores comments.
+  - Recovered entries outside file-backed executable memory are skipped with a warning instead of reaching
+    the engine.
+
+Measured and not adopted: accepting a callee's inferred prototype when its only unlocked calls are indirect
+cut the incomplete rate by 1 to 2 points and lowered argument agreement by 0.5 points; accepting any unlocked
+call cut it by 13 and 9 points and lowered argument agreement by 4 and 2 points. 88% of the unknown calls are direct
+calls (2,928 against 386 indirect), so the flag stays strict, as it did on x64.
+
+Still open:
+
+- **Remaining function differences** (x86-32): 287 Ghidra functions are undiscovered with no seed (mostly
+  small unwind and catch funclets named only by data tables, which Ghidra makes functions of for some tables and
+  not others, and MinGW functions such as `push ebp; push edi; push esi; push ebx`; neither pattern is mapped yet); 152 sit inside another function after a jump;
+  1,014 native functions are outside any Ghidra function (static initializers, MinGW code Ghidra did not
+  find), which are real code and not errors.
+- **C runtime assembly routines** (`memset`, `memcpy`, `malloc`): their Function ID hash differs from the
+  database's, so they stay unnamed (the full FLIRT database names `memset` but adds 550 ms to
+  initialization). `FID_conflict__memcpy` is 7 of the 95 callees still missed.
+- **Qualified C++ names** (`Class::method`, constructors) need a demangler.
+
 ## Not yet done
 
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).

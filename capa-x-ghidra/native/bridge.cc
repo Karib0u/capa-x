@@ -26,8 +26,11 @@ std::mutex engine_mutex;
 std::once_flag initialized;
 struct Budget {
   bool active = false;
+  /// A checkpoint ran out of budget. The exception it threw can be swallowed by the engine.
+  bool exhausted = false;
   uint64_t remaining = 0;
   std::chrono::steady_clock::time_point deadline;
+  const char *reason = "";
 };
 thread_local Budget budget;
 // Cooperative limits abort one request; the session stays usable because every
@@ -38,12 +41,12 @@ struct BudgetExceeded : std::runtime_error {
 // Charge \p work units, as if the engine had spent them itself.
 void charge(uint64_t work) {
   if (!budget.active) return;
-  if (budget.remaining < work) { budget.remaining = 0; throw BudgetExceeded("native work limit exceeded"); }
+  if (budget.remaining < work) { budget.remaining = 0; budget.exhausted = true; budget.reason = "native work limit exceeded"; throw BudgetExceeded(budget.reason); }
   budget.remaining -= work;
 }
 struct BudgetGuard {
   BudgetGuard(uint32_t ms, uint32_t work) {
-    budget = {true, work, std::chrono::steady_clock::now() + std::chrono::milliseconds(ms)};
+    budget = {true, false, work, std::chrono::steady_clock::now() + std::chrono::milliseconds(ms), ""};
   }
   ~BudgetGuard() { budget.active = false; }
 };
@@ -431,9 +434,12 @@ std::string capax_sla() {
 }
 void capax_check() {
   if (!budget.active) return;
-  if (budget.remaining-- == 0) throw BudgetExceeded("native work limit exceeded");
-  if (std::chrono::steady_clock::now() >= budget.deadline)
-    throw BudgetExceeded("native decompilation deadline exceeded");
+  if (budget.remaining-- == 0) { budget.exhausted = true; budget.reason = "native work limit exceeded"; throw BudgetExceeded(budget.reason); }
+  if (std::chrono::steady_clock::now() >= budget.deadline) {
+    budget.exhausted = true;
+    budget.reason = "native decompilation deadline exceeded";
+    throw BudgetExceeded(budget.reason);
+  }
 }
 // TypeFactory::setFields is private since Ghidra 12 and the public route is the
 // XML decoder. Explicit instantiation may name a private member, which yields a
@@ -648,8 +654,21 @@ public:
   int4 analyze(Funcdata *fd) {
     arch.clearAnalysis(fd);
     errors.str("");
-    arch.allacts.getCurrent()->reset(*fd);
-    return arch.allacts.getCurrent()->perform(*fd);
+    int4 status;
+    try {
+      arch.allacts.getCurrent()->reset(*fd);
+      status = arch.allacts.getCurrent()->perform(*fd);
+    } catch (...) {
+      // An exception out of the action tree (a limit, or an engine error) leaves its groups
+      // half-run, and the next request can walk off the stale state into a null action
+      // (seen after a deadline during jump table recovery). Derive a fresh tree.
+      arch.allacts.resetDefaults();
+      throw;
+    }
+    // Some engine paths swallow the checkpoint exception (jump table recovery runs nested
+    // analysis), leaving a function without structure. An empty budget says why.
+    if (budget.active && budget.exhausted) throw BudgetExceeded(budget.reason);
+    return status;
   }
   void apply(uint64_t target, const Inferred &entry) {
     auto *fd = arch.symboltab->getGlobalScope()->queryFunction(Address(arch.getDefaultCodeSpace(), target));
@@ -1040,7 +1059,7 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
   std::lock_guard<std::mutex> lock(engine_mutex);
   return checked([&] {
     impl->ready();
-    if (!timeout_ms || timeout_ms > 60000 || !max_instructions || max_instructions > 100000 || !max_work || max_work > 10000000)
+    if (!timeout_ms || timeout_ms > 60000 || !max_instructions || max_instructions > 100000 || !max_work || max_work > 200000000)
       throw std::runtime_error("invalid decompilation limits");
     auto &arch = impl->arch;
     if (!arch.image().executable(address)) throw std::runtime_error("function is not in executable mapped memory");
@@ -1056,9 +1075,11 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
     // Each phase gets the full budget: a heavy callee inference must not starve
     // or lose the selected function's own analysis.
     const auto fresh = [&] { return BudgetGuard(timeout_ms, max_work); };
+    const auto attempt = [&](bool truncate) -> NativeOutput {
     try {
       arch.max_instructions = max_instructions;
-      arch.flowoptions |= FlowInfo::error_toomanyinstructions;
+      if (truncate) arch.flowoptions &= ~FlowInfo::error_toomanyinstructions;
+      else arch.flowoptions |= FlowInfo::error_toomanyinstructions;
       int4 result;
       std::string baseline_errors;
       {
@@ -1110,7 +1131,17 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
         output.exceptions(std::ios::badbit | std::ios::failbit);
         arch.print->setOutputStream(&output);
         arch.print->setMarkup(false);
-        arch.print->docFunction(fd);
+        try {
+          arch.print->docFunction(fd);
+        } catch (const LowlevelError &e) {
+          // The engine's own notes (flow errors, unrecovered jump tables) say why.
+          arch.print->setOutputStream(&impl->errors);
+          std::string notes = "analysis status " + std::to_string(result) + " " + impl->errors.str();
+          for (auto it = arch.commentdb->beginComment(fd->getAddress()); it != arch.commentdb->endComment(fd->getAddress()); ++it)
+            if ((*it)->getType() & (Comment::warning | Comment::warningheader)) notes += " " + (*it)->getText();
+          if (notes.size() > 400) notes.resize(400);
+          throw std::runtime_error(notes.empty() ? e.explain : e.explain + " (" + notes + ")");
+        }
         arch.print->setOutputStream(&impl->errors);
       }
       response.text = buffer.str();
@@ -1145,6 +1176,21 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
       arch.print->setOutputStream(&impl->errors);
       impl->poisoned = true;
       throw;
+    }
+    };
+    // A function whose flow runs past the instruction limit (the entry stub of a packed file
+    // walking into its payload) is still worth showing: Ghidra truncates the flow with a warning.
+    try {
+      return attempt(false);
+    } catch (const LowlevelError &e) {
+      if (e.explain.find("maximum allowable instructions") == std::string::npos) throw;
+      impl->poisoned = false;
+      impl->release(fd);
+      impl->dropDataSymbols();
+      NativeOutput truncated = attempt(true);
+      truncated.incomplete = true;
+      truncated.warnings.push_back("Instruction limit reached: some flow is truncated.");
+      return truncated;
     }
   });
 }

@@ -29,6 +29,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         let current = session.as_mut().ok_or("session was not initialized")?;
+        // Development knob: CORPUS_LIMITS=timeout_ms,max_instructions,max_work
+        if let Ok(limits) = std::env::var("CORPUS_LIMITS") {
+            let values: Vec<u32> = limits.split(',').filter_map(|v| v.parse().ok()).collect();
+            if let [timeout_ms, max_instructions, max_work] = values[..] {
+                current.set_limits(capa_x::decompiler::ResourceLimits {
+                    timeout_ms,
+                    max_instructions,
+                    max_work,
+                })?;
+            }
+        }
         match current.decompile_function(address) {
             Ok(output) => println!(
                 "{}",

@@ -64,21 +64,53 @@ fn score(pack: &Pack<'_>, family: &Family<'_>, record: &Record) -> Option<f32> {
     Some(total)
 }
 
-/// A C identifier the decompiler can print.
+/// A C identifier the decompiler can print. An x86-32 `__stdcall` or `__fastcall` name
+/// carries its argument size (`name@8`); the printer turns the `@` into `_`, as Ghidra does.
 fn identifier(name: &str) -> Option<String> {
     let first = name.bytes().next()?;
-    (!first.is_ascii_digit() && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'))
-        .then(|| name.to_owned())
+    let base = match name.rsplit_once('@') {
+        Some((base, size)) if !size.is_empty() && size.bytes().all(|b| b.is_ascii_digit()) => base,
+        _ => name,
+    };
+    (!first.is_ascii_digit()
+        && !base.is_empty()
+        && base.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_'))
+    .then(|| name.to_owned())
 }
 
-/// Strip the C++ decoration of simple MSVC names (`?name@@...`, `?name@Class@@...`).
-/// Returns `None` for operators, constructors, templates and compiler-generated
-/// names, which need a real demangler.
+/// Strip the C++ decoration of simple MSVC names (`?name@@...`, `?name@Class@@...`),
+/// and name the global allocation operators, which Ghidra prints as `operator_new` and
+/// `operator_delete`. Returns `None` for other operators, constructors, templates and
+/// compiler-generated names, which need a real demangler.
 fn plain_name(raw: &str) -> Option<String> {
     let Some(rest) = raw.strip_prefix('?') else {
         return identifier(raw);
     };
+    if rest.starts_with("?2@") {
+        return Some("operator_new".into());
+    }
+    if rest.starts_with("?3@") {
+        return Some("operator_delete".into());
+    }
     identifier(rest.get(..rest.find('@')?)?)
+}
+
+/// The name to give a function whose Function ID match is ambiguous. Ghidra labels every
+/// candidate `FID_conflict:<name>` and the decompiler shows one of them; which one depends on
+/// its database order, so this picks the least decorated name (fewest leading underscores, then
+/// shortest). On the four ambiguous matches checked against Ghidra it agrees three times.
+pub fn conflict_name(candidates: &[String]) -> Option<String> {
+    candidates
+        .iter()
+        .filter_map(|name| plain_name(name))
+        .min_by_key(|name| {
+            (
+                name.bytes().take_while(|&b| b == b'_').count(),
+                name.len(),
+                name.clone(),
+            )
+        })
+        .map(|name| format!("FID_conflict:{name}"))
 }
 
 /// Candidates that reach the score threshold, best first (stable, like Java's sort).
