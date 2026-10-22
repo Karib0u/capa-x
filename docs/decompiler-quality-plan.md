@@ -182,11 +182,14 @@ Open-source C and C++ programs that we build ourselves, so the right answer is k
 - **Programs:** small, permissively licensed, varied in style: zlib, Lua, miniz, an SQLite amalgamation,
   mbedTLS, a few small command-line tools, and a few C++ programs with classes, virtual calls, templates
   and exceptions. Each entry records the source version, license and build recipe.
-- **Matrix:** MinGW (gcc) and clang, x86-32 and x64, optimized and debug, with and without symbols; MSVC
-  (including `/GS` and SEH) through a Windows toolchain on a build machine if one is available, since MSVC
-  code is what the Function ID data covers. Build scripts live in the repo; binaries are built
-  reproducibly and kept out of it, except small ones if the licenses allow.
-- **Truth:** function boundaries and names from PDB, DWARF or map files; prototypes and calling
+- **Matrix:** a Windows lab with MSVC is available, so MSVC is the main compiler: x86-32 and x64, `/O2`
+  and `/Od`, `/MT` and `/MD`, `/GS` on and off, with PDBs, with SEH and C++ exceptions. The Visual Studio
+  versions on the lab are recorded in the manifest; Ghidra's Function ID data covers Visual Studio 2012
+  to 2019, so a newer toolset also shows how far that data reaches. MinGW (gcc) and clang come second, for
+  the non-Visual-C names that held-out runs miss (11e), built on the Mac or in the lab. Build scripts live
+  in the repo; binaries and PDBs are built reproducibly and kept out of it, except small ones if the
+  licenses allow.
+- **Truth:** function boundaries and names from the PDB (or DWARF, or a map file); prototypes and calling
   conventions from the source headers; the source bodies themselves.
 - **What it measures that Ghidra cannot:** function recall and precision against the truth, argument and
   return-type correctness of the output, call-target and name accuracy, and whether Ghidra itself is right.
@@ -195,36 +198,61 @@ Open-source C and C++ programs that we build ourselves, so the right answer is k
   declarations from the source headers and run against the original function from our own build on test
   inputs (differential testing). This is the experiment mentioned in step 13, and it runs only our own
   builds, never malware, so it does not conflict with the rule that samples are never executed.
-- **Exit:** a manifest (hashes, versions, recipes), the truth files, and a first set of numbers.
+- **Exit:** a manifest (hashes, versions, recipes, toolset versions), the truth files, and a first set of
+  numbers.
 
 ### 15b. Large real-world corpus (VX Underground)
 
-Thousands of malware samples from VX Underground. Answers: what do the files this tool is meant for
+The maintainer's local copy is `/Users/theo/Documents/MAL-LAB/vxunderground-dump/vx-scrap/Malware Analysis/`
+(a path on one machine, not in the repository). It answers: what do the files this tool is meant for
 actually look like, and does the decompiler hold up at scale.
 
-- **Handling.** Samples stay outside the repository and the worktree, in a directory the maintainer names.
-  Only a manifest (SHA-256 plus triage labels) is committed. They are never executed: only static tools
-  touch them (header scans, Ghidra headless import, this decompiler). Archives are extracted into a fresh,
-  empty directory each, scripts run from another directory, Python with `-I`. A VM or isolated machine
-  without network is preferable; antivirus quarantine may delete files. VX Underground's terms apply and
-  samples are not redistributed.
-- **Triage first, with no decompiler.** A header-only pass per sample: format, architecture, size, managed
-  code, packer indicators (section names, entropy, import count), compiler guess (Rich header, linker
-  version, MinGW, Delphi, Go and Rust markers). The output is a count table and the manifest. This is the
-  "count formats and compilers" step, and it decides step 16 (Delphi and Borland, ELF, and the rest).
-- **Splits.** Deduplicate (by import hash and size) so one family does not dominate, then split by hash
-  into a tuning set, a held-out set and a final test set, recorded before any measurement. The final set
-  stays untouched until a release.
+**What it is.** The tree is a scrape of malware-analysis reports, not a directory of binaries: one
+folder per report (15,461 of them, named `YYYY-MM-DD - title`, 2006 to 2026, with PDFs, Markdown and
+about 1.25 million screenshots), and under about 3,000 of them a `Samples/` folder. According to the
+inventory that came with the dump (`analysis/dataset_stats.md`, produced elsewhere and not re-checked
+here), the samples are 53,711 `.7z` archives of about 93 GiB, each holding exactly one member and
+protected with the conventional password `infected`, which expand to at least 164 GiB; some archives
+expand by more than 1,000 times, one is truncated and four extensionless ones are not readable by the
+installed 7-Zip. By the dump's own type sniff of the members, about 33,700 (62.8%) are PE files, then
+about 2,500 APK, 1,900 ELF, 1,500 LNK, 580 Mach-O, and many scripts, Office files and MSI. The PE count is
+1,000 or more in most years from 2013 on (2014 is the exception, 606). The scrape also holds one report folder with 954,000
+tiny images and two large leak archives, which are ignored.
+
+**What makes it more useful than a bag of files:** every sample belongs to a dated report that names a
+campaign or family, so samples can be grouped (splits that do not leak a campaign between tuning and
+test), dated (by report and by PE timestamp, which tracks the compiler era), and described (the report
+text says what the sample does, which gives candidates for the flag audit in step 14).
+
+- **Handling.** Only `Samples/` folders are read; the generated `analysis/` folder, the `.agents` folder
+  and the image-only folders are not. Samples are never executed and never extracted into the repository
+  or the worktree. A VM or isolated machine without network is preferable, and antivirus quarantine may
+  delete files. Terms of the source apply and samples are not redistributed. Only a manifest (SHA-256,
+  report, year, labels) is committed.
+- **Triage first, with no decompiler and without extracting to disk.** Each archive's single member is
+  streamed through `7zz x -so -pinfected` and only its first few kilobytes are read (limits on bytes read
+  and on expansion ratio, one process per archive, a timeout), enough to read the PE header: format,
+  architecture, size, managed code, section names and entropy, import count, Rich header and linker
+  version, and markers for MinGW, Delphi, Go and Rust. The output is a count table and the manifest. It is
+  the "count formats and compilers" step and decides step 16 (Delphi and Borland, ELF, and the rest).
+- **Extraction for measurement** is a second, separate step for the chosen samples only: each archive into
+  its own new, empty directory in a quarantine location outside the repository (a hard cap on member size,
+  for example 16 MiB, and on total bytes per run), with scripts run from another directory and Python with
+  `-I`.
+- **Splits.** Deduplicate by member SHA-256 and import hash (the dataset reuses samples across reports),
+  then split by *report* into a tuning set, a held-out set and a final test set, recorded before any
+  measurement, so one campaign never sits on both sides. The final set stays untouched until a release.
 - **Measurements:**
-  - A robustness sweep at scale (for example 2,000 samples, 25 functions each), recording errors, work
-    limits, timeouts and crashes. Each sample runs in its own process with a time and memory limit, because
-    the native engine is C++.
-  - The scorecard against Ghidra on a stratified subset of a few hundred samples (Ghidra costs about a minute
-    per sample, so this is hours, not days).
+  - A robustness sweep at scale (for example 2,000 PE samples, 25 functions each), recording errors, work
+    limits, timeouts and crashes. Each sample runs in its own process with a time and memory limit,
+    because the native engine is C++.
+  - The scorecard against Ghidra on a stratified subset of a few hundred samples (Ghidra costs about a
+    minute per sample, so this is hours, not days), reported per year bucket and per compiler guess.
   - Share of packed, managed and unsupported files, which shows what the tool cannot reach.
-  - Candidates for the flag audit (step 14).
-- **Limits.** It is not ground truth (Ghidra stays the only reference), malware is skewed toward packed and
-  obfuscated code, and the share of a few families can still bias results.
+  - Candidates for the flag audit (step 14), chosen from reports that describe the sample.
+- **Limits.** It is not ground truth (Ghidra stays the only reference), malware skews toward packed and
+  obfuscated code, a few large reports can dominate a year, and the dump's own counts are unverified until
+  the triage reproduces them.
 
 ## Step 16: platforms and compilers
 
@@ -245,7 +273,7 @@ differences easier to see, but changes the output of everyone who turns it on, s
 
 ## Decisions for the maintainer
 
-1. Where is the VX Underground directory, and is there an isolated machine or VM for it? The triage in step 15b answers formats, compilers and the share of Delphi, packed and .NET.
+1. The VX Underground dump is known (see step 15b). Open: where may extracted samples be quarantined, and is there a VM or isolated machine for the extraction and the Ghidra runs? The triage in step 15b answers formats, compilers and the share of Delphi, packed and .NET. Also open: which Visual Studio versions the Windows lab has.
 2. Is a 60% to 70% incomplete rate acceptable, or is it the headline problem?
 3. Is recompiling decompiled functions a compile-only goal, or must the result run? Proposed answer: compile
    malware-derived text only; run recompiled code only for functions of our own known-source builds
@@ -393,7 +421,7 @@ Order by payoff per effort and dependency, not by phase number:
 | 12 | Compile check with a real header | After step 11, or alongside it (does not touch the same code). Says which non-compilable constructs matter |
 | 13 | Self-contained unit for recompiling extracted functions | After steps 11 and 12 |
 | 14 | Flag audit by hand | Proposed. No code; can run at any time |
-| 15 | Corpora: 15a known-source corpus, 15b VX Underground triage and splits | Proposed. 15b triage is header-only and needs the sample directory; 15a can start with MinGW builds |
+| 15 | Corpora: 15a known-source corpus, 15b VX Underground triage and splits | Proposed. 15b: the dump is on the maintainer's machine; triage streams archive headers without extracting. 15a: MSVC builds on the Windows lab, MinGW and clang as a second set |
 | 16 | Platforms and compilers: Delphi/Borland or ELF | Decided by the step 15b triage |
 | 17 | Phase 6b `Platform` extraction, parity tracking | After step 11 and the triage in step 15b |
 | 18 | Phases 6c to 6f and the rest of phase 7 | Only if the scorecard or the corpus asks, which step 16 decides |
