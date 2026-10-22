@@ -38,7 +38,7 @@ compile (about a third of it passes the same crude check). Both goals are served
   engine is the same 12.1.4 source, so the engine version is not a confounder.
 - No IDA in this plan.
 - Scope: native x86-64 and x86-32 PE (Windows conventions). ELF, Mach-O, other architectures and
-  managed code are listed in step 15. Packed files are a known limit: both Ghidra and native
+  managed code are listed in step 16. Packed files are a known limit: both Ghidra and native
   decompile the unpacker.
 - Output language: C. Ghidra prints C; classes, virtual calls and templates stay C-level
   (pointer arithmetic, vtable loads) until RTTI is recovered (phase 7). "C++-compatible" means the same
@@ -122,8 +122,8 @@ One row per cause of a remaining difference, with the size measured so far and t
 | Large functions | no work limit (30 s timeout) | 2M work units, 5 s per phase; data-symbol pass falls back when over budget | 5 of 7 x86-32 held-out errors | Step 11d |
 | Speed | decompiles once | decompiles twice when data symbols apply; inference | median 26 ms against 10 ms (x86-32 held-out) | Step 11d |
 | Compilable output | prints pseudocode; does not compile | same, with our type names | 42% to 50% pass a crude check | Steps 12, 13 |
-| Naming layer | `undefined4`, `local_24`, `FindWindowW` | `xunknown4`, `iStack_24`, `kernel32_FindWindowW` | cosmetic, deterministic | Step 16 |
-| Compilers other than MSVC | per-compiler spec (Delphi register convention, Borland) | Windows spec for all PE32 | not measured | Step 15 |
+| Naming layer | `undefined4`, `local_24`, `FindWindowW` | `xunknown4`, `iStack_24`, `kernel32_FindWindowW` | cosmetic, deterministic | Step 17 |
+| Compilers other than MSVC | per-compiler spec (Delphi register convention, Borland) | Windows spec for all PE32 | not measured | Step 16 |
 | Types and RTTI | structs from archives, RTTI analyzers | archive types for imports only | not measured | phase 7 |
 
 ## Step 11: gaps left by 6a (next, in progress)
@@ -164,16 +164,72 @@ recovered (phase 7).
 
 ## Step 14: flag audit (proposed)
 
-For about 50 outputs each from "complete" and "incomplete", read the output against the machine code and
-record errors (wrong arguments, dropped returns, wrong control flow). It is the only way to know whether
+For about 50 outputs each from "complete" and "incomplete", read the output against the machine code (or,
+for the known-source corpus, against the source) and record errors (wrong arguments, dropped returns, wrong control flow). It is the only way to know whether
 "complete" can be trusted, and it needs no code, so it can run at any time. The result is stored with its
 method.
 
-## Step 15: platforms, compilers and your own files
+## Step 15: corpora (proposed)
 
-- **Own files first.** Count formats, architectures and compilers in the files the tool is meant for
-  before choosing anything below. Needs a directory from the maintainer. The test corpus is capa's, not
-  necessarily the right distribution.
+The capa test files are a good base for breadth and regression, but they were chosen to test capa, not
+this decompiler, and they have no ground truth: every comparison so far is native against Ghidra. Two
+corpora are added, for two different questions.
+
+### 15a. Known-source corpus (ground truth)
+
+Open-source C and C++ programs that we build ourselves, so the right answer is known.
+
+- **Programs:** small, permissively licensed, varied in style: zlib, Lua, miniz, an SQLite amalgamation,
+  mbedTLS, a few small command-line tools, and a few C++ programs with classes, virtual calls, templates
+  and exceptions. Each entry records the source version, license and build recipe.
+- **Matrix:** MinGW (gcc) and clang, x86-32 and x64, optimized and debug, with and without symbols; MSVC
+  (including `/GS` and SEH) through a Windows toolchain on a build machine if one is available, since MSVC
+  code is what the Function ID data covers. Build scripts live in the repo; binaries are built
+  reproducibly and kept out of it, except small ones if the licenses allow.
+- **Truth:** function boundaries and names from PDB, DWARF or map files; prototypes and calling
+  conventions from the source headers; the source bodies themselves.
+- **What it measures that Ghidra cannot:** function recall and precision against the truth, argument and
+  return-type correctness of the output, call-target and name accuracy, and whether Ghidra itself is right.
+  The same binaries also go through Ghidra, so the two kinds of number sit side by side.
+- **Recompile validation:** with the source available, a decompiled function can be compiled with the
+  declarations from the source headers and run against the original function from our own build on test
+  inputs (differential testing). This is the experiment mentioned in step 13, and it runs only our own
+  builds, never malware, so it does not conflict with the rule that samples are never executed.
+- **Exit:** a manifest (hashes, versions, recipes), the truth files, and a first set of numbers.
+
+### 15b. Large real-world corpus (VX Underground)
+
+Thousands of malware samples from VX Underground. Answers: what do the files this tool is meant for
+actually look like, and does the decompiler hold up at scale.
+
+- **Handling.** Samples stay outside the repository and the worktree, in a directory the maintainer names.
+  Only a manifest (SHA-256 plus triage labels) is committed. They are never executed: only static tools
+  touch them (header scans, Ghidra headless import, this decompiler). Archives are extracted into a fresh,
+  empty directory each, scripts run from another directory, Python with `-I`. A VM or isolated machine
+  without network is preferable; antivirus quarantine may delete files. VX Underground's terms apply and
+  samples are not redistributed.
+- **Triage first, with no decompiler.** A header-only pass per sample: format, architecture, size, managed
+  code, packer indicators (section names, entropy, import count), compiler guess (Rich header, linker
+  version, MinGW, Delphi, Go and Rust markers). The output is a count table and the manifest. This is the
+  "count formats and compilers" step, and it decides step 16 (Delphi and Borland, ELF, and the rest).
+- **Splits.** Deduplicate (by import hash and size) so one family does not dominate, then split by hash
+  into a tuning set, a held-out set and a final test set, recorded before any measurement. The final set
+  stays untouched until a release.
+- **Measurements:**
+  - A robustness sweep at scale (for example 2,000 samples, 25 functions each), recording errors, work
+    limits, timeouts and crashes. Each sample runs in its own process with a time and memory limit, because
+    the native engine is C++.
+  - The scorecard against Ghidra on a stratified subset of a few hundred samples (Ghidra costs about a minute
+    per sample, so this is hours, not days).
+  - Share of packed, managed and unsupported files, which shows what the tool cannot reach.
+  - Candidates for the flag audit (step 14).
+- **Limits.** It is not ground truth (Ghidra stays the only reference), malware is skewed toward packed and
+  obfuscated code, and the share of a few families can still bias results.
+
+## Step 16: platforms and compilers
+
+- **Own files first.** The triage of the real-world corpus in step 15b says what is common before anything
+  below is chosen. The maintainer has access to many VX Underground samples; the directory is needed.
 - **Delphi and Borland (x86-32).** Ghidra picks `x86delphi.cspec` or `x86borland.cspec` from the PE and
   uses a register convention (`__register`, arguments in `EAX`, `EDX`, `ECX`); native uses the Windows
   spec for every PE32. First check: run Ghidra and native on a few Delphi samples and compare how Ghidra
@@ -181,7 +237,7 @@ method.
 - **6b to 6f** below: the `Platform` abstraction, then ELF, AArch64, Mach-O and 32-bit ARM or MIPS, only as
   the file count says. **Phase 7** below: demangling, RTTI, SEH structure, Go and Rust.
 
-## Step 16: parity levels P3 and P4
+## Step 17: parity levels P3 and P4
 
 Tracked on every run and not optimized. One possible step is an optional Ghidra-compatible naming mode
 (`undefined4`, `local_24`, no module prefix on imports). It is deterministic and would make the remaining
@@ -189,11 +245,11 @@ differences easier to see, but changes the output of everyone who turns it on, s
 
 ## Decisions for the maintainer
 
-1. Which files does the tool analyze (formats, compilers, rough share of Delphi, packed, .NET)?
+1. Where is the VX Underground directory, and is there an isolated machine or VM for it? The triage in step 15b answers formats, compilers and the share of Delphi, packed and .NET.
 2. Is a 60% to 70% incomplete rate acceptable, or is it the headline problem?
-3. Is recompiling decompiled functions a compile-only goal, or must the result run? Running it on the
-   host runs code taken from a sample, which `AGENTS.md` rules out for samples; the p-code emulator is the
-   alternative.
+3. Is recompiling decompiled functions a compile-only goal, or must the result run? Proposed answer: compile
+   malware-derived text only; run recompiled code only for functions of our own known-source builds
+   (step 15a), where nothing from a sample is executed.
 4. Is an optional Ghidra-compatible naming mode acceptable?
 5. Does speed in bulk matter (median 26 ms against Ghidra's 10 ms on x86-32)?
 
@@ -337,9 +393,10 @@ Order by payoff per effort and dependency, not by phase number:
 | 12 | Compile check with a real header | After step 11, or alongside it (does not touch the same code). Says which non-compilable constructs matter |
 | 13 | Self-contained unit for recompiling extracted functions | After steps 11 and 12 |
 | 14 | Flag audit by hand | Proposed. No code; can run at any time |
-| 15 | Your own files, then Delphi/Borland or ELF | Needs a directory from the maintainer; decides which platform comes next |
-| 16 | Phase 6b `Platform` extraction, parity tracking | After step 11 and the count in step 15 |
-| 17 | Phases 6c to 6f and the rest of phase 7 | Only if the scorecard or the corpus asks, which step 15 decides |
+| 15 | Corpora: 15a known-source corpus, 15b VX Underground triage and splits | Proposed. 15b triage is header-only and needs the sample directory; 15a can start with MinGW builds |
+| 16 | Platforms and compilers: Delphi/Borland or ELF | Decided by the step 15b triage |
+| 17 | Phase 6b `Platform` extraction, parity tracking | After step 11 and the triage in step 15b |
+| 18 | Phases 6c to 6f and the rest of phase 7 | Only if the scorecard or the corpus asks, which step 16 decides |
 
 Rerun the baseline after every step. A step that does not move its target metric
 is investigated before the next one starts.
