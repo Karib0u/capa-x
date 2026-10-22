@@ -55,6 +55,7 @@ fn call_fixup_models_a_helper_and_is_not_an_analysis_gap() -> Result<(), Box<dyn
         modeled.warnings
     );
     assert!(!modeled.incomplete, "{:?}", modeled.warnings);
+    assert!(!modeled.unknown_callees);
     Ok(())
 }
 

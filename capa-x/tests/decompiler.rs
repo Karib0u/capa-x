@@ -333,6 +333,7 @@ fn unknown_prototypes_are_explicitly_incomplete() -> anyhow::Result<()> {
         DecompilerSession::from_analysis(&analysis, &Default::default(), Default::default())?;
     let output = session.decompile_function(address("imported_call")?)?;
     assert!(output.incomplete);
+    assert!(output.unknown_callees);
     assert!(output
         .warnings
         .iter()

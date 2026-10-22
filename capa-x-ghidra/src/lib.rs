@@ -25,6 +25,7 @@ mod ffi {
         text: String,
         warnings: Vec<String>,
         incomplete: bool,
+        unknown_callees: bool,
     }
     unsafe extern "C++" {
         include!("bridge.hh");

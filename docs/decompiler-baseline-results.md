@@ -298,7 +298,9 @@ replacing the hand-written RAX-preservation effect for the cookie check.
   longer sets `incomplete`: 17 fewer functions are flagged. The comment itself is still in
   the text and the warnings.
 
-The flag drop is a definition change as much as an improvement: those functions still
+The flag is now split: `unknown_callees` marks the callee-prototype cause. Of the 181
+texts, 125 (69.1%) have it and only 3 (1.7%) are incomplete for any other reason, so the
+remaining 70.7% is almost entirely missing callee prototypes, not unsound output. The flag drop is a definition change as much as an improvement: those functions still
 have the generic "types are inferred" note, and remaining gaps (unknown callee
 prototypes) still set the flag.
 

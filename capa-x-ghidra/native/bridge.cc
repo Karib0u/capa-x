@@ -829,6 +829,7 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
       }
       OutputBuffer buffer;
       NativeOutput response;
+      response.unknown_callees = false;
       {
         auto guard = fresh();
         capax_check();
@@ -846,6 +847,7 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
       for (int4 index = 0; index < fd->numCalls(); ++index) {
         const auto *call = fd->getCallSpecs(index);
         if (!call->isInputLocked() || !call->isOutputLocked()) {
+          response.unknown_callees = true;
           response.warnings.push_back("Unknown callee prototype: forwarded arguments or return types may be missing. Supply signatures for reliable call reconstruction.");
           break;
         }

@@ -78,7 +78,12 @@ pub struct Decompilation {
     pub calling_convention: CallingConvention,
     pub text: String,
     pub warnings: Vec<String>,
+    /// Any gap: a native error or warning, or a load diagnostic.
     pub incomplete: bool,
+    /// At least one callee has no known prototype, so call arguments and return
+    /// values may be missing. This is the usual reason for `incomplete`; when it is
+    /// the only one, the control flow and data flow of the function itself are sound.
+    pub unknown_callees: bool,
     pub timings: DecompilationTimings,
 }
 
@@ -370,6 +375,7 @@ impl DecompilerSession {
             text: output.text,
             warnings,
             incomplete,
+            unknown_callees: output.unknown_callees,
             timings: DecompilationTimings {
                 initialization_ms: self.initialization_ms,
                 decompilation_ms: started.elapsed().as_secs_f64() * 1000.0,

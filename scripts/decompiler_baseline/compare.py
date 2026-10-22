@@ -80,6 +80,7 @@ for name in sorted(n for n in os.listdir(gdir_) if n.endswith(".json")):
         else:
             out = r["output"]
             row["n_status"] = "incomplete" if out["incomplete"] else "ok"
+            row["n_unknown_callees"] = out.get("unknown_callees", False)
             row["n_warnings"] = out["warnings"]
             row["n_ms"] = out["timings"]["decompilation_ms"]
             if f["ok"]:
@@ -109,6 +110,9 @@ print("native status:", dict(stat))
 errs = collections.Counter(re.sub(r"0x[0-9a-fA-F]+", "ADDR", r["n_error"])[:90] for r in rows if "n_error" in r)
 for e, c in errs.most_common(8): print(f"  {c:3d}  {e}")
 print("flagged incomplete among outputs:", pct(stat["incomplete"], stat["ok"] + stat["incomplete"]))
+outputs = [r for r in rows if r["n_status"] in ("ok", "incomplete")]
+print("  of which unknown callee prototypes:", pct(sum(1 for r in outputs if r.get("n_unknown_callees")), len(outputs)))
+print("  incomplete for another reason:", pct(sum(1 for r in outputs if r["n_status"] == "incomplete" and not r.get("n_unknown_callees")), len(outputs)))
 warn = collections.Counter(re.sub(r"0x[0-9a-fA-F]+", "ADDR", w)[:80] for r in rows for w in r.get("n_warnings", []))
 for w, c in warn.most_common(6): print(f"  warn {c:3d}  {w}")
 print("compared (both produced text):", len(both))

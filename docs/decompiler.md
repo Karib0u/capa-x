@@ -49,7 +49,10 @@ Sessions are neither Send nor Sync. Native calls are serialized process-wide
 because Ghidra has shared registries. An unexpected native failure poisons the
 session; create another session to continue. A work-limit or deadline error
 aborts only its request and leaves the session usable. Rust-rejected invalid requests leave it
-usable. Native warnings set `incomplete`; consumers should display them.
+usable. Native warnings set `incomplete`; consumers should display them. `unknown_callees` says
+whether the cause is a callee without a known prototype (arguments or return values may be
+missing), which is by far the commonest one. `incomplete && !unknown_callees` is a harder
+failure: a native error, a flow problem or a load diagnostic.
 The adapter applies the prototype of every import from a Windows system DLL that
 Ghidra's bundled Windows and C library data type archives describe (see
 [Prototype pack](#prototype-pack)), and `from_pe` applies a compact subset of the bundled FLIRT signatures for
