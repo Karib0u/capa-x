@@ -79,3 +79,9 @@ Native against the stored x86-32 reference (no Ghidra needed):
 python3 -I scripts/decompiler_baseline/run_native.py $T scripts/decompiler_baseline/reference/ghidra-12.1.4-x86/decompile $O/native-x86 target/release/examples/decompiler_corpus
 python3 -I scripts/decompiler_baseline/compare.py scripts/decompiler_baseline/reference/ghidra-12.1.4-x86/decompile $O/native-x86 $O/comparison-x86.json --any-module
 ```
+
+Compile check (crude; see Track C of the quality plan):
+
+```sh
+python3 -I scripts/decompiler_baseline/compile_check.py "x64 held-out" $O/comparison.json
+```
