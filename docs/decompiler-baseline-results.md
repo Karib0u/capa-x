@@ -741,9 +741,12 @@ Still open:
   not others, and MinGW functions such as `push ebp; push edi; push esi; push ebx`; neither pattern is mapped yet); 152 sit inside another function after a jump;
   1,014 native functions are outside any Ghidra function (static initializers, MinGW code Ghidra did not
   find), which are real code and not errors.
-- **C runtime assembly routines** (`memset`, `memcpy`, `malloc`): their Function ID hash differs from the
-  database's, so they stay unnamed (the full FLIRT database names `memset` but adds 550 ms to
-  initialization). `FID_conflict__memcpy` is 7 of the 95 callees still missed.
+- **C runtime assembly routines** (`memset`, `memcpy`, `malloc`) stay unnamed; the cause is only partly known.
+  Same Function ID databases as Ghidra. For `memset` in `268d6183` Ghidra's function has 46 code units and ours
+  120, because our body follows a `jmp` into `__VEC_memzero`, which Ghidra makes a separate function and
+  recovery leaves folded, so the hashes cover different bytes. For `memcpy` the counts are close (241 against
+  243) and the cause is not found; `malloc`, `__lock` and `__errno` are not examined. The full FLIRT database
+  names `memset` but adds 550 ms to initialization. `FID_conflict__memcpy` is 7 of the 95 callees still missed.
 - **Qualified C++ names** (`Class::method`, constructors) need a demangler.
 
 ## Not yet done
