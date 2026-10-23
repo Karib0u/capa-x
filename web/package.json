@@ -4,10 +4,12 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n api,ui \"node server/server.mjs\" \"vite\"",
-    "api": "node server/server.mjs",
-    "ui": "vite",
-    "build": "tsc --noEmit && vite build"
+    "dev": "vite",
+    "build:wasm": "sh scripts/build-wasm.sh",
+    "pack-rules": "node scripts/pack-rules.mjs",
+    "prepare-assets": "npm run build:wasm && npm run pack-rules",
+    "build": "tsc --noEmit && vite build",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -17,8 +19,8 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
-    "concurrently": "^9.1.0",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "wrangler": "^4.152.0"
   }
 }

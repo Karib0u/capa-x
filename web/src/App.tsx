@@ -18,7 +18,7 @@ export default function App() {
     abort.current?.abort();
     const ctl = (abort.current = new AbortController());
     setError(null);
-    setA({ fileName: file.name, size: file.size, order: [], strings: [], entry: null, functions: new Map(), capa: null, capaError: null, decompileError: null, done: false });
+    setA({ fileName: file.name, size: file.size, order: [], strings: [], entry: null, functions: new Map(), capa: null, capaError: null, decompileError: null, loading: null, done: false });
     analyze(file, setA, ctl.signal).catch((e) => {
       if (ctl.signal.aborted) return;
       setA(null);
@@ -181,14 +181,14 @@ function Workspace({ a, onNew, onFile }: { a: Analysis; onNew: () => void; onFil
           <span>{bytes(a.size)}{a.capa && ` · ${a.capa.format.toUpperCase()} ${a.capa.arch}`}</span>
         </div>
         <div className="status">
-          {a.decompileError ? "Decompiler unavailable for this file" : a.done ? `${total} functions · ${totalCaps} capabilities` : total ? `Decompiling ${done}/${total}` : "Analyzing…"}
+          {a.decompileError ? "Decompiler unavailable for this file" : a.done ? `${total} functions · ${totalCaps} capabilities` : a.loading ? a.loading.label : total ? `Decompiling ${done}/${total}` : "Analyzing…"}
         </div>
         <div className="navbtns">
           <button className="ghost" onClick={back} disabled={nav.i === 0} title="Back (Alt+←)">←</button>
           <button className="ghost" onClick={forward} disabled={nav.i >= nav.stack.length - 1} title="Forward (Alt+→)">→</button>
         </div>
         <button className="ghost" onClick={onNew}>New</button>
-        {!a.done && <div className="bar"><i style={{ width: `${Math.max(4, progress * 100)}%` }} /></div>}
+        {!a.done && <div className="bar"><i style={{ width: `${Math.max(4, (a.loading ? a.loading.fraction ?? 0.04 : progress) * 100)}%` }} /></div>}
       </header>
 
       <div className="body">
@@ -221,7 +221,7 @@ function Workspace({ a, onNew, onFile }: { a: Analysis; onNew: () => void; onFil
                 </button>
               );
             })}
-            {!list.length && <p className="empty">{total ? "No matches." : a.decompileError ? "No functions to show." : a.done ? "No functions found." : "Recovering functions…"}</p>}
+            {!list.length && <p className="empty">{total ? "No matches." : a.decompileError ? "No functions to show." : a.done ? "No functions found." : a.loading ? "Downloading the analysis engine…" : "Recovering functions…"}</p>}
           </div>
         </aside>
 

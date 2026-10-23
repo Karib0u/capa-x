@@ -11,6 +11,7 @@ use serde::Serialize;
 /// Scalar and pointer types accepted by explicit function signatures.
 pub use capa_x_ghidra::ValueType;
 
+use crate::bundled::bundled;
 use crate::extract::decoder::Flow;
 use crate::extract::image::{Architecture, ImageFormat, LoadedImage};
 use crate::extract::recovery::flirt::{self, Signatures};
@@ -24,8 +25,6 @@ mod unit;
 pub use unit::{Guess, Unit, UnitFunction};
 
 /// Ghidra 12.1.4 Function ID data for x64 and x86 Visual Studio runtimes; see `sigs/FID.md`.
-static FID_PACK_X64: &[u8] = include_bytes!("../sigs/fid-x64.pack");
-static FID_PACK_X86: &[u8] = include_bytes!("../sigs/fid-x86.pack");
 
 #[derive(Debug, thiserror::Error)]
 pub enum DecompileError {
@@ -211,7 +210,13 @@ impl DecompilerSession {
         if let Some(entry) = dll_entry {
             names.entry(entry).or_insert_with(|| "DllEntryPoint".into());
         }
-        let pack = fid::pack::Pack::parse(if wide { FID_PACK_X64 } else { FID_PACK_X86 })
+        let pack_bytes = if wide {
+            bundled!("fid-x64.pack")
+        } else {
+            bundled!("fid-x86.pack")
+        }
+        .map_err(DecompileError::Input)?;
+        let pack = fid::pack::Pack::parse(&pack_bytes)
             .map_err(|e| DecompileError::Input(e.to_string()))?;
         let (recognized, conflicts) =
             fid::names::name_functions_with_conflicts(&analysis, &pack, &|address| {

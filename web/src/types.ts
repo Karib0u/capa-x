@@ -55,5 +55,7 @@ export interface Analysis {
   capa: CapaResult | null;
   capaError: string | null;
   decompileError: string | null;
+  /** Set while the engine, signatures and rules are downloading; null otherwise. */
+  loading: { label: string; fraction: number | null } | null;
   done: boolean;
 }

@@ -5,6 +5,7 @@
 //! validated, conflicting root names are rejected, and the first signature
 //! database that recognizes a function wins.
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::io::Read;
@@ -18,6 +19,8 @@ use crate::features::Feature;
 use crate::freeze::{BasicBlockFeatures, FunctionFeatures, InstructionFeatures, StaticFeatures};
 use crate::parallel::{self, AnalysisOptions};
 
+use crate::bundled::bundled;
+
 use super::aarch64_basicblock_features;
 use super::aarch64_features;
 use super::basicblock_features;
@@ -28,20 +31,29 @@ use super::insn_features::{self, InsnContext};
 
 const MATCH_WINDOW: usize = 0x1_0000;
 
-const DEFAULT_SIGNATURES: [(&str, &[u8]); 3] = [
-    (
-        "1_flare_msvc_rtf_32_64.sig",
-        include_bytes!("../../../sigs/1_flare_msvc_rtf_32_64.sig"),
-    ),
-    (
-        "2_flare_msvc_atlmfc_32_64.sig",
-        include_bytes!("../../../sigs/2_flare_msvc_atlmfc_32_64.sig"),
-    ),
-    (
-        "3_flare_common_libs.sig",
-        include_bytes!("../../../sigs/3_flare_common_libs.sig"),
-    ),
-];
+/// The default databases, in first-file-wins order.
+fn default_signatures() -> Result<Vec<(&'static str, Cow<'static, [u8]>)>, FlirtError> {
+    let load = |name: &'static str, bytes: Result<Cow<'static, [u8]>, String>| {
+        bytes.map(|bytes| (name, bytes)).map_err(|context| FlirtError::Io {
+            path: PathBuf::from(format!("(bundled signatures)/{name}")),
+            context,
+        })
+    };
+    Ok(vec![
+        load(
+            "1_flare_msvc_rtf_32_64.sig",
+            bundled!("1_flare_msvc_rtf_32_64.sig"),
+        )?,
+        load(
+            "2_flare_msvc_atlmfc_32_64.sig",
+            bundled!("2_flare_msvc_atlmfc_32_64.sig"),
+        )?,
+        load(
+            "3_flare_common_libs.sig",
+            bundled!("3_flare_common_libs.sig"),
+        )?,
+    ])
+}
 
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum FlirtError {
@@ -234,11 +246,11 @@ impl Signatures {
         static EMBEDDED: OnceLock<Result<Signatures, FlirtError>> = OnceLock::new();
         EMBEDDED
             .get_or_init(|| {
-                let databases =
-                    parallel::try_map(options.jobs, &DEFAULT_SIGNATURES, |(name, bytes)| {
-                        let path = PathBuf::from(format!("(embedded signatures)/{name}"));
-                        parse_database(path, bytes)
-                    })?;
+                let defaults = default_signatures()?;
+                let databases = parallel::try_map(options.jobs, &defaults, |(name, bytes)| {
+                    let path = PathBuf::from(format!("(embedded signatures)/{name}"));
+                    parse_database(path, bytes)
+                })?;
                 Ok(Self {
                     databases: databases.into(),
                 })

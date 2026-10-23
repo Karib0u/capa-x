@@ -22,7 +22,7 @@ export default function DropZone({ onFile, error }: { onFile: (f: File) => void;
         <span>or click to browse · Windows PE (x86 / x64)</span>
       </label>
       {error && <p className="error">{error}</p>}
-      <p className="fine">Analysis runs locally. Nothing leaves your machine.</p>
+      <p className="fine">Analysis runs in your browser. Nothing is uploaded.</p>
     </main>
   );
 }

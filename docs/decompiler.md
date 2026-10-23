@@ -9,6 +9,12 @@ cargo build --release -p capa-x-cli --features decompiler
 ./target/release/capa-x sample.exe --decompile-function 0x140001000 --json --timing
 ```
 
+For the browser, the same code builds for `wasm32-unknown-emscripten` (C++ exceptions and zlib
+come from Emscripten); see [`web/README.md`](../web/README.md). The build-time SLEIGH compiler still
+runs on the build host. `--decompile-all --shard INDEX/COUNT` splits the work so the
+browser can run several workers in parallel; see the web README for the one caveat on
+byte-for-byte equality with an unsharded run.
+
 The scope is native x86-64 and x86-32 PE files (managed images and other formats are rejected).
 The x86-64 path uses the Windows x64 calling convention; the x86-32 path is described under
 [x86-32](#x86-32).

@@ -74,6 +74,13 @@ struct Cli {
     #[arg(long, conflicts_with_all = ["decompile_function", "dump_code_layout", "dump_features", "dump_matches", "file_only", "rules", "signatures", "tag"])]
     decompile_all: bool,
 
+    /// With --decompile-all: decompile only shard INDEX of COUNT (`INDEX/COUNT`, zero-based). Every
+    /// shard lists all functions in its `start` record; the recovered functions are split round-robin,
+    /// so running all COUNT shards (possibly in parallel) covers each of them once. A callee that
+    /// recovery never listed is decompiled by each shard that finds it, so consumers must dedupe by address
+    #[arg(long, value_name = "INDEX/COUNT", value_parser = parse_shard, requires = "decompile_all")]
+    shard: Option<(usize, usize)>,
+
     /// emit JSON instead of text
     #[arg(short = 'j', long = "json")]
     json: bool,
@@ -274,6 +281,18 @@ impl Cli {
     }
 }
 
+/// `--shard`'s value parser: `INDEX/COUNT` with `INDEX < COUNT`.
+fn parse_shard(raw: &str) -> Result<(usize, usize), String> {
+    let invalid = || format!("`{raw}` is not a shard of the form INDEX/COUNT with INDEX < COUNT");
+    let (index, count) = raw.split_once('/').ok_or_else(invalid)?;
+    let index: usize = index.parse().map_err(|_| invalid())?;
+    let count: usize = count.parse().map_err(|_| invalid())?;
+    if count == 0 || index >= count {
+        return Err(invalid());
+    }
+    Ok((index, count))
+}
+
 /// `--jobs`' value parser, so `--jobs 0` fails at argument-parsing time with
 /// clap's own contextual message (flag name, offending value, and the reason)
 /// rather than somewhere inside the analysis.
@@ -446,7 +465,7 @@ fn run_analysis(cli: &Cli, timings: &mut Timings) -> Result<(), CliError> {
     }
 
     if cli.decompile_all {
-        return run_decompile_all(&bytes);
+        return run_decompile_all(&bytes, cli.shard);
     }
 
     if cli.dump_code_layout {
@@ -712,7 +731,7 @@ fn parse_function_address(value: &str) -> Result<u64, String> {
 }
 
 #[cfg(not(feature = "decompiler"))]
-fn run_decompile_all(_: &[u8]) -> Result<(), CliError> {
+fn run_decompile_all(_: &[u8], _: Option<(usize, usize)>) -> Result<(), CliError> {
     Err(CliError::new(
         E_CORRUPT_FILE,
         "native decompilation is disabled; rebuild with --features decompiler",
@@ -726,7 +745,7 @@ fn run_decompile_all(_: &[u8]) -> Result<(), CliError> {
 /// recovery never listed (code shared through a `jmp`, say) are decompiled too,
 /// transitively, and flagged `extra` so the viewer can link to them.
 #[cfg(feature = "decompiler")]
-fn run_decompile_all(bytes: &[u8]) -> Result<(), CliError> {
+fn run_decompile_all(bytes: &[u8], shard: Option<(usize, usize)>) -> Result<(), CliError> {
     use capa_x::decompiler::DecompilerSession;
     use std::io::Write;
     let error = |e| CliError::new(E_CORRUPT_FILE, format!("{e}"));
@@ -748,7 +767,13 @@ fn run_decompile_all(bytes: &[u8]) -> Result<(), CliError> {
     // Cap on callees found only through decompiled text, so a pathological image stays bounded.
     const MAX_EXTRA: usize = 2000;
     let mut seen: std::collections::BTreeSet<u64> = addresses.iter().copied().collect();
-    let mut queue: std::collections::VecDeque<u64> = addresses.into_iter().collect();
+    let (shard_index, shard_count) = shard.unwrap_or((0, 1));
+    let mut queue: std::collections::VecDeque<u64> = addresses
+        .into_iter()
+        .enumerate()
+        .filter(|(position, _)| position % shard_count == shard_index)
+        .map(|(_, address)| address)
+        .collect();
     let mut extras = 0usize;
     while let Some(address) = queue.pop_front() {
         let extra = !analysis.functions.contains_key(&address);
@@ -936,4 +961,18 @@ fn run_decompilation(cli: &Cli, bytes: &[u8], addresses: &[u64]) -> Result<(), C
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod shard_tests {
+    use super::parse_shard;
+
+    #[test]
+    fn shard_must_name_an_index_inside_the_count() {
+        assert_eq!(parse_shard("0/1"), Ok((0, 1)));
+        assert_eq!(parse_shard("2/4"), Ok((2, 4)));
+        for bad in ["4/4", "0/0", "1", "a/2", "1/b", "-1/2", ""] {
+            assert!(parse_shard(bad).is_err(), "{bad:?} should be rejected");
+        }
+    }
 }

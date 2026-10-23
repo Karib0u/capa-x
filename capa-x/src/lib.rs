@@ -2,6 +2,7 @@
 
 pub mod address;
 pub mod api;
+pub(crate) mod bundled;
 pub mod capabilities;
 pub mod com;
 #[cfg(feature = "decompiler")]

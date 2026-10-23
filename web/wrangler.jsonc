@@ -1,0 +1,7 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "capa-x",
+  "compatibility_date": "2026-10-23",
+  // Static site only: the analysis runs in the visitor's browser (WebAssembly).
+  "assets": { "directory": "./dist" }
+}

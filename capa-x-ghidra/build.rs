@@ -21,8 +21,13 @@ mod native {
         }
         let host = env::var("HOST").unwrap();
         let target = env::var("TARGET").unwrap();
-        assert!(host == target && (target.contains("linux") || target.contains("apple")),
-        "native decompiler currently requires a native Linux or macOS build and zlib development headers");
+        // WebAssembly builds are cross-compiled with Emscripten (C++ exceptions and zlib
+        // included); the SLEIGH compiler below always runs on the build host.
+        let wasm = target.ends_with("-emscripten");
+        assert!(
+            wasm || (host == target && (target.contains("linux") || target.contains("apple"))),
+            "native decompiler requires a native Linux or macOS build with zlib development headers, or the wasm32-unknown-emscripten target"
+        );
         let out = PathBuf::from(env::var_os("OUT_DIR").unwrap());
         let source = PathBuf::from("../third_party/ghidra/cpp");
         let specs = PathBuf::from("../third_party/ghidra/specs");
@@ -34,6 +39,10 @@ mod native {
             .warnings(false)
             .cargo_metadata(false)
             .include(&source);
+        if wasm {
+            // Build the compiler for the machine running the build script, not for wasm.
+            compiler.target(&host).host(&host);
+        }
         for name in format!("{CORE} {SLEIGH} slgh_compile slghparse slghscan").split_whitespace() {
             compiler.file(source.join(format!("{name}.cc")));
         }
@@ -88,6 +97,10 @@ mod native {
             .include("native")
             .include(&out)
             .file("native/bridge.cc");
+        if wasm {
+            // Ghidra reports errors with C++ exceptions, which Emscripten leaves off by default; Rust's emscripten target unwinds with the wasm exception-handling proposal, so use the same.
+            native.flag("-fwasm-exceptions").flag("--use-port=zlib");
+        }
         for name in format!("{CORE} {SLEIGH} {DECOMP}").split_whitespace() {
             let path = source.join(format!("{name}.cc"));
             let mut code = fs::read_to_string(&path).unwrap();
@@ -137,7 +150,9 @@ mod native {
             }
         }
         native.compile("capa_ghidra");
-        println!("cargo:rustc-link-lib=z");
+        if !wasm {
+            println!("cargo:rustc-link-lib=z");
+        }
     }
     fn replace(text: &mut String, from: &str, to: &str) {
         assert_eq!(

@@ -1,0 +1,19 @@
+# WebAssembly build of the CLI for the browser UI (web/): see docs/wasm.md.
+# Emscripten provides the C++ runtime, C++ exceptions (Ghidra's error channel) and zlib.
+[target.wasm32-unknown-emscripten]
+rustflags = [
+  "-C", "link-arg=-sDEFAULT_TO_CXX=1",
+  "-C", "link-arg=--use-port=zlib",
+  "-C", "link-arg=-sALLOW_MEMORY_GROWTH=1",
+  "-C", "link-arg=-sMAXIMUM_MEMORY=4GB",
+  "-C", "link-arg=-sINITIAL_MEMORY=128MB",
+  "-C", "link-arg=-sSTACK_SIZE=16MB",
+  "-C", "link-arg=-sMODULARIZE=1",
+  "-C", "link-arg=-sEXPORT_ES6=1",
+  "-C", "link-arg=-sEXPORT_NAME=createCapaX",
+  "-C", "link-arg=-sINVOKE_RUN=0",
+  "-C", "link-arg=-sEXIT_RUNTIME=1",
+  "-C", "link-arg=-sFORCE_FILESYSTEM=1",
+  "-C", "link-arg=-sEXPORTED_RUNTIME_METHODS=FS,callMain",
+  "-C", "link-arg=-sENVIRONMENT=web,worker,node",
+]
