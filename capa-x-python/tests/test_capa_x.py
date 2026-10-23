@@ -21,7 +21,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
 from pathlib import Path
 
 import pytest
@@ -120,15 +119,16 @@ def test_analyze_never_returns_none_or_empty_on_error(rules: capa_x.Rules) -> No
         capa_x.analyze(b"\x00" * 16, rules)
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="capa-x-cli release binary path differs")
 def test_jobs_1_matches_cli_rule_names(rules: capa_x.Rules) -> None:
     """`jobs=1` reproduces the CLI's `--jobs 1` rule-name set exactly --
     the same binding parity claim made at difftest scale, here pinned to one
     sample so the binding's own test suite doesn't depend on
     a release build being present in CI."""
-    cli = REPO_ROOT / "target" / "release" / "capa-x"
+    binary = "capa-x.exe" if sys.platform == "win32" else "capa-x"
+    cli = REPO_ROOT / "target" / "release" / binary
     if not cli.is_file():
-        pytest.skip("target/release/capa-x not built")
+        cli = REPO_ROOT / "target" / "debug" / binary
+    assert cli.is_file(), "build capa-x-cli before running binding parity tests"
     out = subprocess.run(
         [str(cli), "--rules", str(RULES_DIR), "--jobs", "1", "-j", str(SAMPLE)],
         capture_output=True,
@@ -141,41 +141,45 @@ def test_jobs_1_matches_cli_rule_names(rules: capa_x.Rules) -> None:
 
 
 def test_analyze_releases_the_gil(rules: capa_x.Rules) -> None:
-    """Two threads calling `analyze()` concurrently must overlap, proving
-    the GIL is released for the CPU-bound part -- the roadmap's own proof
-    requirement ("running analyze from two Python threads and showing they
-    overlap")."""
-    start_gap = []
-    lock = threading.Lock()
+    """Analysis calls must overlap even when Python cannot switch threads."""
+    data = SAMPLE.read_bytes()
+    ready = threading.Barrier(2)
+    active = 0
+    overlaps = []
+    errors = []
 
     def worker() -> None:
-        with lock:
-            start_gap.append(time.monotonic())
-        capa_x.analyze(SAMPLE, rules, jobs=1)
+        nonlocal active
+        try:
+            for _ in range(3):
+                ready.wait(timeout=10)
+                active += 1
+                overlaps.append(active > 1)
+                try:
+                    capa_x.analyze(data, rules, jobs=1)
+                finally:
+                    active -= 1
+        except BaseException as error:
+            errors.append(error)
 
-    t0 = time.monotonic()
-    threads = [threading.Thread(target=worker) for _ in range(2)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-    concurrent_wall = time.monotonic() - t0
+    previous_interval = sys.getswitchinterval()
+    try:
+        # No periodic Python thread switch can occur between incrementing
+        # active, calling analyze, and decrementing active. The barrier is
+        # outside that interval, so overlap requires the binding to release
+        # the GIL. Repeat to allow scheduling on a busy host, without making
+        # any assumption about parallel speedup.
+        sys.setswitchinterval(60)
+        threads = [threading.Thread(target=worker) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+    finally:
+        sys.setswitchinterval(previous_interval)
 
-    # both threads must have been able to *start* their analysis call
-    # essentially together -- if the GIL were held for the duration of
-    # `analyze()`, the second thread's call could not even begin until the
-    # first returned.
-    assert max(start_gap) - min(start_gap) < 0.5
-
-    t0 = time.monotonic()
-    capa_x.analyze(SAMPLE, rules, jobs=1)
-    capa_x.analyze(SAMPLE, rules, jobs=1)
-    sequential_wall = time.monotonic() - t0
-
-    # concurrent must be meaningfully faster than strictly sequential --
-    # loose bound (0.85x) to stay robust on a loaded CI runner while still
-    # ruling out "GIL never released, threads ran back-to-back".
-    assert concurrent_wall < sequential_wall * 0.85
+    assert not errors, errors
+    assert any(overlaps), "analysis calls did not overlap with the GIL released"
 
 
 def test_fetch_rules_rejects_existing_directory(tmp_path: Path) -> None:

@@ -1,6 +1,6 @@
 # Benchmarks
 
-The only place measurements live. Everything here was measured on 2026-10-21 against capa-x release build of `main` at `2d9862a` (plus comment-only changes), Python capa 10.0.0, and capa-rules v10.0.0. Results hold for this implementation, ruleset, corpus, and host. They are not universal claims. Re-run before quoting: commands are at the bottom.
+The only place measurements live. Accuracy was rechecked on 2026-10-23 using the capa-x 1.1.0 release build, pinned Python capa 10.0.0 reference outputs, and capa-rules v10.0.0. The complete native corpus comparison ran capa-x afresh with `--no-rust-cache`; the reference's malformed-ELF rejection was reproduced separately by the same harness. The .NET and AArch64 comparisons also passed. Performance measurements below remain from 2026-10-21 on `main` at `2d9862a` (plus comment-only changes). Results hold for this implementation, ruleset, corpus, and host. They are not universal claims. Re-run before quoting: commands are at the bottom.
 
 ## Accuracy
 
