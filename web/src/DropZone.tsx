@@ -4,6 +4,18 @@ export default function DropZone({ onFile, error }: { onFile: (f: File) => void;
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const take = (f?: File) => f && onFile(f);
+  const [demoError, setDemoError] = useState<string | null>(null);
+  // A small harmless program bundled with the site (see demo/), so people can try the tool without a binary.
+  const tryDemo = async () => {
+    setDemoError(null);
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}demo.exe`);
+      if (!res.ok) throw new Error(`demo sample unavailable (${res.status})`);
+      onFile(new File([await res.blob()], "capa-x-demo.exe"));
+    } catch (e) {
+      setDemoError(String((e as Error).message ?? e));
+    }
+  };
 
   return (
     <main className="landing">
@@ -21,7 +33,11 @@ export default function DropZone({ onFile, error }: { onFile: (f: File) => void;
         <strong>Drop a binary to analyze</strong>
         <span>or click to browse · Windows PE (x86 / x64)</span>
       </label>
-      {error && <p className="error">{error}</p>}
+      <p className="demo">
+        No binary at hand? <button type="button" onClick={tryDemo}>Try the demo sample</button>
+        <small>an 8 KB program written for this demo</small>
+      </p>
+      {(error || demoError) && <p className="error">{error ?? demoError}</p>}
       <p className="fine">Analysis runs in your browser. Nothing is uploaded.</p>
     </main>
   );
