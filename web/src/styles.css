@@ -283,7 +283,7 @@ a.xref:hover { background: var(--on); border-bottom-style: solid; border-radius:
 
 /* graph view */
 .cp-pane.graph-pane { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
-.graph { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.gv { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 .graph-tools { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
 .graph-tools button { min-width: 30px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 7px; text-align: center; color: var(--text); }
 .graph-tools button:hover { background: var(--hover); }

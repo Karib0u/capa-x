@@ -148,7 +148,7 @@ export default function GraphView({ rows, self, name, rules, resolve, label, str
   if (!cfg.blocks.length) return <p className="fine">No instruction listing.</p>;
 
   return (
-    <div className="graph">
+    <div className="gv">
       <div className="graph-tools">
         <button onClick={() => zoomCenter(1 / 1.25)} aria-label="Zoom out">−</button>
         <span>{Math.round(view.k * 100)}%</span>
