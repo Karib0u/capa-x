@@ -48,12 +48,13 @@ fn call_fixup_models_a_helper_and_is_not_an_analysis_gap() -> Result<(), Box<dyn
     assert!(!modeled.text.contains("helper("), "{}", modeled.text);
     assert!(
         modeled
-            .warnings
+            .notes
             .iter()
             .any(|w| w.contains("replaced with injection")),
         "{:?}",
-        modeled.warnings
+        modeled.notes
     );
+    assert!(modeled.warnings.is_empty(), "{:?}", modeled.warnings);
     assert!(!modeled.incomplete, "{:?}", modeled.warnings);
     assert!(!modeled.unknown_callees);
     Ok(())

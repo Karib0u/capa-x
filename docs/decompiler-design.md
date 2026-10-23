@@ -108,7 +108,8 @@ Ghidra exceptions, standard exceptions and unknown exceptions are translated
 before leaving C++. Native failures include the selected address in the Rust
 error and poison the session. Dropping it releases its resources. Invalid
 addresses and limits rejected by Rust leave the session usable. A successful
-result may still carry `incomplete: true`; warnings are never silently lost.
+result may still carry `incomplete: true`; warnings are never silently lost, and
+informational notes are kept apart from them, never dropped.
 
 ## Validation
 

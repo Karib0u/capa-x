@@ -777,6 +777,9 @@ fn run_decompilation(cli: &Cli, bytes: &[u8], addresses: &[u64]) -> Result<(), C
         for warning in &result.warnings {
             eprintln!("warning: {warning}");
         }
+        for note in &result.notes {
+            eprintln!("note: {note}");
+        }
         if cli.timing {
             eprintln!(
                 "decompiler initialization: {:.3} ms; function: {:.3} ms",

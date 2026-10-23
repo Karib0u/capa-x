@@ -807,7 +807,11 @@ public:
   /// archive convention names such as __stdcall map to the default model.
   bool apply_pack_prototype(Funcdata *fd, const std::string &function) {
     std::string xml;
-    if (!prototype_pack(spec).find("F:" + function, xml)) return false;
+    // Like Ghidra's ApplyFunctionDataTypesCmd, an archive function `free` also types a symbol
+    // `_free` (the cdecl-decorated name Function ID reports on x86-32) when no exact name exists.
+    if (!prototype_pack(spec).find("F:" + function, xml) &&
+        !(function.size() > 1 && function[0] == '_' && prototype_pack(spec).find("F:" + function.substr(1), xml)))
+      return false;
     const size_t at = xml.find(" model=\"");
     if (at != std::string::npos) {
       const size_t start = at + 8, end = xml.find('"', start);
@@ -1162,12 +1166,17 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
       }
       if (!skipped.empty())
         response.warnings.push_back("Callee prototype inference skipped (" + skipped + "); callee prototypes remain unknown.");
-      // An applied call fixup is a modeled effect, not a gap in the analysis.
-      bool only_informational = true;
-      for (const auto &warning : response.warnings)
-        if (std::string(warning).find(" replaced with injection: ") == std::string::npos) only_informational = false;
-      response.incomplete = result < 0 || !only_informational;
-      if (inferred) response.warnings.push_back("Direct callee prototypes inferred from bounded native analysis; validate against machine code.");
+      // An applied call fixup is a modeled effect, not a gap in the analysis: it is a note.
+      rust::Vec<rust::String> gaps;
+      for (auto &warning : response.warnings) {
+        if (std::string(warning).find(" replaced with injection: ") == std::string::npos)
+          gaps.push_back(std::move(warning));
+        else
+          response.notes.push_back(std::move(warning));
+      }
+      response.warnings = std::move(gaps);
+      response.incomplete = result < 0 || !response.warnings.empty();
+      if (inferred) response.notes.push_back("Direct callee prototypes inferred from bounded native analysis; validate against machine code.");
       impl->release(fd);
       impl->dropDataSymbols();
       return response;

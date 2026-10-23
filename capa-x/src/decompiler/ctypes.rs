@@ -263,9 +263,16 @@ impl Pack {
         Some(node)
     }
 
-    /// Prototype key for an identifier, allowing a lowercase `<module>_` prefix.
+    /// Prototype key for an identifier, allowing a lowercase `<module>_` prefix, or one leading
+    /// `_` as the native session allows (Ghidra's rule for archive signatures).
     pub fn callee(&self, ident: &str) -> Option<&str> {
         if let Some((key, _)) = self.funcs.get_key_value(ident) {
+            return Some(key);
+        }
+        if let Some((key, _)) = ident
+            .strip_prefix('_')
+            .and_then(|plain| self.funcs.get_key_value(plain))
+        {
             return Some(key);
         }
         for (at, _) in ident.match_indices('_') {

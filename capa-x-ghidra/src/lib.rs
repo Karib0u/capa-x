@@ -23,7 +23,10 @@ mod ffi {
     }
     struct NativeOutput {
         text: String,
+        /// Gaps in the analysis; any of them makes the result incomplete.
         warnings: Vec<String>,
+        /// Informational: modeled effects and caveats that leave the result complete.
+        notes: Vec<String>,
         incomplete: bool,
         unknown_callees: bool,
     }

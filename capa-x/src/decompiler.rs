@@ -96,7 +96,11 @@ pub struct Decompilation {
     pub name: Option<String>,
     pub calling_convention: CallingConvention,
     pub text: String,
+    /// Gaps only: each one is a reason for `incomplete`.
     pub warnings: Vec<String>,
+    /// Informational: a call replaced by its modeled effect, inferred prototypes and
+    /// types. None of these makes the result incomplete, so they stay out of `warnings`.
+    pub notes: Vec<String>,
     /// Any gap: a native error or warning, or a load diagnostic.
     pub incomplete: bool,
     /// At least one callee has no known prototype, so call arguments and return
@@ -599,14 +603,16 @@ impl DecompilerSession {
         let incomplete = output.incomplete || !self.warnings.is_empty();
         let mut warnings = self.warnings.clone();
         warnings.extend(output.warnings);
+        let mut notes = output.notes;
         // Inferred types remain a quality limitation even without native errors.
-        warnings.push("Types and prototypes without supplied signatures are inferred; validate pseudocode against machine code.".into());
+        notes.push("Types and prototypes without supplied signatures are inferred; validate pseudocode against machine code.".into());
         Ok(Decompilation {
             address,
             name,
             calling_convention: self.convention,
             text: output.text,
             warnings,
+            notes,
             incomplete,
             unknown_callees: output.unknown_callees,
             timings: DecompilationTimings {

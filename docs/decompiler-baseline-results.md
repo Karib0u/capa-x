@@ -749,6 +749,59 @@ Still open:
   names `memset` but adds 550 ms to initialization. `FID_conflict__memcpy` is 7 of the 95 callees still missed.
 - **Qualified C++ names** (`Class::method`, constructors) need a demangler.
 
+## Step 11b: unknown callee prototypes (first pass)
+
+Measured 2026-10-22 on the four stored references (`--any-module`). Before the change, a temporary
+diagnostic (not committed) recorded why each unknown call stayed unknown. Unknown calls per set:
+
+| Cause | x64 tuned | x64 held-out | x86 tuned | x86 held-out |
+|---|---:|---:|---:|---:|
+| Direct callee rejected because a call inside it is unknown | 354 | 524 | 941 | 380 |
+| Direct callee past the 16-callee cap | 145 | 375 | 433 | 880 |
+| Direct callee rejected for a warning in its own analysis | 133 | 168 | 60 | 177 |
+| Indirect call | 157 | 81 | 310 | 84 |
+| Import with no archive prototype, or a target that is not a function | 121 | 112 | 65 | 10 |
+| Recursive call, or inference skipped over budget | 134 | 6 | 9 | 110 |
+
+x86 held-out also has 29 calls in smaller groups (a callee over the size limit, or a prototype inferred
+but not applied).
+
+Three variants were measured. One is adopted:
+
+- **Adopted: one leading `_` (Ghidra's rule).** `ApplyFunctionDataTypesCmd.lookupSymbol` applies the archive
+  signature `free` to the symbol `_free` when no exact `free` exists. Function ID reports x86-32 C runtime
+  names in their cdecl form (`_free`, `_malloc`, `_memcpy_s`, `__errno`, `___doserrno`), so these had no
+  prototype, and every function that calls one failed inference too. The native session and the unit's
+  declarations now apply the same rule. Example: in `bc452cc1`, `FUN_00408821` now passes `RemoveAll` its
+  argument, as Ghidra does.
+- **Not adopted: accept informational warnings in callee analysis** (the call fixup note, an enum note,
+  then also "Subroutine does not return", then also "Removing unreachable block"). It changes one function
+  in 741 (x86 held-out) and costs one void and one arity agreement there. These callees almost always also
+  have an unknown call inside them.
+- **Not adopted: a cap of 32 or 64 callees instead of 16.** No metric and no flag changes on any set, and
+  latency does not change. A function with more than 16 callees always has an unknown callee among the
+  first 16.
+
+| Metric | x64 tuned | x64 held-out | x86 tuned | x86 held-out |
+|---|---:|---:|---:|---:|
+| Incomplete from unknown callees | 69.4% → 69.4% | 60.4% → 60.4% | 68.1% → **66.0%** | 59.6% → **56.7%** |
+| Void/non-void agrees | 94.5% → 94.5% | 97.3% → 97.3% | 93.6% → 93.6% | 93.5% → **95.5%** |
+| Parameter count agrees | 89.1% → 89.1% | 87.6% → 87.6% | 93.6% → 93.6% | 92.3% → 92.3% |
+| Call arity agrees | 97.1% → 97.1% | 97.5% → 97.5% | 97.4% → **98.3%** | 96.5% → **97.2%** |
+
+The parameter numbers above use a fixed `compare.py`. Its `signature()` read only the first line of a
+declaration, so a parameter list that wraps after a comma was miscounted. That made the first version of
+this change look like a regression on `___acrt_fltout`, whose signature now matches Ghidra's exactly. The
+fix raises the recorded parameter agreement with no change in the output: x64 tuned 88.0% to 89.1%, x64
+held-out 83.3% to 87.6%, x86 tuned 92.0% to 93.6%, x86 held-out 88.4% to 92.3%. Earlier parameter figures
+in this document were measured with the old script.
+
+What is left is mostly the strict transitive rule: a callee's inferred prototype is used only when every
+call inside it is known. Relaxing that rule was measured in phase 5 and step 11 and rejected. The next
+candidates: archive prototypes for names Function ID reports outside the C library (Python, Qt and kernel
+imports have none in the Windows archives), and telling a register a callee reads apart from one it only
+forwards to an unknown call.
+
 ## Step 12: compile check with a real header
 
 `scripts/decompiler_baseline/compile_check.py` now compiles each function's text alone with `clang

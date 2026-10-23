@@ -15,9 +15,16 @@ def strip(c):
     return re.sub(r"//[^\n]*", "", c)
 
 def signature(c):
-    for line in c.splitlines():
+    """The declaration, joined across lines: a long parameter list wraps after a comma."""
+    lines = c.splitlines()
+    for i, line in enumerate(lines):
         if "(" in line and not line.strip().startswith(("/*", "//", "#")):
-            return line
+            sig = line
+            for more in lines[i + 1:]:
+                if sig.count("(") <= sig.count(")"):
+                    break
+                sig += " " + more.strip()
+            return sig
     return ""
 
 def calls(c):

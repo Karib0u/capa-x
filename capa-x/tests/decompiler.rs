@@ -392,7 +392,7 @@ fn automatic_context_and_request_order() -> anyhow::Result<()> {
     assert!(switch.text.contains("int4 switches("));
     assert!(!switch.warnings.iter().any(|w| w.contains("Unknown callee")));
     assert!(switch
-        .warnings
+        .notes
         .iter()
         .any(|w| w.contains("prototypes inferred")));
     assert!(session
@@ -500,6 +500,16 @@ fn stack_probe_and_cookie_helpers_use_their_modeled_effects() -> anyhow::Result<
         output.text
     );
     assert!(!output.incomplete, "{:?}", output.warnings);
+    // The banner shows gaps only; the replaced cookie check is a note.
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    assert!(
+        output
+            .notes
+            .iter()
+            .any(|n| n.contains("replaced with injection: security_check_cookie")),
+        "{:?}",
+        output.notes
+    );
     Ok(())
 }
 
@@ -563,6 +573,24 @@ fn x86_32_pe_decompiles_with_imports_thunks_and_ghidra_names() -> anyhow::Result
 }
 
 #[test]
+fn x86_32_decorated_runtime_names_get_their_archive_prototypes() -> anyhow::Result<()> {
+    // Function ID reports x86-32 C runtime names with their cdecl underscore (`_free`); the
+    // archive knows `free`. As in Ghidra, the plain name types the decorated one, so the
+    // callee `RemoveAll`, whose body frees, gets an inferred prototype and its argument.
+    let sample = include_bytes!("../../tests/testfiles/bc452cc1128ccf7fa9f76d83cda79132740414973600fed14509749fe946816e.exe_");
+    let mut session = DecompilerSession::from_pe(sample)?;
+    let output = session.decompile_function(0x408821)?;
+    assert!(
+        output.text.contains("RemoveAll((int4 *)(param_1 + 0x2c));"),
+        "{}",
+        output.text
+    );
+    assert!(!output.unknown_callees, "{:?}", output.warnings);
+    assert!(!output.incomplete, "{:?}", output.warnings);
+    Ok(())
+}
+
+#[test]
 fn x86_32_seh_prolog_helpers_use_their_modeled_effects() -> anyhow::Result<()> {
     // `_WinMainCRTStartup` of a 32-bit MSVC executable calls `__SEH_prolog4`, which Function
     // ID can only name as one of several equivalent candidates. Its fixup still applies.
@@ -570,9 +598,9 @@ fn x86_32_seh_prolog_helpers_use_their_modeled_effects() -> anyhow::Result<()> {
     let mut session = DecompilerSession::from_pe(sample)?;
     let output = session.decompile_function(0x409631)?;
     assert!(
-        output.warnings.iter().any(|w| w.contains("SEH_prolog4")),
+        output.notes.iter().any(|w| w.contains("SEH_prolog4")),
         "{:?}",
-        output.warnings
+        output.notes
     );
     Ok(())
 }

@@ -15,7 +15,7 @@ The x86-64 path uses the Windows x64 calling convention; the x86-32 path is desc
 Addresses are hexadecimal virtual addresses, including the image base, not
 file offsets or RVAs. One function is requested per call, or several with `--unit` (below). The CLI emits C-like
 text, or a dedicated JSON result with address, optional name, convention,
-text, warnings and incomplete status. `--timing` adds measured initialization
+text, warnings, notes and incomplete status. `--timing` adds measured initialization
 and function timing to JSON. Without it, JSON is deterministic across job counts.
 Rule files are unnecessary. Normal capability analysis never initializes this
 backend. A binary built without the feature gives an actionable error for the
@@ -51,7 +51,10 @@ Sessions are neither Send nor Sync. Native calls are serialized process-wide
 because Ghidra has shared registries. An unexpected native failure poisons the
 session; create another session to continue. A work-limit or deadline error
 aborts only its request and leaves the session usable. Rust-rejected invalid requests leave it
-usable. Native warnings set `incomplete`; consumers should display them. `unknown_callees` says
+usable. Every entry in `warnings` is a gap and sets `incomplete`; consumers should display them.
+`notes` holds what is informational and leaves the result complete: a call replaced by its modeled
+effect (`replaced with injection: security_check_cookie`), inferred callee prototypes and the
+inferred-types caveat. The CLI prints them as `note:` lines after the `warning:` lines. `unknown_callees` says
 whether the cause is a callee without a known prototype (arguments or return values may be
 missing), which is by far the commonest one. `incomplete && !unknown_callees` is a harder
 failure: a native error, a flow problem or a load diagnostic.
