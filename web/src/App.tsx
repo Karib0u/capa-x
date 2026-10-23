@@ -9,6 +9,21 @@ const fnLabel = (ad: number, name?: string | null) => name ?? "FUN_" + ad.toStri
 const hex = (n: number) => "0x" + n.toString(16);
 const bytes = (n: number) => (n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
 
+/** Phone-sized screens get an app-style layout: tab bar, full-screen function pages. */
+function useMobile() {
+  const query = "(max-width: 760px)";
+  const [mobile, setMobile] = useState(() => matchMedia(query).matches);
+  useEffect(() => {
+    const mq = matchMedia(query);
+    const onChange = () => setMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return mobile;
+}
+
+type Tab = "capa" | "functions" | "strings";
+
 export default function App() {
   const [a, setA] = useState<Analysis | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +33,7 @@ export default function App() {
     abort.current?.abort();
     const ctl = (abort.current = new AbortController());
     setError(null);
-    setA({ fileName: file.name, size: file.size, order: [], strings: [], entry: null, functions: new Map(), capa: null, capaError: null, decompileError: null, loading: null, done: false });
+    setA({ fileName: file.name, size: file.size, order: [], strings: [], entry: null, functions: new Map(), capa: null, capaError: null, decompileError: null, loading: { label: "Preparing…", fraction: null }, done: false });
     analyze(file, setA, ctl.signal).catch((e) => {
       if (ctl.signal.aborted) return;
       setA(null);
@@ -58,7 +73,23 @@ function Workspace({ a, onNew, onFile }: { a: Analysis; onNew: () => void; onFil
   const [nav, setNav] = useState<{ stack: Sel[]; i: number }>({ stack: ["capa"], i: 0 });
   const sel = nav.stack[nav.i];
   const touched = useRef(false);
-  const setSel = (s: Sel) => { touched.current = true; setNav((n) => n.stack[n.i] === s ? n : { stack: [...n.stack.slice(0, n.i + 1), s], i: n.i + 1 }); };
+  const mobile = useMobile();
+  const [tab, setTab] = useState<Tab>("capa");
+  const [detail, setDetail] = useState(false);
+  const setSel = (s: Sel) => {
+    touched.current = true;
+    setNav((n) => n.stack[n.i] === s ? n : { stack: [...n.stack.slice(0, n.i + 1), s], i: n.i + 1 });
+    if (typeof s === "number") {
+      // A function opens as its own page; the system back gesture closes it.
+      if (mobile && !detail) history.pushState({ detail: true }, "");
+      setDetail(true);
+    } else { setTab(s === "capa" ? "capa" : "strings"); setDetail(false); }
+  };
+  useEffect(() => {
+    const close = () => setDetail(false);
+    window.addEventListener("popstate", close);
+    return () => window.removeEventListener("popstate", close);
+  }, []);
   const back = () => { touched.current = true; setNav((n) => ({ ...n, i: Math.max(0, n.i - 1) })); };
   const forward = () => { touched.current = true; setNav((n) => ({ ...n, i: Math.min(n.stack.length - 1, n.i + 1) })); };
   const [q, setQ] = useState("");
@@ -95,12 +126,12 @@ function Workspace({ a, onNew, onFile }: { a: Analysis; onNew: () => void; onFil
 
   // Open on `main` when it has been recognised, else on the entry point, until the user picks something.
   useEffect(() => {
-    if (touched.current || !a.order.length) return;
+    if (mobile || touched.current || !a.order.length) return;
     const named = a.order.find((ad) => /^_*(w|t)?(win)?main(crt)?$/i.test(a.functions.get(ad)?.name ?? ""));
     const owner = a.entry === null ? undefined : [...a.order].reverse().find((x) => x <= a.entry!);
     const target = named ?? owner;
     if (target !== undefined) setNav((n) => (n.stack.length === 1 && n.stack[0] !== target ? { stack: [target], i: 0 } : n));
-  }, [a.order, a.entry, a.functions]);
+  }, [a.order, a.entry, a.functions, mobile]);
 
   const total = a.order.length;
   const done = a.functions.size;
@@ -169,6 +200,90 @@ function Workspace({ a, onNew, onFile }: { a: Analysis; onNew: () => void; onFil
   const strByAddr = useMemo(() => new Map(a.strings.map((x) => [x.a, x])), [a.strings]);
   const showString = (text: string) => { setStrQuery(text); setSel("strings"); };
 
+  const fnTools = (
+  <div className="tools">
+    <input placeholder="Filter functions" value={q} onChange={(e) => setQ(e.target.value)} />
+    <label title="Only functions with capa matches">
+      <input type="checkbox" checked={onlyCaps} onChange={(e) => setOnlyCaps(e.target.checked)} /> capa only
+    </label>
+  </div>
+  );
+  const fnList = (
+  <div className="list">
+    {list.map((ad) => {
+      const f = a.functions.get(ad);
+      const rules = byFn.get(ad);
+      return (
+        <button key={ad} className={"item" + (sel === ad ? " on" : "")} onClick={() => setSel(ad)} ref={(el) => { if (el && sel === ad) el.scrollIntoView({ block: "nearest" }); }}>
+          <span className="fn">
+            <code>{fnLabel(ad, f?.name)}</code>
+            <small>{hex(ad)}</small>
+            {rules && <small className="fn-caps">{rules.map((r) => r.name).join(" · ")}</small>}
+          </span>
+          {rules && <em className="pill">{rules.length}</em>}
+          {!f && <span className="dot" title="pending" />}
+          {f?.error && <span className="dot err" title="failed" />}
+        </button>
+      );
+    })}
+    {!list.length && <p className="empty">{total ? "No matches." : a.decompileError ? "No functions to show." : a.done ? "No functions found." : a.loading ? "Downloading the analysis engine…" : "Recovering functions…"}</p>}
+  </div>
+  );
+
+  const main = sel === "capa"
+    ? <CapabilityView a={a} fileLevel={fileLevel} onGoto={goto} />
+    : sel === "strings"
+    ? <StringsView a={a} refs={strRefs} onGoto={setSel} query={strQuery} setQuery={setStrQuery} />
+    : null;
+  const fnView = typeof sel === "number" && (
+    <FunctionView a={a} address={sel} rules={byFn.get(sel) ?? []} resolve={resolve} onGoto={setSel} mobile={mobile}
+      onBack={() => { const prev = nav.stack[nav.i - 1]; if (nav.i > 0 && typeof prev === "number") back(); else history.back(); }}
+      strings={(fnStrings.get(sel) ?? []).map((v) => strByAddr.get(v)!).filter(Boolean)} onString={showString} callers={callers.get(sel)} callees={callees.get(sel)} xrefsReady={a.done}
+      strAt={(v) => strByAddr.get(v)?.s} />
+  );
+  const status = a.decompileError ? "Decompiler unavailable for this file" : a.done ? `${total} functions · ${totalCaps} capabilities` : a.loading ? a.loading.label : total ? `Decompiling ${done}/${total}` : "Analyzing…";
+  const progressBar = !a.done && <div className="bar"><i style={{ width: `${Math.max(4, (a.loading ? a.loading.fraction ?? 0.04 : progress) * 100)}%` }} /></div>;
+
+  if (mobile) {
+    const showTab = (t: Tab) => { setDetail(false); setTab(t); if (t !== "functions") setSel(t); };
+    return (
+      <div className="app mobile">
+        {!detail && (
+          <header>
+            <div className="file">
+              <b>{a.fileName}</b>
+              <span>{status}</span>
+            </div>
+            <button className="ghost" onClick={onNew}>New</button>
+            {progressBar}
+          </header>
+        )}
+        <div className="m-main">
+          {detail && fnView}
+          {!detail && tab === "functions" && <div className="m-list">{fnTools}{fnList}</div>}
+          {!detail && tab === "capa" && <main className="pane"><CapabilityView a={a} fileLevel={fileLevel} onGoto={goto} /></main>}
+          {!detail && tab === "strings" && <main className="pane"><StringsView a={a} refs={strRefs} onGoto={setSel} query={strQuery} setQuery={setStrQuery} /></main>}
+        </div>
+        {!detail && (
+          <nav className="tabbar">
+            <button className={tab === "capa" ? "on" : ""} onClick={() => showTab("capa")}>
+              <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3l8 3v6c0 5-3.4 8.2-8 9-4.6-.8-8-4-8-9V6l8-3z" /></svg>
+              <span>Capabilities</span><em>{a.capa ? totalCaps : "…"}</em>
+            </button>
+            <button className={tab === "functions" ? "on" : ""} onClick={() => showTab("functions")}>
+              <svg viewBox="0 0 24 24" aria-hidden><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /></svg>
+              <span>Functions</span><em>{total || "…"}</em>
+            </button>
+            <button className={tab === "strings" ? "on" : ""} onClick={() => showTab("strings")}>
+              <svg viewBox="0 0 24 24" aria-hidden><path d="M4 7V5h16v2M12 5v14M9 19h6" /></svg>
+              <span>Strings</span><em>{a.strings.length || (a.done ? 0 : "…")}</em>
+            </button>
+          </nav>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="app"
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -180,15 +295,13 @@ function Workspace({ a, onNew, onFile }: { a: Analysis; onNew: () => void; onFil
           <b>{a.fileName}</b>
           <span>{bytes(a.size)}{a.capa && ` · ${a.capa.format.toUpperCase()} ${a.capa.arch}`}</span>
         </div>
-        <div className="status">
-          {a.decompileError ? "Decompiler unavailable for this file" : a.done ? `${total} functions · ${totalCaps} capabilities` : a.loading ? a.loading.label : total ? `Decompiling ${done}/${total}` : "Analyzing…"}
-        </div>
+        <div className="status">{status}</div>
         <div className="navbtns">
           <button className="ghost" onClick={back} disabled={nav.i === 0} title="Back (Alt+←)">←</button>
           <button className="ghost" onClick={forward} disabled={nav.i >= nav.stack.length - 1} title="Forward (Alt+→)">→</button>
         </div>
         <button className="ghost" onClick={onNew}>New</button>
-        {!a.done && <div className="bar"><i style={{ width: `${Math.max(4, (a.loading ? a.loading.fraction ?? 0.04 : progress) * 100)}%` }} /></div>}
+        {progressBar}
       </header>
 
       <div className="body">
@@ -199,41 +312,11 @@ function Workspace({ a, onNew, onFile }: { a: Analysis; onNew: () => void; onFil
           <button className={"item overview" + (sel === "strings" ? " on" : "")} onClick={() => setSel("strings")}>
             <span>Strings</span><em>{a.strings.length || (a.done ? 0 : "…")}</em>
           </button>
-          <div className="tools">
-            <input placeholder="Filter functions" value={q} onChange={(e) => setQ(e.target.value)} />
-            <label title="Only functions with capa matches">
-              <input type="checkbox" checked={onlyCaps} onChange={(e) => setOnlyCaps(e.target.checked)} /> capa only
-            </label>
-          </div>
-          <div className="list">
-            {list.map((ad) => {
-              const f = a.functions.get(ad);
-              const rules = byFn.get(ad);
-              return (
-                <button key={ad} className={"item" + (sel === ad ? " on" : "")} onClick={() => setSel(ad)} ref={(el) => { if (el && sel === ad) el.scrollIntoView({ block: "nearest" }); }}>
-                  <span className="fn">
-                    <code>{fnLabel(ad, f?.name)}</code>
-                    <small>{hex(ad)}</small>
-                  </span>
-                  {rules && <em className="pill">{rules.length}</em>}
-                  {!f && <span className="dot" title="pending" />}
-                  {f?.error && <span className="dot err" title="failed" />}
-                </button>
-              );
-            })}
-            {!list.length && <p className="empty">{total ? "No matches." : a.decompileError ? "No functions to show." : a.done ? "No functions found." : a.loading ? "Downloading the analysis engine…" : "Recovering functions…"}</p>}
-          </div>
+          {fnTools}
+          {fnList}
         </aside>
 
-        <main className="pane">
-          {sel === "capa"
-            ? <CapabilityView a={a} fileLevel={fileLevel} onGoto={goto} />
-            : sel === "strings"
-            ? <StringsView a={a} refs={strRefs} onGoto={setSel} query={strQuery} setQuery={setStrQuery} />
-            : <FunctionView a={a} address={sel} rules={byFn.get(sel) ?? []} resolve={resolve} onGoto={setSel}
-              strings={(fnStrings.get(sel) ?? []).map((v) => strByAddr.get(v)!).filter(Boolean)} onString={showString} callers={callers.get(sel)} callees={callees.get(sel)} xrefsReady={a.done}
-              strAt={(v) => strByAddr.get(v)?.s} />}
-        </main>
+        <main className="pane">{main ?? fnView}</main>
       </div>
       {dragging && <div className="overlay">Drop to analyze a new binary</div>}
     </div>
@@ -264,9 +347,39 @@ function RuleCard({ rule, onGoto, addr }: { rule: CapaRule; onGoto?: (a: number)
   );
 }
 
+/** Shown until the capability results arrive: what is happening now, and that decompiling follows the download. */
+function ProgressCard({ a }: { a: Analysis }) {
+  const downloading = !!a.loading;
+  const total = a.order.length, done = a.functions.size;
+  const steps = [
+    { name: "Download the analysis engine", note: "First visit only, then cached by your browser", state: downloading ? "active" : "done" },
+    { name: "Match capabilities", note: "capa rules run on your device", state: downloading ? "todo" : "active" },
+    { name: "Decompile functions", note: total ? `${done} of ${total}` : "Starts as soon as the engine is ready", state: downloading ? "todo" : total ? "active" : "active" },
+  ] as const;
+  const fraction = downloading ? a.loading!.fraction : total ? done / total : null;
+  return (
+    <div className="view progress-card">
+      <h1>{downloading ? "Getting ready" : "Analyzing"}</h1>
+      <p className="fine">{downloading ? a.loading!.label : "Everything runs in your browser. Nothing is uploaded."}</p>
+      <div className={"pbar" + (fraction === null ? " indeterminate" : "")} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fraction === null ? undefined : Math.round(fraction * 100)}>
+        <i style={{ width: fraction === null ? undefined : `${Math.max(3, fraction * 100)}%` }} />
+      </div>
+      {fraction !== null && <div className="pct">{Math.round(fraction * 100)}%</div>}
+      <ol className="steps">
+        {steps.map((st, i) => (
+          <li key={st.name} className={st.state}>
+            <span className="num">{st.state === "done" ? "✓" : i + 1}</span>
+            <span><b>{st.name}</b><small>{st.note}</small></span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 function CapabilityView({ a, fileLevel, onGoto }: { a: Analysis; fileLevel: CapaRule[]; onGoto: (ad: number) => void }) {
   if (a.capaError) return <div className="notice error">Capability analysis failed: {a.capaError}</div>;
-  if (!a.capa) return <div className="notice"><span className="spin" /> Matching capa rules…</div>;
+  if (!a.capa) return <ProgressCard a={a} />;
   const rules = a.capa.rules.filter((r) => !r.lib);
   const groups = new Map<string, CapaRule[]>();
   for (const r of rules) {
@@ -352,11 +465,13 @@ interface FnViewProps {
   resolve: (t: string) => number | undefined; onGoto: (ad: number) => void;
   callers?: number[]; callees?: number[]; xrefsReady: boolean;
   strings: StringEntry[]; onString: (text: string) => void; strAt: (ad: number) => string | undefined;
+  /** Phone layout: a full-screen page with a back button and C / Asm / Refs tabs. */
+  mobile?: boolean; onBack?: () => void;
 }
 
 type Layout = "split" | "c" | "asm";
 
-function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xrefsReady, strings, onString, strAt }: FnViewProps) {
+function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xrefsReady, strings, onString, strAt, mobile, onBack }: FnViewProps) {
   const f = a.functions.get(address);
   const [copied, setCopied] = useState(false);
   const [layout, setLayout] = useState<Layout>(() => (localStorage.getItem("layout") as Layout) || "split");
@@ -388,6 +503,85 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
   const lineOffset = f?.text ? f.text.length - f.text.replace(/^\n+/, "").length : 0;
   const show = (l: Layout) => layout === "split" ? true : layout === l;
 
+  const cContent = (
+    <>
+              <div className="pane-label">Decompiled</div>
+              {!f && <div className="notice"><span className="spin" /> Decompiling…</div>}
+              {f?.error && <div className="notice error">{f.error}</div>}
+              {f?.text && (
+                <>
+                  {(f.incomplete || (f.warnings?.length ?? 0) > 0) && (
+                    <details className="warn">
+                      <summary>Output may be incomplete{f.unknown_callees ? " · unknown callees" : ""}</summary>
+                      <ul>{f.warnings?.map((w, i) => <li key={i}>{w}</li>)}</ul>
+                    </details>
+                  )}
+                  <Code text={trimmed.trimEnd()} lineOffset={lineOffset} active={hlLines} onLine={(line) => setFocus({ kind: "c", line })} resolve={noSelf} onGoto={onGoto} onString={onString} strAt={strAt} inlineStrings={inlineStr} />
+                </>
+              )}
+              {a.decompileError && <div className="notice error">Decompiler: {a.decompileError}</div>}
+    </>
+  );
+  const aContent = (
+    <>
+              <div className="pane-label">Assembly</div>
+              {hasAsm ? <Asm rows={f!.asm!} self={address} resolve={resolve} onGoto={onGoto} strAt={strAt} label={(ad) => fnLabel(ad, a.functions.get(ad)?.name)} active={hlAddrs} onPick={(ad) => setFocus({ kind: "a", ad })} />
+                : <p className="fine">{f ? "No instruction listing." : "Waiting for analysis…"}</p>}
+    </>
+  );
+  const refsContent = (
+    <>
+          <XrefGroup title="Calls" items={xrefsReady ? callees ?? [] : undefined} a={a} onGoto={onGoto} pending={!xrefsReady} />
+          <XrefGroup title="Called by" items={xrefsReady ? callers ?? [] : undefined} a={a} onGoto={onGoto} pending={!xrefsReady} />
+          <section className="rail-sec">
+            <h3>Strings {xrefsReady && <small>{strings.length}</small>}</h3>
+            {!xrefsReady ? <p className="fine">Computed when decompilation finishes</p>
+              : strings.length === 0 ? <p className="fine">None</p>
+              : strings.map((x) => (
+                <button key={x.a} className="rail-item str-item" onClick={() => onString(x.s)} title={hex(x.a) + " — show in Strings"}>{x.s}</button>
+              ))}
+          </section>
+    </>
+  );
+
+  const [mTab, setMTab] = useState<"c" | "asm" | "refs">("c");
+  const [wrap, setWrap] = useState(true);
+  useEffect(() => { setMTab("c"); }, [address]);
+  if (mobile) {
+    const refCount = (callees?.length ?? 0) + (callers?.length ?? 0) + strings.length;
+    return (
+      <div className={"cockpit m" + (wrap ? " wrap" : "")}>
+        <div className="m-bar">
+          <button className="m-back" onClick={onBack} aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden><path d="M15 5l-7 7 7 7" /></svg></button>
+          <div className="m-title">
+            <h1>{fnLabel(address, f?.name)}</h1>
+            <code>{hex(address)}</code>
+          </div>
+          {f?.text && <button className="ghost" onClick={copy}>{copied ? "Copied" : "Copy"}</button>}
+        </div>
+        {rules.length > 0 && <div className="m-caps">{rules.map((r) => <span key={r.name} className="cap">{r.name}</span>)}</div>}
+        <div className="m-seg" role="tablist">
+          <button role="tab" aria-selected={mTab === "c"} className={mTab === "c" ? "on" : ""} onClick={() => setMTab("c")}>C</button>
+          <button role="tab" aria-selected={mTab === "asm"} className={mTab === "asm" ? "on" : ""} onClick={() => setMTab("asm")}>Assembly</button>
+          <button role="tab" aria-selected={mTab === "refs"} className={mTab === "refs" ? "on" : ""} onClick={() => setMTab("refs")}>
+            Refs{xrefsReady && refCount > 0 && <em>{refCount}</em>}
+          </button>
+        </div>
+        {mTab !== "refs" && (
+          <div className="m-opts">
+            {mTab === "c" && <div className="seg"><button className={inlineStr ? "on" : ""} onClick={() => setInlineStr(true)}>"str"</button><button className={!inlineStr ? "on" : ""} onClick={() => setInlineStr(false)}>label</button></div>}
+            <label><input type="checkbox" checked={wrap} onChange={(e) => setWrap(e.target.checked)} /> Wrap lines</label>
+          </div>
+        )}
+        <div className="m-body">
+          {mTab === "c" && <div className="cp-pane">{cContent}</div>}
+          {mTab === "asm" && <div className="cp-pane">{aContent}</div>}
+          {mTab === "refs" && <div className="cp-pane rail m-refs">{refsContent}</div>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="cockpit">
       <div className="cp-head">
@@ -410,46 +604,11 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
 
       <div className="cp-body">
         <div className={"cp-panes " + layout}>
-          {show("c") && (
-            <div className="cp-pane" ref={cPane}>
-              <div className="pane-label">Decompiled</div>
-              {!f && <div className="notice"><span className="spin" /> Decompiling…</div>}
-              {f?.error && <div className="notice error">{f.error}</div>}
-              {f?.text && (
-                <>
-                  {(f.incomplete || (f.warnings?.length ?? 0) > 0) && (
-                    <details className="warn">
-                      <summary>Output may be incomplete{f.unknown_callees ? " · unknown callees" : ""}</summary>
-                      <ul>{f.warnings?.map((w, i) => <li key={i}>{w}</li>)}</ul>
-                    </details>
-                  )}
-                  <Code text={trimmed.trimEnd()} lineOffset={lineOffset} active={hlLines} onLine={(line) => setFocus({ kind: "c", line })} resolve={noSelf} onGoto={onGoto} onString={onString} strAt={strAt} inlineStrings={inlineStr} />
-                </>
-              )}
-              {a.decompileError && <div className="notice error">Decompiler: {a.decompileError}</div>}
-            </div>
-          )}
-          {show("asm") && (
-            <div className="cp-pane" ref={aPane}>
-              <div className="pane-label">Assembly</div>
-              {hasAsm ? <Asm rows={f!.asm!} self={address} resolve={resolve} onGoto={onGoto} strAt={strAt} label={(ad) => fnLabel(ad, a.functions.get(ad)?.name)} active={hlAddrs} onPick={(ad) => setFocus({ kind: "a", ad })} />
-                : <p className="fine">{f ? "No instruction listing." : "Waiting for analysis…"}</p>}
-            </div>
-          )}
+          {show("c") && <div className="cp-pane" ref={cPane}>{cContent}</div>}
+          {show("asm") && <div className="cp-pane" ref={aPane}>{aContent}</div>}
         </div>
 
-        <aside className="rail">
-          <XrefGroup title="Calls" items={xrefsReady ? callees ?? [] : undefined} a={a} onGoto={onGoto} pending={!xrefsReady} />
-          <XrefGroup title="Called by" items={xrefsReady ? callers ?? [] : undefined} a={a} onGoto={onGoto} pending={!xrefsReady} />
-          <section className="rail-sec">
-            <h3>Strings {xrefsReady && <small>{strings.length}</small>}</h3>
-            {!xrefsReady ? <p className="fine">Computed when decompilation finishes</p>
-              : strings.length === 0 ? <p className="fine">None</p>
-              : strings.map((x) => (
-                <button key={x.a} className="rail-item str-item" onClick={() => onString(x.s)} title={hex(x.a) + " — show in Strings"}>{x.s}</button>
-              ))}
-          </section>
-        </aside>
+        <aside className="rail">{refsContent}</aside>
       </div>
     </div>
   );
@@ -476,7 +635,7 @@ function StringsView({ a, refs, onGoto, query, setQuery }: {
         {a.strings.length} ASCII and UTF-16 strings{a.done ? "" : " · references appear once decompilation finishes"}
       </p>
       <div className="tools flat">
-        <input placeholder="Search strings or addresses" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+        <input placeholder="Search strings" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
         <label><input type="checkbox" checked={onlyRef} onChange={(e) => setOnlyRef(e.target.checked)} /> referenced only</label>
       </div>
       {rows.slice(0, limit).map((x) => {
