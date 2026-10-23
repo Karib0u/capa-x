@@ -69,6 +69,11 @@ struct Cli {
     #[arg(long, requires = "decompile_function")]
     unit: bool,
 
+    /// Decompile every recovered function of an x86 PE, streaming one JSON object per line
+    /// (requires decompiler feature). Used by the web UI.
+    #[arg(long, conflicts_with_all = ["decompile_function", "dump_code_layout", "dump_features", "dump_matches", "file_only", "rules", "signatures", "tag"])]
+    decompile_all: bool,
+
     /// emit JSON instead of text
     #[arg(short = 'j', long = "json")]
     json: bool,
@@ -440,6 +445,10 @@ fn run_analysis(cli: &Cli, timings: &mut Timings) -> Result<(), CliError> {
         return run_decompilation(cli, &bytes, &cli.decompile_function);
     }
 
+    if cli.decompile_all {
+        return run_decompile_all(&bytes);
+    }
+
     if cli.dump_code_layout {
         print_code_layout(&bytes)?;
         return Ok(());
@@ -700,6 +709,97 @@ fn parse_function_address(value: &str) -> Result<u64, String> {
         .unwrap_or(value);
     u64::from_str_radix(digits, 16)
         .map_err(|e| format!("invalid hexadecimal function address: {e}"))
+}
+
+#[cfg(not(feature = "decompiler"))]
+fn run_decompile_all(_: &[u8]) -> Result<(), CliError> {
+    Err(CliError::new(
+        E_CORRUPT_FILE,
+        "native decompilation is disabled; rebuild with --features decompiler",
+    ))
+}
+
+/// Newline-delimited JSON: a `start` record listing the recovered function
+/// addresses, then one `function` record per function as it finishes. A
+/// function that fails to decompile yields an `error` field instead of text
+/// and does not stop the run.
+#[cfg(feature = "decompiler")]
+fn run_decompile_all(bytes: &[u8]) -> Result<(), CliError> {
+    use capa_x::decompiler::DecompilerSession;
+    use std::io::Write;
+    let error = |e| CliError::new(E_CORRUPT_FILE, format!("{e}"));
+    let analysis = capa_x::extract::recovery::analyze(bytes).map_err(|e| {
+        CliError::new(E_CORRUPT_FILE, format!("recovering code layout: {e}"))
+    })?;
+    let mut session = DecompilerSession::from_pe(bytes).map_err(error)?;
+    let mut out = std::io::stdout().lock();
+    let emit = |out: &mut std::io::StdoutLock, value: serde_json::Value| {
+        writeln!(out, "{value}")
+            .and_then(|()| out.flush())
+            .map_err(|e| CliError::new(E_CORRUPT_FILE, format!("writing output: {e}")))
+    };
+    let addresses: Vec<u64> = analysis.functions.keys().copied().collect();
+    emit(
+        &mut out,
+        serde_json::json!({ "type": "start", "functions": addresses }),
+    )?;
+    for address in addresses {
+        let decompiled = session.decompile_function(address);
+        // Instruction listing in address order, as [address, hex bytes, text]. The recovery's
+        // function extent can swallow code the decompiler treats as a tail call (a `jmp` into a
+        // shared routine), so when the line mapping is known keep only blocks it touches, plus the
+        // entry block.
+        let used: std::collections::BTreeSet<u64> = decompiled
+            .as_ref()
+            .map(|r| r.line_addresses.iter().flatten().copied().collect())
+            .unwrap_or_default();
+        let mut listing: Vec<_> = analysis
+            .functions
+            .get(&address)
+            .map(|function| {
+                function
+                    .blocks
+                    .iter()
+                    .filter(|block| {
+                        used.is_empty()
+                            || block.addr == address
+                            || block.insns.iter().any(|insn| used.contains(&insn.address))
+                    })
+                    .flat_map(|block| block.insns.iter())
+                    .collect()
+            })
+            .unwrap_or_default();
+        listing.sort_by_key(|insn| insn.address);
+        let asm: Vec<_> = listing
+            .iter()
+            .map(|insn| {
+                let bytes: String = insn.bytes.iter().map(|b| format!("{b:02x}")).collect();
+                serde_json::json!([insn.address, bytes, insn.disassembly().unwrap_or_default()])
+            })
+            .collect();
+        let record = match decompiled {
+            Ok(result) => serde_json::json!({
+                "type": "function",
+                "address": result.address,
+                "name": result.name,
+                "text": result.text,
+                "warnings": result.warnings,
+                "incomplete": result.incomplete,
+                "unknown_callees": result.unknown_callees,
+                "ms": result.timings.decompilation_ms,
+                "asm": asm,
+                "lines": result.line_addresses,
+            }),
+            Err(e) => serde_json::json!({
+                "type": "function",
+                "address": address,
+                "asm": asm,
+                "error": e.to_string(),
+            }),
+        };
+        emit(&mut out, record)?;
+    }
+    emit(&mut out, serde_json::json!({ "type": "done" }))
 }
 
 #[cfg(not(feature = "decompiler"))]

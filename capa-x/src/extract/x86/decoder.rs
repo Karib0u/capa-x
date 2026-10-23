@@ -172,6 +172,19 @@ impl DecodedInstruction {
         matches!(&self.arch, ArchDetail::Aarch64(insn) if insn.opcode.is_some())
     }
 
+    /// MASM-flavoured disassembly text for display (the web UI's assembly
+    /// pane). `None` for AArch64, which has no formatter wired up here.
+    pub fn disassembly(&self) -> Option<String> {
+        use iced_x86::{Formatter, MasmFormatter};
+        let ArchDetail::X86(instruction) = &self.arch else {
+            return None;
+        };
+        let mut formatter = MasmFormatter::new();
+        let mut text = String::new();
+        formatter.format(instruction, &mut text);
+        Some(text)
+    }
+
     /// x86-only recovery barrier: `Cli`/`Hlt`/string I/O (`Insb`/`Insd`/
     /// `Insw`/`Outsb`/`Outsd`/`Outsw`)/`Sti` are ring-0-only or a
     /// sandbox/debugger tell, so native recovery stops there rather

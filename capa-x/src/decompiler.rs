@@ -96,6 +96,11 @@ pub struct Decompilation {
     pub name: Option<String>,
     pub calling_convention: CallingConvention,
     pub text: String,
+    /// For each line of `text` (split on `\n`), the sorted instruction addresses of the p-code
+    /// operations printed on it. Empty when the mapping could not be established. Not serialized:
+    /// the CLI's `--decompile-all` is its only consumer.
+    #[serde(skip)]
+    pub line_addresses: Vec<Vec<u64>>,
     pub warnings: Vec<String>,
     /// Any gap: a native error or warning, or a load diagnostic.
     pub incomplete: bool,
@@ -601,11 +606,13 @@ impl DecompilerSession {
         warnings.extend(output.warnings);
         // Inferred types remain a quality limitation even without native errors.
         warnings.push("Types and prototypes without supplied signatures are inferred; validate pseudocode against machine code.".into());
+        let line_addresses = line_addresses(&output.markup, &output.op_times, &output.op_addrs, &output.text);
         Ok(Decompilation {
             address,
             name,
             calling_convention: self.convention,
             text: output.text,
+            line_addresses,
             warnings,
             incomplete,
             unknown_callees: output.unknown_callees,
@@ -616,6 +623,46 @@ impl DecompilerSession {
         })
     }
 }
+/// Maps each printed line to the instruction addresses behind it, using the `opref` attributes of
+/// Ghidra's token markup. Returns nothing unless the markup's line count matches the plain text's,
+/// so a misaligned mapping is never shown.
+fn line_addresses(markup: &[u8], op_times: &[u32], op_addrs: &[u64], text: &str) -> Vec<Vec<u64>> {
+    if markup.is_empty() {
+        return Vec::new();
+    }
+    let address_of: BTreeMap<u32, u64> = op_times.iter().copied().zip(op_addrs.iter().copied()).collect();
+    let markup = String::from_utf8_lossy(markup);
+    let mut lines: Vec<std::collections::BTreeSet<u64>> = vec![Default::default()];
+    let mut rest = markup.as_ref();
+    while let Some(start) = rest.find('<') {
+        let Some(end) = rest[start..].find('>') else { break };
+        let tag = &rest[start + 1..start + end];
+        rest = &rest[start + end + 1..];
+        if tag.starts_with('/') {
+            continue;
+        }
+        if tag.starts_with("break") {
+            lines.push(Default::default());
+        } else if let Some(at) = tag.find("opref=\"") {
+            let value = &tag[at + 7..];
+            let value = value.split('"').next().unwrap_or("");
+            let parsed = match value.strip_prefix("0x") {
+                Some(hex) => u32::from_str_radix(hex, 16).ok(),
+                None => value.parse().ok(),
+            };
+            if let Some(address) = parsed.and_then(|time| address_of.get(&time)) {
+                if let Some(line) = lines.last_mut() {
+                    line.insert(*address);
+                }
+            }
+        }
+    }
+    if lines.len() != text.split('\n').count() {
+        return Vec::new();
+    }
+    lines.into_iter().map(|line| line.into_iter().collect()).collect()
+}
+
 /// Recovered functions whose only instruction is an indirect jump through an import slot,
 /// with the import's name.
 fn import_thunks(analysis: &Analysis) -> BTreeMap<u64, String> {
