@@ -248,6 +248,8 @@ function Workspace({ a, onNew, onFile }: { a: Analysis; onNew: () => void; onFil
   if (mobile) {
     // The tab bar stays visible on a function page; a tab there closes the page (and its history entry).
     const showTab = (t: Tab) => { if (detail) history.back(); setDetail(false); setTab(t); if (t !== "functions") setSel(t); };
+    // A function page belongs to Functions, whichever list it was opened from.
+    const shown: Tab = detail ? "functions" : tab;
     return (
       <div className="app mobile">
         {!detail && (
@@ -267,15 +269,15 @@ function Workspace({ a, onNew, onFile }: { a: Analysis; onNew: () => void; onFil
           {!detail && tab === "strings" && <main className="pane"><StringsView a={a} refs={strRefs} onGoto={setSel} query={strQuery} setQuery={setStrQuery} /></main>}
         </div>
         <nav className="tabbar">
-          <button className={tab === "capa" ? "on" : ""} onClick={() => showTab("capa")}>
+          <button className={shown === "capa" ? "on" : ""} onClick={() => showTab("capa")}>
             <svg viewBox="0 0 24 24" aria-hidden><path d="M12 3l8 3v6c0 5-3.4 8.2-8 9-4.6-.8-8-4-8-9V6l8-3z" /></svg>
             <span>Capabilities</span><em>{a.capa ? totalCaps : "…"}</em>
           </button>
-          <button className={tab === "functions" ? "on" : ""} onClick={() => showTab("functions")}>
+          <button className={shown === "functions" ? "on" : ""} onClick={() => showTab("functions")}>
             <svg viewBox="0 0 24 24" aria-hidden><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16" /></svg>
             <span>Functions</span><em>{total || "…"}</em>
           </button>
-          <button className={tab === "strings" ? "on" : ""} onClick={() => showTab("strings")}>
+          <button className={shown === "strings" ? "on" : ""} onClick={() => showTab("strings")}>
             <svg viewBox="0 0 24 24" aria-hidden><path d="M4 7V5h16v2M12 5v14M9 19h6" /></svg>
             <span>Strings</span><em>{a.strings.length || (a.done ? 0 : "…")}</em>
           </button>
