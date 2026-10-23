@@ -31,23 +31,31 @@ code, pre { font-family: var(--mono); }
 .brand.sm { font-size: 17px; cursor: pointer; }
 
 /* landing */
-.landing { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 24px; }
-.drop {
-  width: min(520px, 100%); padding: 56px 24px; border: 1.5px dashed var(--line); border-radius: 18px;
-  background: var(--panel); display: flex; flex-direction: column; align-items: center; gap: 6px;
-  text-align: center; cursor: pointer; color: var(--muted); transition: border-color .15s, background .15s, transform .15s;
+.landing {
+  min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; padding: calc(32px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom)); text-align: center;
 }
-.drop svg { margin-bottom: 8px; color: var(--text); }
-.drop strong { color: var(--text); font-weight: 600; font-size: 16px; }
-.drop:hover, .drop.over { border-color: var(--accent); }
-.drop.over { background: var(--soft); transform: scale(1.01); }
+.landing .brand { font-size: 17px; margin-bottom: 28px; }
+.hero h1 { margin: 0; font-size: clamp(28px, 6vw, 40px); font-weight: 600; letter-spacing: -0.035em; line-height: 1.1; text-wrap: balance; }
+.hero p { margin: 12px auto 0; max-width: 34ch; color: var(--muted); font-size: 15.5px; line-height: 1.5; text-wrap: balance; }
+.drop {
+  width: min(440px, 100%); margin-top: 20px; padding: 40px 24px; border: 1px dashed var(--line); border-radius: 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  cursor: pointer; color: var(--muted); transition: border-color .15s, background-color .15s;
+}
+.drop svg { margin-bottom: 10px; color: var(--text); }
+.drop strong { color: var(--text); font-weight: 500; font-size: 15px; }
+.drop u { text-decoration-color: var(--muted); text-underline-offset: 3px; }
+.drop span { font-size: 12.5px; }
+.drop:hover, .landing.over .drop { border-color: var(--muted); background: var(--panel); }
+.landing.over .drop { border-style: solid; border-color: var(--accent); }
 .fine { color: var(--muted); font-size: 12.5px; margin: 0; }
-.demo { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--muted); font-size: 14px; }
-.demo button { font: inherit; font-weight: 600; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 44px; padding: 0 20px; cursor: pointer; }
-.demo button:hover { border-color: var(--accent); }
-.demo { gap: 8px; }
-.demo small { font-size: 12px; }
-.error { color: var(--err); max-width: 520px; text-align: center; margin: 0; }
+.demo { min-height: 44px; padding: 0 12px; color: var(--muted); font-size: 14px; text-align: center; transition: color .15s; }
+.demo span { display: inline-block; margin-left: 4px; transition: transform .15s; }
+.demo:hover { color: var(--text); }
+.demo:hover span { transform: translateX(3px); }
+.landing > .fine { margin-top: 24px; }
+.error { color: var(--err); max-width: 440px; text-align: center; margin: 0; }
 
 /* workspace */
 .app { height: 100%; display: flex; flex-direction: column; }
