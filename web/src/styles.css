@@ -221,9 +221,7 @@ a.xref:hover { background: var(--on); border-bottom-style: solid; border-radius:
 .tabbar em { position: absolute; top: 5px; left: calc(50% + 9px); font: 600 10.5px var(--sans); font-style: normal; min-width: 18px; padding: 0 5px; border-radius: 99px; background: var(--soft); border: 1px solid var(--line); color: var(--muted); }
 .tabbar button.on em { background: var(--text); border-color: var(--text); color: var(--bg); }
 
-.cockpit.m { flex: 1; height: auto; background: var(--bg); animation: m-in .22s ease-out; }
-@keyframes m-in { from { transform: translateX(28px); opacity: 0; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .cockpit.m { animation: none; } }
+.cockpit.m { flex: 1; height: auto; background: var(--bg); }
 .m-bar { display: flex; align-items: center; gap: 8px; padding: calc(8px + env(safe-area-inset-top)) 12px 8px 4px; background: var(--panel); border-bottom: 1px solid var(--line); }
 .m-back { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; flex: none; }
 .m-back svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
@@ -278,3 +276,7 @@ a.xref:hover { background: var(--on); border-bottom-style: solid; border-radius:
 .m-list .fn-caps { display: block; font: 12.5px var(--sans); color: var(--muted); white-space: normal; margin-top: 2px; }
 .m-list .fn { gap: 1px; }
 .m-list .item.cap-item { align-items: flex-start; }
+.crash { margin: 24px 16px; padding: 16px; border: 1px solid var(--err); border-radius: 12px; color: var(--text); background: var(--panel); }
+.crash b { color: var(--err); }
+.crash pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; color: var(--muted); }
+.crash button { margin-top: 8px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 10px; }

@@ -432,7 +432,7 @@ function Asm({ rows, self, resolve, onGoto, strAt, label, active, onPick }: {
 }) {
   return (
     <div className="asm">
-      {rows.map(([ad, bytes, text]) => {
+      {rows.map(([ad, bytes, text], index) => {
         const sp = text.indexOf(" ");
         const mnem = sp < 0 ? text : text.slice(0, sp), ops = sp < 0 ? "" : text.slice(sp);
         const parts: React.ReactNode[] = [];
@@ -449,7 +449,7 @@ function Asm({ rows, self, resolve, onGoto, strAt, label, active, onPick }: {
         }
         parts.push(ops.slice(last));
         return (
-          <div className={"insn" + (active.has(ad) ? " hl" : "")} key={ad} data-ad={ad} onClick={() => onPick(ad)}>
+          <div className={"insn" + (active.has(ad) ? " hl" : "")} key={index} data-ad={ad} onClick={() => onPick(ad)}>
             <code className="ia">{ad.toString(16).padStart(8, "0")}</code>
             <code className="ib">{bytes}</code>
             <code className="it"><span className="tk-k">{mnem}</span>{parts}{note && <span className="tk-c">  ; {JSON.stringify(note.length > 60 ? note.slice(0, 60) + "…" : note)}</span>}</code>
