@@ -17,6 +17,7 @@ First release with 100% rule-name and match-address agreement against pinned Pyt
 ### Fixed
 
 - Run the Python binding's CLI parity test against the correct executable on every platform, accepting release and debug builds and failing if neither is available.
+- Check that Python binding analysis calls overlap with the GIL released instead of requiring a timing-based speedup that can fail on a busy host.
 - Preserve reference instruction locations and overlapping block decoding in compatibility mode. Follow legacy decoder aliases and reject invalid function and switch-arm candidates without changing native decoding.
 - Match the compatibility loader's ELF import relocation types and PE workspace section names while preserving the separate file-only contract. Put file-only PE/ELF format features at file scope.
 - Preserve function ownership when import-call discovery creates a callee before resuming a loose code fragment. Respect typed relocation operands and run this discovery before function signatures.
