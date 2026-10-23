@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import DropZone from "./DropZone";
+import GraphView from "./GraphView";
 import { Code, unescapeLiteral } from "./highlight";
 import { analyze } from "./analyze";
 import type { Analysis, CapaRule, StringEntry } from "./types";
@@ -469,7 +470,7 @@ interface FnViewProps {
   mobile?: boolean; onBack?: () => void;
 }
 
-type Layout = "split" | "c" | "asm";
+type Layout = "split" | "c" | "asm" | "graph";
 
 function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xrefsReady, strings, onString, strAt, mobile, onBack }: FnViewProps) {
   const f = a.functions.get(address);
@@ -500,7 +501,7 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
   }, [focus]);
   const trimmed = f?.text ? f.text.replace(/^\n+/, "") : "";
   const lineOffset = f?.text ? f.text.length - f.text.replace(/^\n+/, "").length : 0;
-  const show = (l: Layout) => layout === "split" ? true : layout === l;
+  const show = (l: Layout) => layout === "split" ? l !== "graph" : layout === l;
 
   const cContent = (
     <>
@@ -528,6 +529,9 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
                 : <p className="fine">{f ? "No instruction listing." : "Waiting for analysis…"}</p>}
     </>
   );
+  const graphContent = hasAsm
+    ? <GraphView rows={f!.asm!} self={address} name={fnLabel(address, f?.name)} rules={rules} resolve={resolve} onGoto={onGoto} strAt={strAt} label={(ad) => fnLabel(ad, a.functions.get(ad)?.name)} />
+    : <p className="fine">{f ? "No instruction listing." : "Waiting for analysis…"}</p>;
   const refsContent = (
     <>
           <XrefGroup title="Calls" items={xrefsReady ? callees ?? [] : undefined} a={a} onGoto={onGoto} pending={!xrefsReady} />
@@ -543,7 +547,7 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
     </>
   );
 
-  const [mTab, setMTab] = useState<"c" | "asm" | "refs">("c");
+  const [mTab, setMTab] = useState<"c" | "asm" | "graph" | "refs">("c");
   const [wrap, setWrap] = useState(true);
   useEffect(() => { setMTab("c"); }, [address]);
   // Tapping a C line selects its instructions (and the reverse); show them when the tab opens.
@@ -567,11 +571,12 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
         <div className="m-seg" role="tablist">
           <button role="tab" aria-selected={mTab === "c"} className={mTab === "c" ? "on" : ""} onClick={() => setMTab("c")}>C</button>
           <button role="tab" aria-selected={mTab === "asm"} className={mTab === "asm" ? "on" : ""} onClick={() => setMTab("asm")}>Assembly</button>
+          <button role="tab" aria-selected={mTab === "graph"} className={mTab === "graph" ? "on" : ""} onClick={() => setMTab("graph")}>Graph</button>
           <button role="tab" aria-selected={mTab === "refs"} className={mTab === "refs" ? "on" : ""} onClick={() => setMTab("refs")}>
             Refs{xrefsReady && refCount > 0 && <em>{refCount}</em>}
           </button>
         </div>
-        {mTab !== "refs" && (
+        {(mTab === "c" || mTab === "asm") && (
           <div className="m-opts">
                         <label><input type="checkbox" checked={wrap} onChange={(e) => setWrap(e.target.checked)} /> Wrap lines</label>
           </div>
@@ -579,6 +584,7 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
         <div className="m-body">
           {mTab === "c" && <div className="cp-pane">{cContent}</div>}
           {mTab === "asm" && <div className="cp-pane">{aContent}</div>}
+          {mTab === "graph" && <div className="cp-pane graph-pane">{graphContent}</div>}
           {mTab === "refs" && <div className="cp-pane rail m-refs">{refsContent}</div>}
         </div>
       </div>
@@ -594,8 +600,8 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
           {rules.map((r) => <span key={r.name} className="cap" title={r.namespace ?? ""}>{r.name}</span>)}
         </div>
         <div className="seg">
-          {(["c", "split", "asm"] as Layout[]).map((l) => (
-            <button key={l} className={layout === l ? "on" : ""} onClick={() => setLayout(l)}>{l === "c" ? "C" : l === "asm" ? "Asm" : "Both"}</button>
+          {(["c", "split", "asm", "graph"] as Layout[]).map((l) => (
+            <button key={l} className={layout === l ? "on" : ""} onClick={() => setLayout(l)}>{l === "c" ? "C" : l === "asm" ? "Asm" : l === "graph" ? "Graph" : "Both"}</button>
           ))}
         </div>
         {f?.text && <button className="ghost" onClick={copy}>{copied ? "Copied" : "Copy C"}</button>}
@@ -605,6 +611,7 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
         <div className={"cp-panes " + layout}>
           {show("c") && <div className="cp-pane" ref={cPane}>{cContent}</div>}
           {show("asm") && <div className="cp-pane" ref={aPane}>{aContent}</div>}
+          {show("graph") && <div className="cp-pane graph-pane">{graphContent}</div>}
         </div>
 
         <aside className="rail">{refsContent}</aside>

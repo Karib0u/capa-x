@@ -283,3 +283,29 @@ a.xref:hover { background: var(--on); border-bottom-style: solid; border-radius:
 .crash b { color: var(--err); }
 .crash pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; color: var(--muted); }
 .crash button { margin-top: 8px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 10px; }
+
+/* graph view */
+.cp-pane.graph-pane { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.gv { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.graph-tools { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+.graph-tools button { min-width: 30px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 7px; text-align: center; color: var(--text); }
+.graph-tools button:hover { background: var(--hover); }
+.graph-tools span { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+.graph-tools small { margin-left: auto; }
+.graph-legend { position: absolute; right: 12px; bottom: 10px; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 4px 10px; font-size: 11.5px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; pointer-events: none; }
+.graph-legend i { width: 14px; height: 3px; border-radius: 2px; margin-left: 6px; }
+.graph-legend i:first-child { margin-left: 0; }
+.graph-view { flex: 1; min-height: 0; overflow: hidden; position: relative; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+  background-color: var(--bg); background-image: radial-gradient(var(--line) 1px, transparent 1px); background-size: 22px 22px; }
+.graph-view.panning { cursor: grabbing; }
+.graph-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.graph-canvas svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.gb { position: absolute; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgb(0 0 0 / .08); cursor: pointer; }
+.gb:hover { border-color: var(--muted); }
+.gb.on { border-color: var(--c-kw); box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-kw) 30%, transparent); }
+.gb.entry .gb-head { color: var(--c-fn); }
+.gb-head { height: 24px; line-height: 24px; padding: 0 10px; font: 600 11.5px var(--mono); color: var(--muted); background: var(--soft); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.gb-cap { height: 18px; line-height: 18px; padding: 0 10px; font-size: 11px; background: var(--text); color: var(--bg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gb-body { padding: 6px 10px; font: 12px/18px var(--mono); }
+.gi { display: flex; gap: 10px; white-space: pre; height: 18px; }
+.gi .ia { flex: none; }

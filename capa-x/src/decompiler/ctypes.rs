@@ -717,5 +717,10 @@ pub fn prelude(wide: bool) -> String {
     out.push_str("#define true 1\n#define false 0\n");
     out.push_str("#define POPCOUNT(x) ((int)__builtin_popcountll((unsigned long long)(x)))\n");
     out.push_str("#define LZCOUNT(x) ((int)__builtin_clzll((unsigned long long)(x) | 1))\n");
+    // Ghidra's float operations (`typeop.cc`), with the meaning its emulator gives them
+    // (`float.cc`): ROUND is `round`, half away from zero.
+    out.push_str("#define NAN(x) __builtin_isnan(x)\n#define ABS(x) __builtin_fabs(x)\n");
+    out.push_str("#define SQRT(x) __builtin_sqrt(x)\n#define CEIL(x) __builtin_ceil(x)\n");
+    out.push_str("#define FLOOR(x) __builtin_floor(x)\n#define ROUND(x) __builtin_round(x)\n");
     out
 }

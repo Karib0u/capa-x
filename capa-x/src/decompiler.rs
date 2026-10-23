@@ -88,6 +88,27 @@ pub struct DecompilationTimings {
     pub decompilation_ms: f64,
 }
 
+/// The class of a data symbol's type, as the decompiler's analysis settled it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ValueKind {
+    Float,
+    Signed,
+    Unsigned,
+    Bool,
+    Pointer,
+    Unknown,
+}
+
+/// A data symbol the text names (`DAT_`, `PTR_`, `s_`, `u_`), typed by the analysis.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GlobalSymbol {
+    pub name: String,
+    pub address: u64,
+    /// Bytes of the type, or of the symbol when the analysis gave it no type.
+    pub size: u32,
+    pub kind: ValueKind,
+}
+
 /// Separate from capa's capability result document.
 #[derive(Debug, Serialize)]
 pub struct Decompilation {
@@ -111,6 +132,10 @@ pub struct Decompilation {
     /// values may be missing. This is the usual reason for `incomplete`; when it is
     /// the only one, the control flow and data flow of the function itself are sound.
     pub unknown_callees: bool,
+    /// The data symbols the text names, with their analyzed types. Not serialized: the
+    /// self-contained unit is its consumer.
+    #[serde(skip)]
+    pub globals: Vec<GlobalSymbol>,
     pub timings: DecompilationTimings,
 }
 
@@ -568,6 +593,7 @@ impl DecompilerSession {
                 text: result.text,
                 incomplete: result.incomplete,
                 unknown_callees: result.unknown_callees,
+                globals: result.globals,
             });
         }
         let wide = self.convention.wide();
@@ -617,6 +643,32 @@ impl DecompilerSession {
         // Inferred types remain a quality limitation even without native errors.
         notes.push("Types and prototypes without supplied signatures are inferred; validate pseudocode against machine code.".into());
         let line_addresses = line_addresses(&output.markup, &output.op_times, &output.op_addrs, &output.text);
+        let globals = output
+            .globals
+            .iter()
+            .map(|global| {
+                let kind = match global.kind.as_str() {
+                    "float" => ValueKind::Float,
+                    "signed" => ValueKind::Signed,
+                    "unsigned" => ValueKind::Unsigned,
+                    "bool" => ValueKind::Bool,
+                    "pointer" => ValueKind::Pointer,
+                    "unknown" => ValueKind::Unknown,
+                    other => {
+                        return Err(DecompileError::Native {
+                            address,
+                            message: format!("data symbol {} has an unknown type class {other:?}", global.name),
+                        })
+                    }
+                };
+                Ok(GlobalSymbol {
+                    name: global.name.clone(),
+                    address: global.address,
+                    size: global.size,
+                    kind,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Decompilation {
             address,
             name,
@@ -627,6 +679,7 @@ impl DecompilerSession {
             notes,
             incomplete,
             unknown_callees: output.unknown_callees,
+            globals,
             timings: DecompilationTimings {
                 initialization_ms: self.initialization_ms,
                 decompilation_ms: started.elapsed().as_secs_f64() * 1000.0,
@@ -790,5 +843,22 @@ fn system_import_function(name: &str) -> Option<&str> {
     let (module, function) = name.rsplit_once('.')?;
     let module = module.to_ascii_lowercase();
     let module = module.strip_suffix(".dll").unwrap_or(&module);
-    (MODULES.contains(&module) || module.starts_with("api-ms-win-")).then_some(function)
+    // Import names come in Vivisect's `normFileName` form, so the API-set DLLs
+    // (`api-ms-win-crt-string-l1-1-0.dll`, the UCRT) arrive as `api_ms_win_...`.
+    let api_set = module.starts_with("api-ms-win-") || module.starts_with("api_ms_win_");
+    (MODULES.contains(&module) || api_set).then_some(function)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn system_imports_match_in_the_loader_name_form() {
+        assert_eq!(system_import_function("kernel32.CreateFileA"), Some("CreateFileA"));
+        assert_eq!(system_import_function("api_ms_win_crt_string_l1_1_0.strlen"), Some("strlen"));
+        assert_eq!(system_import_function("api_ms_win_core_synch_l1_2_0.Sleep"), Some("Sleep"));
+        assert_eq!(system_import_function("mylib.strlen"), None);
+        assert_eq!(system_import_function("strlen"), None);
+    }
 }
