@@ -361,6 +361,8 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
   const [copied, setCopied] = useState(false);
   const [layout, setLayout] = useState<Layout>(() => (localStorage.getItem("layout") as Layout) || "split");
   useEffect(() => { try { localStorage.setItem("layout", layout); } catch {} }, [layout]);
+  const [inlineStr, setInlineStr] = useState(() => { try { return localStorage.getItem("inlineStrings") !== "0"; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem("inlineStrings", inlineStr ? "1" : "0"); } catch {} }, [inlineStr]);
   const copy = () => { if (f?.text) navigator.clipboard.writeText(f.text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); }); };
   const noSelf = (t: string) => { const r = resolve(t); return r === address ? undefined : r; };
   const hasAsm = !!f?.asm?.length;
@@ -394,6 +396,10 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
           <code className="addr">{hex(address)}</code>
           {rules.map((r) => <span key={r.name} className="cap" title={r.namespace ?? ""}>{r.name}</span>)}
         </div>
+        <div className="seg" title="How referenced strings appear in the C">
+          <button className={inlineStr ? "on" : ""} onClick={() => setInlineStr(true)}>"str"</button>
+          <button className={!inlineStr ? "on" : ""} onClick={() => setInlineStr(false)}>label</button>
+        </div>
         <div className="seg">
           {(["c", "split", "asm"] as Layout[]).map((l) => (
             <button key={l} className={layout === l ? "on" : ""} onClick={() => setLayout(l)}>{l === "c" ? "C" : l === "asm" ? "Asm" : "Both"}</button>
@@ -417,7 +423,7 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
                       <ul>{f.warnings?.map((w, i) => <li key={i}>{w}</li>)}</ul>
                     </details>
                   )}
-                  <Code text={trimmed.trimEnd()} lineOffset={lineOffset} active={hlLines} onLine={(line) => setFocus({ kind: "c", line })} resolve={noSelf} onGoto={onGoto} onString={onString} strAt={strAt} />
+                  <Code text={trimmed.trimEnd()} lineOffset={lineOffset} active={hlLines} onLine={(line) => setFocus({ kind: "c", line })} resolve={noSelf} onGoto={onGoto} onString={onString} strAt={strAt} inlineStrings={inlineStr} />
                 </>
               )}
               {a.decompileError && <div className="notice error">Decompiler: {a.decompileError}</div>}

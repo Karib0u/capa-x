@@ -26,7 +26,9 @@ export const unescapeLiteral = (lit: string) =>
     c[0] === "x" ? String.fromCharCode(parseInt(c.slice(1), 16)) : ({ n: "\n", r: "\r", t: "\t", "0": "\0" } as Record<string, string>)[c] ?? c);
 
 /** Minimal C-ish highlighter, enough to make decompiler output scannable. One block per source line. */
-export function Code({ text, lineOffset = 0, active, onLine, resolve, onGoto, onString, strAt }: {
+export function Code({ text, lineOffset = 0, active, onLine, resolve, onGoto, onString, strAt, inlineStrings = true }: {
+  /** Show a referenced string in place of its data label (IDA / Binary Ninja style). */
+  inlineStrings?: boolean;
   /** The string stored at a virtual address, if any. */
   strAt?: (address: number) => string | undefined;
   text: string;
@@ -47,7 +49,7 @@ export function Code({ text, lineOffset = 0, active, onLine, resolve, onGoto, on
         const index = i + lineOffset;
         return (
           <div key={i} data-ln={index} className={"ln" + (active?.has(index) ? " hl" : "")} onClick={() => onLine?.(index)}>
-            {highlightLine(line, resolve, onGoto, onString, strAt)}
+            {highlightLine(line, resolve, onGoto, onString, strAt, inlineStrings)}
           </div>
         );
       })}
@@ -61,6 +63,7 @@ function highlightLine(
   onGoto?: (address: number) => void,
   onString?: (content: string) => void,
   strAt?: (address: number) => string | undefined,
+  inlineStrings = true,
 ) {
   const out: React.ReactNode[] = [];
   let last = 0, k = 0;
@@ -79,9 +82,16 @@ function highlightLine(
       const hit = m[3] ? (m[3].startsWith("0x") ? parseInt(m[3], 16) : undefined) : parseInt(m[0].slice(m[0].lastIndexOf("_") + 1), 16);
       const str = hit === undefined || Number.isNaN(hit) ? undefined : strAt(hit);
       if (str !== undefined) {
-        out.push(<a key={k++} className={"xref " + cls} href="#str" title={"String at 0x" + hit!.toString(16)}
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onString(str); }}>{m[0]}</a>);
-        out.push(<span key={k++} className="tk-s str-hint">{" "}{JSON.stringify(str.length > 48 ? str.slice(0, 48) + "…" : str)}</span>);
+        const shown = JSON.stringify(str.length > 60 ? str.slice(0, 60) + "…" : str);
+        const where = m[0] + " · 0x" + hit!.toString(16);
+        out.push(inlineStrings
+          ? <a key={k++} className="xref tk-s" href="#str" title={where}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onString(str); }}>{shown}</a>
+          : <Fragment key={k++}>
+              <a className={"xref " + cls} href="#str" title={"String at 0x" + hit!.toString(16)}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onString(str); }}>{m[0]}</a>
+              <span className="tk-s str-hint">{" "}{shown}</span>
+            </Fragment>);
         last = i + m[0].length;
         continue;
       }
