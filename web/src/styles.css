@@ -244,11 +244,14 @@ a.xref:hover { background: var(--on); border-bottom-style: solid; border-radius:
 .cockpit.m .code { font-size: 13px; line-height: 1.7; }
 .cockpit.m .ln { min-height: 1.7em; }
 .cockpit.m.wrap .ln { white-space: pre-wrap; overflow-wrap: anywhere; }
-.cockpit.m .asm { font-size: 12.5px; line-height: 1.75; }
-.cockpit.m .ib { display: none; }
-.cockpit.m .insn { gap: 12px; }
-.cockpit.m.wrap .insn { white-space: pre-wrap; }
-.cockpit.m.wrap .it { overflow-wrap: anywhere; }
+.cockpit.m .asm { font-size: 12.5px; line-height: 1.75; display: block; }
+/* Plain block rows with a hanging indent: no flex or negative margins, which browsers lay out differently. */
+.cockpit.m .insn { display: block; margin: 0; padding: 0 0 0 11ch; text-indent: -11ch; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cockpit.m .insn code { display: inline; font-family: var(--mono); }
+.cockpit.m .ia { margin-right: 3ch; }
+.cockpit.m .insn .ib { display: none; }
+.cockpit.m .it { white-space: pre-wrap; }
+.cockpit.m:not(.wrap) .insn { white-space: pre; overflow-wrap: normal; }
 .m-refs.rail { border: 0; background: none; padding-left: 8px; padding-right: 8px; }
 .m-refs .rail-sec h3 { font-size: 12px; margin: 10px 8px 6px; }
 .m-refs .rail-item { display: flex; align-items: center; min-height: 44px; padding: 0 10px; font-size: 13.5px; border-radius: 10px; }
