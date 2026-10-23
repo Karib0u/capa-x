@@ -6,13 +6,17 @@ Result differences against Python capa are not changelog entries - they are trac
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-23
+
+First release with 100% rule-name and match-address agreement against pinned Python capa 10.0.0 on all 376 comparable native corpus samples. The complete corpus contains 377 inputs; Python capa rejects one malformed ELF, which is recorded explicitly rather than counted as a match. This comparison does not assert evidence-tree identity or duplicate-match multiplicity.
+
 ### Added
 
 - Preserve original capa results and an address index for the complete 377-entry native corpus, with hash verification and explicit reference failures. Record expanded rule, address, and backend validation results.
 
 ### Fixed
 
-- Run the Python binding's CLI parity test against the correct release executable instead of skipping it because of the former binary name.
+- Run the Python binding's CLI parity test against the correct executable on every platform, accepting release and debug builds and failing if neither is available.
 - Preserve reference instruction locations and overlapping block decoding in compatibility mode. Follow legacy decoder aliases and reject invalid function and switch-arm candidates without changing native decoding.
 - Match the compatibility loader's ELF import relocation types and PE workspace section names while preserving the separate file-only contract. Put file-only PE/ELF format features at file scope.
 - Preserve function ownership when import-call discovery creates a callee before resuming a loose code fragment. Respect typed relocation operands and run this discovery before function signatures.

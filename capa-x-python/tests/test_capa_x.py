@@ -120,15 +120,16 @@ def test_analyze_never_returns_none_or_empty_on_error(rules: capa_x.Rules) -> No
         capa_x.analyze(b"\x00" * 16, rules)
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="capa-x-cli release binary path differs")
 def test_jobs_1_matches_cli_rule_names(rules: capa_x.Rules) -> None:
     """`jobs=1` reproduces the CLI's `--jobs 1` rule-name set exactly --
     the same binding parity claim made at difftest scale, here pinned to one
     sample so the binding's own test suite doesn't depend on
     a release build being present in CI."""
-    cli = REPO_ROOT / "target" / "release" / "capa-x"
+    binary = "capa-x.exe" if sys.platform == "win32" else "capa-x"
+    cli = REPO_ROOT / "target" / "release" / binary
     if not cli.is_file():
-        pytest.skip("target/release/capa-x not built")
+        cli = REPO_ROOT / "target" / "debug" / binary
+    assert cli.is_file(), "build capa-x-cli before running binding parity tests"
     out = subprocess.run(
         [str(cli), "--rules", str(RULES_DIR), "--jobs", "1", "-j", str(SAMPLE)],
         capture_output=True,

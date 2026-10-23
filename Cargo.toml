@@ -8,7 +8,7 @@ members = ["capa-x", "capa-x-cli", "capa-x-python"]
 exclude = ["third_party/dnfile"]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 # Measured, not guessed: `cargo msrv find -- cargo check --workspace
 # --all-targets` bisects to 1.87.0, and 1.86 fails on `is_multiple_of`
