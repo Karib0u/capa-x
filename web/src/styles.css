@@ -182,3 +182,4 @@ a.xref:hover { background: var(--on); border-bottom-style: solid; border-radius:
 .ln:hover { background: var(--hover); }
 .ln.hl, .insn.hl { background: color-mix(in srgb, var(--c-kw) 18%, transparent); box-shadow: inset 2px 0 0 var(--c-kw); }
 .insn { padding: 0 8px; margin: 0 -8px; border-radius: 4px; cursor: default; }
+.str-hint { font-style: italic; opacity: .75; }

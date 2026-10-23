@@ -12,7 +12,7 @@ const TOKEN = new RegExp(
     String.raw`\b(${KEYWORDS})\b`,                                                // 4 keyword
     String.raw`\b(${TYPES})\b`,                                                   // 5 type
     String.raw`\b((?:param|local|[a-z]{1,3}Var|[a-z]+Stack)_?\w*)\b`,             // 6 param / local
-    String.raw`\b((?:DAT|PTR|LAB|s|u|g|_DAT|_PTR)_[0-9a-fA-F]{5,}|[A-Za-z]+Stack_[0-9a-f]+)\b`, // 7 global / label
+    String.raw`\b((?:DAT|PTR|LAB|s|u|g|_DAT|_PTR)_[0-9a-fA-F]{5,}|[su]_\w*_[0-9a-fA-F]{6,16}|[A-Za-z]+Stack_[0-9a-f]+)\b`, // 7 global / label
     String.raw`\b(FUN_\w+|[A-Za-z_]\w*(?=\s*\())`,                                         // 8 function call
     String.raw`([+\-*/%&|^~!<>=?:]+|->)`,                                          // 9 operator
   ].join("|"),
@@ -26,7 +26,9 @@ export const unescapeLiteral = (lit: string) =>
     c[0] === "x" ? String.fromCharCode(parseInt(c.slice(1), 16)) : ({ n: "\n", r: "\r", t: "\t", "0": "\0" } as Record<string, string>)[c] ?? c);
 
 /** Minimal C-ish highlighter, enough to make decompiler output scannable. One block per source line. */
-export function Code({ text, lineOffset = 0, active, onLine, resolve, onGoto, onString }: {
+export function Code({ text, lineOffset = 0, active, onLine, resolve, onGoto, onString, strAt }: {
+  /** The string stored at a virtual address, if any. */
+  strAt?: (address: number) => string | undefined;
   text: string;
   /** Index of the first displayed line within the decompiler's full output. */
   lineOffset?: number;
@@ -45,7 +47,7 @@ export function Code({ text, lineOffset = 0, active, onLine, resolve, onGoto, on
         const index = i + lineOffset;
         return (
           <div key={i} data-ln={index} className={"ln" + (active?.has(index) ? " hl" : "")} onClick={() => onLine?.(index)}>
-            {highlightLine(line, resolve, onGoto, onString)}
+            {highlightLine(line, resolve, onGoto, onString, strAt)}
           </div>
         );
       })}
@@ -58,6 +60,7 @@ function highlightLine(
   resolve?: (token: string) => number | undefined,
   onGoto?: (address: number) => void,
   onString?: (content: string) => void,
+  strAt?: (address: number) => string | undefined,
 ) {
   const out: React.ReactNode[] = [];
   let last = 0, k = 0;
@@ -70,6 +73,18 @@ function highlightLine(
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); onString(unescapeLiteral(m[0])); }}>{m[0]}</a>);
       last = i + m[0].length;
       continue;
+    }
+    // A data label or hex literal that points at a known string: link it and show the string.
+    if ((m[3] || m[7]) && onString && strAt) {
+      const hit = m[3] ? (m[3].startsWith("0x") ? parseInt(m[3], 16) : undefined) : parseInt(m[0].slice(m[0].lastIndexOf("_") + 1), 16);
+      const str = hit === undefined || Number.isNaN(hit) ? undefined : strAt(hit);
+      if (str !== undefined) {
+        out.push(<a key={k++} className={"xref " + cls} href="#str" title={"String at 0x" + hit!.toString(16)}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onString(str); }}>{m[0]}</a>);
+        out.push(<span key={k++} className="tk-s str-hint">{" "}{JSON.stringify(str.length > 48 ? str.slice(0, 48) + "…" : str)}</span>);
+        last = i + m[0].length;
+        continue;
+      }
     }
     const target = onGoto && (m[3] || m[8]) ? resolve?.(m[0]) : undefined;
     out.push(target !== undefined

@@ -417,7 +417,7 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
                       <ul>{f.warnings?.map((w, i) => <li key={i}>{w}</li>)}</ul>
                     </details>
                   )}
-                  <Code text={trimmed.trimEnd()} lineOffset={lineOffset} active={hlLines} onLine={(line) => setFocus({ kind: "c", line })} resolve={noSelf} onGoto={onGoto} onString={onString} />
+                  <Code text={trimmed.trimEnd()} lineOffset={lineOffset} active={hlLines} onLine={(line) => setFocus({ kind: "c", line })} resolve={noSelf} onGoto={onGoto} onString={onString} strAt={strAt} />
                 </>
               )}
               {a.decompileError && <div className="notice error">Decompiler: {a.decompileError}</div>}
