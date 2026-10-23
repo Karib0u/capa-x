@@ -21,6 +21,15 @@ mod ffi {
         LuidPointer,
         TokenPrivilegesPointer,
     }
+    /// A data symbol the text names, with the type the analysis settled on for it.
+    struct NativeGlobal {
+        name: String,
+        address: u64,
+        /// The size of that type, or of the symbol when the analysis gave it none.
+        size: u32,
+        /// `float`, `signed`, `unsigned`, `bool`, `pointer` or `unknown`.
+        kind: String,
+    }
     struct NativeOutput {
         text: String,
         /// Gaps in the analysis; any of them makes the result incomplete.
@@ -34,6 +43,8 @@ mod ffi {
         /// Parallel arrays: p-code op index (`opref` in the markup) and its instruction address.
         op_times: Vec<u32>,
         op_addrs: Vec<u64>,
+        /// The data symbols named for this request (`DAT_`, `PTR_`, `s_`, `u_`).
+        globals: Vec<NativeGlobal>,
     }
     unsafe extern "C++" {
         include!("bridge.hh");
@@ -86,7 +97,7 @@ mod ffi {
 }
 
 pub use cxx::Exception as Error;
-pub use ffi::{NativeOutput, ValueType};
+pub use ffi::{NativeGlobal, NativeOutput, ValueType};
 
 /// The packed Ghidra type and prototype archive for one language (`wide` is x86-64).
 /// Format: `scripts/decompiler_types/pack_prototypes.py`.

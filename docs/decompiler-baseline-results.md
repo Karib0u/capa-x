@@ -897,6 +897,53 @@ python3 -I scripts/decompiler_baseline/unit_check.py tests/testfiles scripts/dec
 python3 -I scripts/decompiler_baseline/unit_check.py tests/testfiles scripts/decompiler_baseline/heldout-x86.json target/release/capa-x --x86 [--set 5]
 ```
 
+## Step 15a: known-source corpus (MinGW and clang)
+
+The first slice of step 15a, built on the maintainer's Mac: 67 functions of our own C (`scripts/decompiler_known_source/src/`),
+each aimed at one thing a decompiler can get wrong, built 8 ways (MinGW gcc 16.2.0 and clang 23.1.2 with lld, x86-64 and
+x86-32, `-O0` and `-O2`). The truth comes from the debug copy (DWARF prototypes, `objdump` calls); native and full Ghidra
+12.1.4 both see only the stripped copy. `difftest.py` also recompiles each decompiled `--unit` of the 38 scalar
+functions for the host and runs it against the source function on 400 inputs, packed in the Windows ABI's slots, so a
+wrong slot or a wrong operator gives a wrong answer. No MSVC build is in this slice (the lab has no Build Tools yet).
+
+| | Result |
+|---|---|
+| Function discovery | 67 of 67 on every build; native also finds `sub`, a static function reached only through a pointer, which Ghidra misses on 6 builds |
+| Call targets | every decompiled call resolves to the right function |
+| Static checks clean (native, Ghidra) | 464 and 459 of 536 function-builds; every remaining native mismatch is also Ghidra's |
+| Recompiled and run | first run: 288 ran, 266 compute the source's answer on all 400 inputs, 18 differ, 4 hang, 15 do not compile; after the fixes below: 303 run, 288 right, 11 differ, 4 hang (all shared with Ghidra's text), 1 skipped (no shim for `__udivmoddi4`) |
+| Honest flags | of 30 outputs with a lost return value, lost argument or wrong float class, none is flagged `incomplete`; of the 15 that run and are wrong, none is |
+
+Native-only defects found by the first run, each fixed (the static checks now show no mismatch native has and Ghidra
+does not):
+
+| Defect | Fix |
+|---|---|
+| API-set imports never got archive prototypes: the check was `module.starts_with("api-ms-win-")`, but import names arrive in Vivisect's `norm_file_name` form, `api_ms_win_crt_string_l1_1_0.strlen`. Every VS2015+ `/MD` binary imports its C runtime this way | `system_import_function` accepts both forms: `strlen` through the UCRT gets its argument, incomplete outputs 5 to 3 on both clang `-O2` builds |
+| A product `x * DAT_` was read as a dereference, so the unit declared the constant `unsigned int *` (13 of 15 units that did not compile) | `data_declaration` takes `*` as a dereference only after an operator, a bracket or `return` |
+| `&DAT_x + n` (Ghidra's byte arithmetic) was declared `long long`, which scales `n` by 8: the unit compiled and read the wrong table entry (`ks_switch_dense`, 4 builds), and step 13 counted it as a pass | a symbol used only through its address is `extern byte` |
+| Scalar data symbols were `long long` whatever the decompiler typed them: a float constant became the integer value of its bits, a 4-byte counter was written as 8 bytes | the bridge returns, per request, the type its analysis settled on for each data symbol it named (`NativeGlobal`); the unit declares `float4`, `float10`, `int4`, ... from it when the text's shape does not decide |
+| `ROUND`, `NAN`, `ABS`, `SQRT`, `CEIL`, `FLOOR` (Ghidra's float operations, `typeop.cc`) were missing from the prelude | defined with the meaning Ghidra's emulator gives them (`float.cc`; `ROUND` is `round`) |
+| A sub-piece after a cast, `(uint8)x._12_4_`, was not rewritten; a 16-byte value declared `xunknown1 x [16]` was used in arithmetic | the rewrite accepts a `)` before the name; on x86-64 such a value that the text does not index is `int16`, signed so that `x / SEXT816(y)` stays signed and `x / ZEXT816(y)` unsigned |
+
+Shared with full Ghidra (engine or missing context; capa-x could do better than its reference):
+
+| Gap | Effect here |
+|---|---|
+| Return value dropped with no warning: tail calls (`ks_message`, `ks_strlen`), a global increment, a loop result (`ks_collatz`), a hidden struct return, an x87 double (`ks_big_sum`) | 26 function-builds print `void`; the caller's own text uses the value (`iVar4 = FUN_140001c30();`), so the evidence is in the program |
+| Shift by the full width: `param_1 >> 0x20 - n` is 0 in p-code and undefined in C | the recompiled x86-32 `ks_shl64` is wrong on 34 of 400 inputs on all four builds |
+| Signedness of `undefined4` stack locals: the unit's `unsigned` typedef turns a signed `i < n` unsigned | `ks_fib_iter` never ends for a negative `n` on all four `-O0` builds |
+| `__stdcall` not named, the stack arguments right | 4 of 4 x86-32 builds |
+| x87 code at clang `-O0`: `ks_i2d` and `ks_mixed_fp` print `return param_1;` | 1 build |
+| A bit reinterpretation prints as a cast, `(float8)CONCAT44(p2,p1)`, which C reads as a value conversion; an integer-to-float conversion prints the same way | gcc `-O0` x86-32 `ks_fma_d`, `ks_mixed_fp` and `ks_d2i` wrong when recompiled |
+| `ROUND` for `fistp` ignores the FPU control word that gcc sets to truncate | `ks_d2i` rounds where the source truncates |
+| A `jmp` to `ExitProcess` does not make the caller's call non-returning | gcc `-O2` `main` continues past its end into the next function |
+| Return width: `int` printed as an 8-byte type, `_Bool` and `short` as 4 bytes | 37 function-builds; the low bytes are right in every run |
+
+Native does better than Ghidra on one more case: on clang `-O2` Ghidra runs past `ks_die` into `int3` padding (`swi(3)`),
+native stops at the call. The MinGW runtime helpers (`__divdi3`, `__udivdi3`, `__umoddi3`, `__udivmoddi4`) stay `FUN_`
+names, as expected for names outside Visual C (step 11e). Reproduce: [README](../scripts/decompiler_known_source/README.md).
+
 ## Not yet done
 
 - A semantic check of the 91.6% and 82.7% agreement figures (they are textual).

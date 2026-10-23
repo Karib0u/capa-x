@@ -118,21 +118,23 @@ API: `DecompilerSession::decompile_unit(&[u64])` returns a `Unit` (text, the fun
 guesses, the sub-piece rewrites). Duplicate addresses are decompiled once; between 1 and 256
 functions; one function that fails to decompile fails the unit. The unit is, in order: Ghidra's
 pseudo-types and pseudo-operations (`CONCAT44`, `SUB84`, `ZEXT48`, `SEXT48`, `CARRY4`, `SCARRY4`,
-`SBORROW4`, `POPCOUNT`, `LZCOUNT`); the types the text names and the archive's prototype for every
+`SBORROW4`, `POPCOUNT`, `LZCOUNT`, and the float operations `ROUND`, `NAN`, `ABS`, `SQRT`, `CEIL`, `FLOOR`); the types the text names and the archive's prototype for every
 callee it knows, read from the prototype pack at request time (no Python, no compiler); a
 declaration for everything else; a forward declaration of each function in the unit; the bodies.
 
 **Every declaration that is a guess carries a `GUESS` comment and is listed in `guesses`.** A unit whose
 list is empty compiles on the strength of the archive alone. The kinds: `callee_without_prototype`
-(`extern long long f();`, parameters unspecified), `data_symbol` and `undeclared_global` (an `extern`
-typed from how the text uses the name: called through, indexed, dereferenced), `register_read`
+(`extern long long f();`, parameters unspecified), `data_symbol` (an `extern` without a definition, shaped by how the text uses the name: called
+through, a structure, indexed, dereferenced, only its address as `byte`; otherwise the scalar type the
+decompiler's analysis gave it, such as `float4` or `int4`), `undeclared_global` (the same, from the text
+alone), `register_read`
 (`unaff_*`, `in_*`, `extraout_*`), `stack_address` (`stack0x...`), `unrecovered_jump`
 (`UNRECOVERED_JUMPTABLE`). The rule for each construct that cannot compile as printed is in the
 header of `capa-x/src/decompiler/unit.rs`. Sub-piece accesses such as `x._0_4_` are not a guess: they are
 rewritten to a read or write of that byte range, and the count is in `rewrites`.
 
-What it does not do yet: data symbols get no size from the image and strings no bytes (the session does
-not keep the image; `s_` and `u_` names are `extern char[]` and `extern unsigned short[]`), enumerators are
+What it does not do yet: data symbols get no definition and strings no bytes (`s_` and `u_` names are
+`extern char[]` and `extern unsigned short[]`), enumerators are
 not declared (enumerations are integer typedefs), an indirect call through a computed table stays as
 printed, and a compile is well-formed C only: a dropped argument still compiles. The unit is never run.
 Measured results: [results](decompiler-baseline-results.md#step-13-self-contained-unit).

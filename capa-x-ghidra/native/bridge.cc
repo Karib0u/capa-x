@@ -1204,6 +1204,36 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
       response.warnings = std::move(gaps);
       response.incomplete = result < 0 || !response.warnings.empty();
       if (inferred) response.notes.push_back("Direct callee prototypes inferred from bounded native analysis; validate against machine code.");
+      // The type the analysis settled on for each data symbol, so a consumer that declares the
+      // symbols (the self-contained unit) need not guess it from the text: the first typed
+      // varnode at the symbol's address, in location order.
+      for (auto *symbol : impl->data_symbols) {
+        const SymbolEntry *entry = symbol->getFirstWholeMap();
+        if (!entry) throw std::runtime_error("data symbol " + symbol->getName() + " has no mapping");
+        const Address at = entry->getAddr();
+        const Datatype *type = nullptr;
+        for (auto it = fd->beginLoc(at); it != fd->endLoc() && (*it)->getAddr() == at; ++it) {
+          const Varnode *vn = *it;
+          if (vn->isFree() || vn->isAnnotation() || !vn->getType()) continue;
+          if (vn->getType()->getMetatype() != TYPE_UNKNOWN) {
+            type = vn->getType();
+            break;
+          }
+        }
+        NativeGlobal global;
+        global.name = symbol->getName();
+        global.address = at.getOffset();
+        global.size = uint32_t(type ? type->getSize() : entry->getSize());
+        switch (type ? type->getMetatype() : TYPE_UNKNOWN) {
+        case TYPE_FLOAT: global.kind = "float"; break;
+        case TYPE_INT: global.kind = "signed"; break;
+        case TYPE_UINT: global.kind = "unsigned"; break;
+        case TYPE_BOOL: global.kind = "bool"; break;
+        case TYPE_PTR: global.kind = "pointer"; break;
+        default: global.kind = "unknown"; break;
+        }
+        response.globals.push_back(std::move(global));
+      }
       impl->release(fd);
       impl->dropDataSymbols();
       return response;
