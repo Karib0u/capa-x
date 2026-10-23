@@ -1200,7 +1200,21 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
       impl->poisoned = false;
       impl->release(fd);
       impl->dropDataSymbols();
-      NativeOutput truncated = attempt(true);
+      NativeOutput truncated;
+      try {
+        truncated = attempt(true);
+      } catch (const LowlevelError &retry) {
+        // When the limit cuts the flow before the first instruction that emits p-code (leading
+        // nops), the engine places its artificial halt ahead of any block-start mark and rejects
+        // the flow. That is the same limit, so report it as such, not as an engine fault.
+        if (retry.explain.find("First op not marked as entry point") == std::string::npos) throw;
+        impl->poisoned = false;
+        impl->release(fd);
+        impl->dropDataSymbols();
+        throw std::runtime_error("Flow exceeded the maximum allowable instructions (" +
+                                 std::to_string(max_instructions) +
+                                 ") before the function produced any p-code; raise the instruction limit");
+      }
       truncated.incomplete = true;
       truncated.warnings.push_back("Instruction limit reached: some flow is truncated.");
       return truncated;
