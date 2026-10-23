@@ -29,6 +29,11 @@ mod ffi {
         notes: Vec<String>,
         incomplete: bool,
         unknown_callees: bool,
+        /// The same pseudocode printed with Ghidra's token markup, empty if that print failed.
+        markup: Vec<u8>,
+        /// Parallel arrays: p-code op index (`opref` in the markup) and its instruction address.
+        op_times: Vec<u32>,
+        op_addrs: Vec<u64>,
     }
     unsafe extern "C++" {
         include!("bridge.hh");

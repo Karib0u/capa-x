@@ -1153,6 +1153,33 @@ NativeOutput Session::decompile(uint64_t address, uint32_t timeout_ms, uint32_t 
         arch.print->setOutputStream(&impl->errors);
       }
       response.text = buffer.str();
+      // A second, marked-up print, kept only to map output lines back to instruction addresses.
+      // Best effort: a failure here must never affect the plain text above.
+      {
+        OutputBuffer marked;
+        std::ostream markedOut(&marked);
+        try {
+          arch.print->setOutputStream(&markedOut);
+          arch.print->setMarkup(true);
+          arch.print->setPackedOutput(false);
+          arch.print->docFunction(fd);
+          std::vector<std::pair<uint32_t, uint64_t>> ops;
+          for (auto it = fd->beginOpAll(); it != fd->endOpAll(); ++it)
+            ops.emplace_back(it->second->getTime(), it->second->getAddr().getOffset());
+          // Bytes, not a string: identifiers in the markup need not be valid UTF-8.
+          for (char ch : marked.str()) response.markup.push_back(static_cast<uint8_t>(ch));
+          for (const auto &op : ops) {
+            response.op_times.push_back(op.first);
+            response.op_addrs.push_back(op.second);
+          }
+        } catch (const BudgetExceeded &) {
+          throw;
+        } catch (...) {
+          // Leave the mapping out; the plain text is unaffected.
+        }
+        arch.print->setMarkup(false);
+        arch.print->setOutputStream(&impl->errors);
+      }
       for (auto it = arch.commentdb->beginComment(fd->getAddress()); it != arch.commentdb->endComment(fd->getAddress()); ++it)
         if ((*it)->getType() & (Comment::warning | Comment::warningheader)) response.warnings.push_back((*it)->getText());
       if (!impl->errors.str().empty()) response.warnings.push_back(impl->errors.str());
