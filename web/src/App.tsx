@@ -476,8 +476,7 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
   const [copied, setCopied] = useState(false);
   const [layout, setLayout] = useState<Layout>(() => (localStorage.getItem("layout") as Layout) || "split");
   useEffect(() => { try { localStorage.setItem("layout", layout); } catch {} }, [layout]);
-  const [inlineStr, setInlineStr] = useState(() => { try { return localStorage.getItem("inlineStrings") !== "0"; } catch { return true; } });
-  useEffect(() => { try { localStorage.setItem("inlineStrings", inlineStr ? "1" : "0"); } catch {} }, [inlineStr]);
+  const inlineStr = true; // strings a data label points at are written inline
   const copy = () => { if (f?.text) navigator.clipboard.writeText(f.text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200); }); };
   const noSelf = (t: string) => { const r = resolve(t); return r === address ? undefined : r; };
   const hasAsm = !!f?.asm?.length;
@@ -547,6 +546,11 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
   const [mTab, setMTab] = useState<"c" | "asm" | "refs">("c");
   const [wrap, setWrap] = useState(true);
   useEffect(() => { setMTab("c"); }, [address]);
+  // Tapping a C line selects its instructions (and the reverse); show them when the tab opens.
+  useEffect(() => {
+    if (!mobile) return;
+    document.querySelector(mTab === "asm" ? ".m-body .insn.hl" : ".m-body .ln.hl")?.scrollIntoView({ block: "center" });
+  }, [mTab, mobile]);
   if (mobile) {
     const refCount = (callees?.length ?? 0) + (callers?.length ?? 0) + strings.length;
     return (
@@ -569,8 +573,7 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
         </div>
         {mTab !== "refs" && (
           <div className="m-opts">
-            {mTab === "c" && <div className="seg"><button className={inlineStr ? "on" : ""} onClick={() => setInlineStr(true)}>"str"</button><button className={!inlineStr ? "on" : ""} onClick={() => setInlineStr(false)}>label</button></div>}
-            <label><input type="checkbox" checked={wrap} onChange={(e) => setWrap(e.target.checked)} /> Wrap lines</label>
+                        <label><input type="checkbox" checked={wrap} onChange={(e) => setWrap(e.target.checked)} /> Wrap lines</label>
           </div>
         )}
         <div className="m-body">
@@ -589,10 +592,6 @@ function FunctionView({ a, address, rules, resolve, onGoto, callers, callees, xr
           <h1>{fnLabel(address, f?.name)}</h1>
           <code className="addr">{hex(address)}</code>
           {rules.map((r) => <span key={r.name} className="cap" title={r.namespace ?? ""}>{r.name}</span>)}
-        </div>
-        <div className="seg" title="How referenced strings appear in the C">
-          <button className={inlineStr ? "on" : ""} onClick={() => setInlineStr(true)}>"str"</button>
-          <button className={!inlineStr ? "on" : ""} onClick={() => setInlineStr(false)}>label</button>
         </div>
         <div className="seg">
           {(["c", "split", "asm"] as Layout[]).map((l) => (
@@ -635,7 +634,7 @@ function StringsView({ a, refs, onGoto, query, setQuery }: {
         {a.strings.length} ASCII and UTF-16 strings{a.done ? "" : " · references appear once decompilation finishes"}
       </p>
       <div className="tools flat">
-        <input placeholder="Search strings" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus />
+        <input placeholder="Search strings" value={query} onChange={(e) => setQuery(e.target.value)} autoFocus={matchMedia("(pointer: fine)").matches} />
         <label><input type="checkbox" checked={onlyRef} onChange={(e) => setOnlyRef(e.target.checked)} /> referenced only</label>
       </div>
       {rows.slice(0, limit).map((x) => {
