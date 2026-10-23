@@ -32,6 +32,17 @@ npm run build            # static site in dist/ -- serve it from any static host
 
 All outputs are generated and git-ignored.
 
+## Graph view
+
+The **Graph** button in a function's header (or the Graph tab on a phone) draws the
+control-flow graph, as IDA's graph mode does. Basic blocks are rebuilt in the page from the
+instruction listing the engine already sends (`src/graph.ts`): a block starts at the entry,
+at every direct branch target and after every jump or return. Edges are green (taken), red
+(not taken) and blue (jump / fall-through); loop back edges are dashed and routed round the
+side. Drag to pan, scroll to pan, Ctrl/Cmd+scroll or pinch to zoom, click a block to
+highlight its edges, click a call target to open that function. Indirect jumps (jump tables)
+and tail calls out of the function get no edge.
+
 ## How it runs
 
 `src/analyze.ts` first downloads what the engine needs (`src/engine/assets.ts`,
