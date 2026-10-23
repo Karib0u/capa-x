@@ -31,7 +31,11 @@ export async function analyze(file: File, onUpdate: (a: Analysis) => void, signa
     const e = JSON.parse(line) as Event;
     switch (e.type) {
       case "start": a.order = e.functions; break;
-      case "function": a.functions.set(e.address, e); break;
+      case "function":
+        a.functions.set(e.address, e);
+        // A callee the decompiler found that recovery never listed: make it a navigable function.
+        if (!a.order.includes(e.address)) a.order = [...a.order, e.address].sort((x, y) => x - y);
+        break;
       case "capa": a.capa = e; break;
       case "capa_error": a.capaError = e.message; break;
       case "decompile_error": a.decompileError = e.message; break;

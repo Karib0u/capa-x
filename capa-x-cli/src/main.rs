@@ -722,7 +722,9 @@ fn run_decompile_all(_: &[u8]) -> Result<(), CliError> {
 /// Newline-delimited JSON: a `start` record listing the recovered function
 /// addresses, then one `function` record per function as it finishes. A
 /// function that fails to decompile yields an `error` field instead of text
-/// and does not stop the run.
+/// and does not stop the run. Callees the decompiler names `FUN_<address>` that
+/// recovery never listed (code shared through a `jmp`, say) are decompiled too,
+/// transitively, and flagged `extra` so the viewer can link to them.
 #[cfg(feature = "decompiler")]
 fn run_decompile_all(bytes: &[u8]) -> Result<(), CliError> {
     use capa_x::decompiler::DecompilerSession;
@@ -743,8 +745,17 @@ fn run_decompile_all(bytes: &[u8]) -> Result<(), CliError> {
         &mut out,
         serde_json::json!({ "type": "start", "functions": addresses }),
     )?;
-    for address in addresses {
+    // Cap on callees found only through decompiled text, so a pathological image stays bounded.
+    const MAX_EXTRA: usize = 2000;
+    let mut seen: std::collections::BTreeSet<u64> = addresses.iter().copied().collect();
+    let mut queue: std::collections::VecDeque<u64> = addresses.into_iter().collect();
+    let mut extras = 0usize;
+    while let Some(address) = queue.pop_front() {
+        let extra = !analysis.functions.contains_key(&address);
         let decompiled = session.decompile_function(address);
+        if extra && decompiled.is_err() {
+            continue;
+        }
         // Instruction listing in address order, as [address, hex bytes, text]. The recovery's
         // function extent can swallow code the decompiler treats as a tail call (a `jmp` into a
         // shared routine), so when the line mapping is known keep only blocks it touches, plus the
@@ -753,7 +764,14 @@ fn run_decompile_all(bytes: &[u8]) -> Result<(), CliError> {
             .as_ref()
             .map(|r| r.line_addresses.iter().flatten().copied().collect())
             .unwrap_or_default();
-        let mut listing: Vec<_> = analysis
+        let mut listing: Vec<_> = if extra {
+            // Not a recovered function: take the decoded instructions it spans.
+            match used.iter().next_back() {
+                Some(last) => analysis.instructions.range(address..=*last).map(|(_, insn)| insn).collect(),
+                None => Vec::new(),
+            }
+        } else {
+            analysis
             .functions
             .get(&address)
             .map(|function| {
@@ -768,7 +786,8 @@ fn run_decompile_all(bytes: &[u8]) -> Result<(), CliError> {
                     .flat_map(|block| block.insns.iter())
                     .collect()
             })
-            .unwrap_or_default();
+            .unwrap_or_default()
+        };
         listing.sort_by_key(|insn| insn.address);
         let asm: Vec<_> = listing
             .iter()
@@ -778,8 +797,18 @@ fn run_decompile_all(bytes: &[u8]) -> Result<(), CliError> {
             })
             .collect();
         let record = match decompiled {
-            Ok(result) => serde_json::json!({
+            Ok(result) => {
+                if let Some(next) = discover_callees(&result.text) {
+                    for callee in next {
+                        if extras < MAX_EXTRA && seen.insert(callee) {
+                            extras += 1;
+                            queue.push_back(callee);
+                        }
+                    }
+                }
+                serde_json::json!({
                 "type": "function",
+                "extra": extra,
                 "address": result.address,
                 "name": result.name,
                 "text": result.text,
@@ -790,7 +819,8 @@ fn run_decompile_all(bytes: &[u8]) -> Result<(), CliError> {
                 "ms": result.timings.decompilation_ms,
                 "asm": asm,
                 "lines": result.line_addresses,
-            }),
+                })
+            }
             Err(e) => serde_json::json!({
                 "type": "function",
                 "address": address,
@@ -801,6 +831,23 @@ fn run_decompile_all(bytes: &[u8]) -> Result<(), CliError> {
         emit(&mut out, record)?;
     }
     emit(&mut out, serde_json::json!({ "type": "done" }))
+}
+
+/// Addresses named by `FUN_<hex>` labels in decompiled text.
+#[cfg(feature = "decompiler")]
+fn discover_callees(text: &str) -> Option<Vec<u64>> {
+    let mut found = Vec::new();
+    let mut rest = text;
+    while let Some(at) = rest.find("FUN_") {
+        rest = &rest[at + 4..];
+        let digits: String = rest.chars().take_while(char::is_ascii_hexdigit).collect();
+        if (6..=16).contains(&digits.len()) {
+            if let Ok(address) = u64::from_str_radix(&digits, 16) {
+                found.push(address);
+            }
+        }
+    }
+    (!found.is_empty()).then_some(found)
 }
 
 #[cfg(not(feature = "decompiler"))]
