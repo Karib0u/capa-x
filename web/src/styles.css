@@ -247,7 +247,7 @@ a.xref:hover { background: var(--on); border-bottom-style: solid; border-radius:
 .m-opts label { display: flex; align-items: center; gap: 7px; min-height: 36px; margin-left: auto; }
 .m-opts .seg button { padding: 7px 14px; font-size: 13px; }
 .m-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.m-body .cp-pane { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 12px 16px calc(28px + env(safe-area-inset-bottom)); }
+.m-body .cp-pane { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; padding: 12px 16px 28px; }
 .cockpit.m .pane-label { display: none; }
 .cockpit.m .code { font-size: 13px; line-height: 1.7; }
 .cockpit.m .ln { min-height: 1.7em; }
